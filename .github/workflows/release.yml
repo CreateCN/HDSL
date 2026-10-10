@@ -103,7 +103,17 @@ jobs:
       # PowerShell runs nothing from the working directory without its path,
       # which is what the backslash is for; the runner's own desktop session
       # is what the JavaFX tests run under.
-      run: .\gradlew.bat clean build -PreleaseVersion=${{ env.VERSION }} --no-daemon --parallel
+      #
+      # The version travels as an environment variable rather than as
+      # `-PreleaseVersion=…`, and that is not a style choice: the wrapper hands the command line to
+      # `gradlew.ps1` through `%*` (gradlew.bat:55), and `-PreleaseVersion=0.2.1-rc.2` reached Gradle
+      # split into `-PreleaseVersion=0` and `.2.1-rc.2` — which Gradle read as a task named
+      # `.2.1-rc.2` and refused, twelve seconds into a release. Nothing splits an environment
+      # variable, and Gradle reads `ORG_GRADLE_PROJECT_releaseVersion` as the same project property
+      # the build file asks for.
+      env:
+        ORG_GRADLE_PROJECT_releaseVersion: ${{ env.VERSION }}
+      run: .\gradlew.bat clean build --no-daemon --parallel
       timeout-minutes: 30
     # The plain jar travels beside the executable, the way HMCL publishes its
     # own: both are built here, on a Windows runner, so both carry the Windows
@@ -237,8 +247,11 @@ jobs:
         } >> "${GITHUB_ENV}"
 
     - name: Build with Gradle
-      run: xvfb-run --auto-servernum ./gradlew clean build -PreleaseVersion=${{ env.VERSION }} --no-daemon --parallel
+      run: xvfb-run --auto-servernum ./gradlew clean build --no-daemon --parallel
       env:
+        # The version, by the same spelling as the Windows job: see the note there for why it is an
+        # environment variable rather than `-PreleaseVersion=…`.
+        ORG_GRADLE_PROJECT_releaseVersion: ${{ env.VERSION }}
         JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
       timeout-minutes: 30
     # appimagetool is an AppImage itself; the released one is used rather than a
@@ -417,8 +430,11 @@ jobs:
         } >> "${GITHUB_ENV}"
 
     - name: Build with Gradle
-      run: ./gradlew clean build -PreleaseVersion=${{ env.VERSION }} --no-daemon --parallel
+      run: ./gradlew clean build --no-daemon --parallel
       env:
+        # The version, by the same spelling as the Windows job: see the note there for why it is an
+        # environment variable rather than `-PreleaseVersion=…`.
+        ORG_GRADLE_PROJECT_releaseVersion: ${{ env.VERSION }}
         JAVA_TOOL_OPTIONS: -Djava.awt.headless=true
       timeout-minutes: 30
 
