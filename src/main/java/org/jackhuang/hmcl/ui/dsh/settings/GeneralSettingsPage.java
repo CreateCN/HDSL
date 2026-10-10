@@ -17,7 +17,7 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
-import com.mcxcc303.hdsl.DshDependencyPolicy;
+import com.mcxcc303.hdsl.plugin.DshDependencyPolicy;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.Metadata;

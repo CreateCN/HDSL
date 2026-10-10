@@ -18,7 +18,7 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
-import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.core.DshException;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -31,8 +31,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import org.jackhuang.hmcl.Metadata;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshProcess;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.launch.DshProcess;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.LogLine;

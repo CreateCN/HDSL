@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import com.mcxcc303.hdsl.DshPaths;
+import com.mcxcc303.hdsl.core.DshPaths;
 import org.jackhuang.hmcl.setting.LauncherSettings;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.setting.FontManager;

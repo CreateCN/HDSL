@@ -19,12 +19,12 @@ package org.jackhuang.hmcl.ui.dsh;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshPackForge;
-import com.mcxcc303.hdsl.DshPluginSettings;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.pack.DshPackForge;
+import com.mcxcc303.hdsl.plugin.DshPluginSettings;
 import javafx.scene.Node;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshModpacks;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.pack.DshModpacks;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardProvider;
 import org.jetbrains.annotations.NotNullByDefault;

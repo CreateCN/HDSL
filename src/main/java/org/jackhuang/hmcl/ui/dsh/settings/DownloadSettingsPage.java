@@ -17,14 +17,14 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshPluginCatalog;
-import com.mcxcc303.hdsl.DshProxyMode;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
+import com.mcxcc303.hdsl.launch.DshProxyMode;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.NodeSource;
+import com.mcxcc303.hdsl.runtime.NodeSource;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.ui.FXUtils;

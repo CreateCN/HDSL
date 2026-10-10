@@ -17,12 +17,12 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import com.mcxcc303.hdsl.DshHomeMode;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshInstanceIcon;
-import com.mcxcc303.hdsl.DshInstanceManager;
-import com.mcxcc303.hdsl.DshNodeRuntime;
-import com.mcxcc303.hdsl.DshPortMode;
+import com.mcxcc303.hdsl.instance.DshHomeMode;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceIcon;
+import com.mcxcc303.hdsl.instance.DshInstanceManager;
+import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
+import com.mcxcc303.hdsl.instance.DshPortMode;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

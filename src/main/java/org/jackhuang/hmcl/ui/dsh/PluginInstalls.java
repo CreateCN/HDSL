@@ -17,10 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.mcxcc303.hdsl.DshBuildScripts;
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshPluginInstaller;
+import com.mcxcc303.hdsl.plugin.DshBuildScripts;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jetbrains.annotations.NotNullByDefault;

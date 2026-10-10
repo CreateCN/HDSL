@@ -1,12 +1,11 @@
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.mcxcc303.hdsl.DshCommand;
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshInstallProgress;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshInstanceManager;
-import com.mcxcc303.hdsl.DshPluginInstaller;
-import com.mcxcc303.hdsl.DshVersionManager;
+import com.mcxcc303.hdsl.core.DshCommand;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceManager;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.task.TaskListener;

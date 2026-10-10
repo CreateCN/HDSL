@@ -17,15 +17,15 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
-import com.mcxcc303.hdsl.DshBuildScriptPolicy;
-import com.mcxcc303.hdsl.DshEnvironment;
-import com.mcxcc303.hdsl.DshHomeMode;
-import com.mcxcc303.hdsl.DshIsolationPolicy;
-import com.mcxcc303.hdsl.DshLauncherVisibility;
-import com.mcxcc303.hdsl.DshNodeRuntime;
-import com.mcxcc303.hdsl.DshPaths;
-import com.mcxcc303.hdsl.NodeRuntime;
-import com.mcxcc303.hdsl.NodeRuntimeManager;
+import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.launch.DshEnvironment;
+import com.mcxcc303.hdsl.instance.DshHomeMode;
+import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
+import com.mcxcc303.hdsl.launch.DshLauncherVisibility;
+import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
+import com.mcxcc303.hdsl.core.DshPaths;
+import com.mcxcc303.hdsl.runtime.NodeRuntime;
+import com.mcxcc303.hdsl.runtime.NodeRuntimeManager;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.setting.SettingsManager;

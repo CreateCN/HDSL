@@ -18,16 +18,16 @@
 package org.jackhuang.hmcl.ui.dsh.install;
 
 import javafx.scene.Node;
-import com.mcxcc303.hdsl.DshInstallProgress;
-import com.mcxcc303.hdsl.DshCommand;
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshHomeMode;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshInstanceManager;
-import com.mcxcc303.hdsl.DshPreset;
-import com.mcxcc303.hdsl.DshPresetCatalog;
-import com.mcxcc303.hdsl.DshVersionManager;
-import com.mcxcc303.hdsl.DshPluginInstaller;
+import org.jackhuang.hmcl.ui.dsh.DshInstallProgress;
+import com.mcxcc303.hdsl.core.DshCommand;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshHomeMode;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceManager;
+import com.mcxcc303.hdsl.harness.DshPreset;
+import com.mcxcc303.hdsl.harness.DshPresetCatalog;
+import com.mcxcc303.hdsl.harness.DshVersionManager;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;

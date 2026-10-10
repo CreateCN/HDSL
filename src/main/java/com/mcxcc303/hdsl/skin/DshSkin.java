@@ -18,7 +18,7 @@
 package com.mcxcc303.hdsl.skin;
 
 import javafx.scene.image.Image;
-import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.core.DshException;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 

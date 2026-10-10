@@ -18,7 +18,7 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXRadioButton;
-import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -31,8 +31,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.DshAccount;
-import com.mcxcc303.hdsl.DshVendor;
+import com.mcxcc303.hdsl.account.DshAccount;
+import com.mcxcc303.hdsl.account.DshVendor;
 import com.mcxcc303.hdsl.skin.DshSkin;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.ui.Controllers;

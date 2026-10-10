@@ -17,11 +17,11 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshSession;
-import com.mcxcc303.hdsl.DshSessionPacks;
-import com.mcxcc303.hdsl.DshSessions;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.launch.DshSession;
+import com.mcxcc303.hdsl.pack.DshSessionPacks;
+import com.mcxcc303.hdsl.launch.DshSessions;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;

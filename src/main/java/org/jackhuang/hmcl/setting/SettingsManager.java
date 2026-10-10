@@ -18,15 +18,15 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
-import com.mcxcc303.hdsl.DshAccount;
-import com.mcxcc303.hdsl.DshBuildScriptPolicy;
-import com.mcxcc303.hdsl.DshDependencyPolicy;
-import com.mcxcc303.hdsl.DshHomeMode;
-import com.mcxcc303.hdsl.DshIsolationPolicy;
-import com.mcxcc303.hdsl.DshLauncherVisibility;
-import com.mcxcc303.hdsl.DshProxyMode;
-import com.mcxcc303.hdsl.DshVendor;
-import com.mcxcc303.hdsl.NodeSource;
+import com.mcxcc303.hdsl.account.DshAccount;
+import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.plugin.DshDependencyPolicy;
+import com.mcxcc303.hdsl.instance.DshHomeMode;
+import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
+import com.mcxcc303.hdsl.launch.DshLauncherVisibility;
+import com.mcxcc303.hdsl.launch.DshProxyMode;
+import com.mcxcc303.hdsl.account.DshVendor;
+import com.mcxcc303.hdsl.runtime.NodeSource;
 import com.mcxcc303.hdsl.skin.DshSkinChoice;
 import org.glavo.monetfx.ColorStyle;
 import org.jackhuang.hmcl.Metadata;

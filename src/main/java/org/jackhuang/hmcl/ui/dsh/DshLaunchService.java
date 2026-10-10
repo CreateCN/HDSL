@@ -17,16 +17,16 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.mcxcc303.hdsl.DshAccount;
-import com.mcxcc303.hdsl.DshAccountRoute;
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshLauncher;
-import com.mcxcc303.hdsl.DshLauncherVisibility;
-import com.mcxcc303.hdsl.DshPorts;
-import com.mcxcc303.hdsl.DshProcess;
-import com.mcxcc303.hdsl.DshProcessManager;
-import com.mcxcc303.hdsl.DshProcessManager.LaunchState;
+import com.mcxcc303.hdsl.account.DshAccount;
+import com.mcxcc303.hdsl.account.DshAccountRoute;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.launch.DshLauncher;
+import com.mcxcc303.hdsl.launch.DshLauncherVisibility;
+import com.mcxcc303.hdsl.instance.DshPorts;
+import com.mcxcc303.hdsl.launch.DshProcess;
+import com.mcxcc303.hdsl.launch.DshProcessManager;
+import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.TaskExecutorDialogPane;

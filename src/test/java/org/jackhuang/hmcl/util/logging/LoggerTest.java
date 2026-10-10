@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.util.logging;
 
+import com.mcxcc303.hdsl.launch.DshLauncher;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

@@ -17,7 +17,7 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import com.mcxcc303.hdsl.DshEnvironment;
+import com.mcxcc303.hdsl.launch.DshEnvironment;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import static org.jackhuang.hmcl.setting.SettingsManager.settings;

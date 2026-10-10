@@ -18,12 +18,12 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
-import com.mcxcc303.hdsl.DshException;
-import com.mcxcc303.hdsl.DshInstance;
-import com.mcxcc303.hdsl.DshInstanceManager;
-import com.mcxcc303.hdsl.DshModpacks;
-import com.mcxcc303.hdsl.DshPluginInstaller;
-import com.mcxcc303.hdsl.DshVersionManager;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceManager;
+import com.mcxcc303.hdsl.pack.DshModpacks;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import com.mcxcc303.hdsl.harness.DshVersionManager;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -34,7 +34,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.DshPackInstaller;
+import com.mcxcc303.hdsl.pack.DshPackInstaller;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
