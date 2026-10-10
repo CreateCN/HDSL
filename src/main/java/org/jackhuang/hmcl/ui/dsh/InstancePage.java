@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.jfoenix.controls.JFXButton;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
@@ -495,7 +497,7 @@ public final class InstancePage extends DecoratorAnimatedPage implements Decorat
     private void duplicateInstance() {
         String newId = DshInstanceManager.nextId(instance.id());
         PluginInstalls.runCreating(i18n("dsh.instance.duplicating", instance.id()),
-                () -> DshInstanceManager.find(newId),
+                () -> InstanceStore.find(newId),
                 report -> DshInstanceManager.duplicate(instance.id(), newId, report::accept),
                 null);
     }

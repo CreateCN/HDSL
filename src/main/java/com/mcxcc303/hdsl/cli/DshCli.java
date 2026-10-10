@@ -17,6 +17,9 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.harness.HarnessInstaller;
 import com.mcxcc303.hdsl.harness.ReleaseQueries;
 
@@ -439,7 +442,7 @@ public final class DshCli {
                 case LIST_INSTALLED -> {
                     // A runtime belongs to the instance that runs it, so what
                     // there is to list is the instances and their runtimes.
-                    List<DshInstance> instances = DshInstanceManager.list();
+                    List<DshInstance> instances = InstanceListing.list();
                     if (instances.isEmpty()) {
                         out.println("(no instances)");
                     }
@@ -469,7 +472,7 @@ public final class DshCli {
                     return 2;
                 }
                 case LIST_INSTANCES -> {
-                    List<DshInstance> instances = DshInstanceManager.list();
+                    List<DshInstance> instances = InstanceListing.list();
                     if (instances.isEmpty()) {
                         out.println("(no instances)");
                     }
@@ -582,7 +585,7 @@ public final class DshCli {
                         err.println("error: --install-plugin needs an instance and a package spec");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -603,7 +606,7 @@ public final class DshCli {
                         err.println("error: --build-scripts needs an instance");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -634,7 +637,7 @@ public final class DshCli {
                         err.println("error: --upgrade-instance needs an instance and a version");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -663,7 +666,7 @@ public final class DshCli {
 
                     if (!specs.isEmpty()) {
                         out.println("Reinstalling " + specs.size() + " plugin(s)");
-                        DshInstance moved = DshInstanceManager.find(instance.id());
+                        DshInstance moved = InstanceStore.find(instance.id());
                         DshPluginInstaller.installSpecs(moved, specs, out::println);
                     }
                     out.println("Instance " + instance.id() + " now records " + version);
@@ -674,7 +677,7 @@ public final class DshCli {
                         err.println("error: --install-plugin-file needs an instance and a plugin file");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -694,7 +697,7 @@ public final class DshCli {
                         err.println("error: --export-packforge needs an instance and a file to write");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -712,7 +715,7 @@ public final class DshCli {
                         err.println("error: --export-modpack needs an instance and a file to write");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -752,7 +755,7 @@ public final class DshCli {
                         err.println("error: --restore-profile needs an instance and a pack");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -772,7 +775,7 @@ public final class DshCli {
                         err.println("error: --export-sessions needs an instance and a file to write");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -790,7 +793,7 @@ public final class DshCli {
                         err.println("error: --import-pack needs an instance and a pack to read");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -811,7 +814,7 @@ public final class DshCli {
                         err.println("error: --remove-plugin needs an instance and at least one package spec");
                         return 1;
                     }
-                    DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
                     if (instance == null) {
                         err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
                         return 1;
@@ -978,7 +981,7 @@ public final class DshCli {
             err.println("error: --import-sessions needs a target instance");
             return 1;
         }
-        DshInstance target = DshInstanceManager.find(invocation.arguments().get(0));
+        DshInstance target = InstanceStore.find(invocation.arguments().get(0));
         if (target == null) {
             err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
             return 1;
@@ -1048,7 +1051,7 @@ public final class DshCli {
             err.println("error: --print-launch-args needs an instance");
             return 1;
         }
-        DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
         if (instance == null) {
             err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
             return 1;
@@ -1072,7 +1075,7 @@ public final class DshCli {
             err.println("error: --test-launch needs an instance");
             return 1;
         }
-        DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
         if (instance == null) {
             err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
             return 1;
@@ -1122,7 +1125,7 @@ public final class DshCli {
             err.println("error: --list-sessions needs an instance");
             return 1;
         }
-        DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
         if (instance == null) {
             err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
             return 1;
@@ -1155,8 +1158,8 @@ public final class DshCli {
             err.println("error: --migrate-session needs a source instance, a session id and a target instance");
             return 1;
         }
-        DshInstance source = DshInstanceManager.find(invocation.arguments().get(0));
-        DshInstance target = DshInstanceManager.find(invocation.arguments().get(2));
+        DshInstance source = InstanceStore.find(invocation.arguments().get(0));
+        DshInstance target = InstanceStore.find(invocation.arguments().get(2));
         if (source == null || target == null) {
             err.println("error: the source or target instance does not exist");
             return 1;
@@ -1195,7 +1198,7 @@ public final class DshCli {
             err.println("error: --acp-prompt needs an instance and a prompt");
             return 1;
         }
-        DshInstance instance = DshInstanceManager.find(invocation.arguments().get(0));
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
         if (instance == null) {
             err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
             return 1;
@@ -1249,7 +1252,7 @@ public final class DshCli {
     /// @return the process exit code
     private static int launchInstance(Invocation invocation, PrintStream out, PrintStream err)
             throws DshException {
-        DshInstance instance = DshInstanceManager.find(invocation.subject());
+        DshInstance instance = InstanceStore.find(invocation.subject());
         if (instance == null) {
             err.println("error: instance " + invocation.subject() + " does not exist");
             return 1;

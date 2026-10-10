@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -117,7 +119,7 @@ class DshProcessLifecycleTest {
         // suite that cannot pass again. Clearing the id first is what makes each run
         // independent of the last.
         try {
-            if (DshInstanceManager.find(INSTANCE_ID) != null) {
+            if (InstanceStore.find(INSTANCE_ID) != null) {
                 DshInstanceManager.delete(INSTANCE_ID);
             }
         } catch (DshException e) {

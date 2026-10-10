@@ -17,6 +17,9 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.instance.InstanceFolders;
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.harness.AppBootPin;
 import com.mcxcc303.hdsl.harness.HarnessInstaller;
 
@@ -595,12 +598,12 @@ public final class DshModpacks {
         Manifest manifest = readManifest(pack);
         requireFormat(manifest);
 
-        DshInstance existing = DshInstanceManager.find(id);
+        DshInstance existing = InstanceStore.find(id);
         if (existing == null) {
             report(onStage, "Creating instance " + id);
             existing = DshInstanceManager.create(id, manifest.dshVersion(), manifest.profile(), workspace,
                     null, DshHomeMode.ISOLATED, null, List.of(), Map.of(),
-                    folder != null ? folder : DshInstanceManager.currentFolder());
+                    folder != null ? folder : InstanceFolders.currentFolder());
         }
 
         boolean installed = HarnessInstaller.isInstalled(existing);

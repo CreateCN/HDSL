@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import java.util.Map;
 
 import com.mcxcc303.hdsl.account.DshAccount;
@@ -791,7 +793,7 @@ public final class LauncherSettings {
     /// @return the command, or an empty string for none
     public String preLaunchCommandFor(String instanceId) {
         DshInstance instance =
-                DshInstanceManager.find(instanceId);
+                InstanceStore.find(instanceId);
         if (instance != null) {
             String own = DshInstanceSettings.preLaunchCommand(instance);
             if (own != null) {
@@ -807,7 +809,7 @@ public final class LauncherSettings {
     /// @return the command, or an empty string for none
     public String postExitCommandFor(String instanceId) {
         DshInstance instance =
-                DshInstanceManager.find(instanceId);
+                InstanceStore.find(instanceId);
         if (instance != null) {
             String own = DshInstanceSettings.postExitCommand(instance);
             if (own != null) {
@@ -832,7 +834,7 @@ public final class LauncherSettings {
     /// @return whether the window opens
     public boolean showLogsFor(String instanceId) {
         DshInstance instance =
-                DshInstanceManager.find(instanceId);
+                InstanceStore.find(instanceId);
         if (instance != null) {
             Boolean own = DshInstanceSettings.showLogs(instance);
             if (own != null) {
@@ -851,7 +853,7 @@ public final class LauncherSettings {
     /// @return whether debug lines are written
     public boolean debugLogFor(String instanceId) {
         DshInstance instance =
-                DshInstanceManager.find(instanceId);
+                InstanceStore.find(instanceId);
         if (instance != null) {
             Boolean own = DshInstanceSettings.debugLog(instance);
             if (own != null) {
@@ -870,7 +872,7 @@ public final class LauncherSettings {
     /// @return the choice
     public DshLauncherVisibility launcherVisibilityFor(String instanceId) {
         DshInstance instance =
-                DshInstanceManager.find(instanceId);
+                InstanceStore.find(instanceId);
         if (instance != null) {
             String own = DshInstanceSettings.launcherVisibility(instance);
             if (own != null) {

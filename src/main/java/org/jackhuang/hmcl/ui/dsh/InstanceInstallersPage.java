@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.harness.AppBootPin;
 
 import com.mcxcc303.hdsl.plugin.Catalog;
@@ -92,7 +94,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
         // The version row is read from the instance record rather than from its
         // files, so a version changed on another page is only visible once the
         // record is read again — which is what coming back to this page means.
-        DshInstance current = DshInstanceManager.find(instance.id());
+        DshInstance current = InstanceStore.find(instance.id());
         if (current != null) {
             instance = current;
         }

@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXPopup;
 import com.mcxcc303.hdsl.account.DshAccount;
@@ -245,7 +247,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
             int slash = rest.indexOf('/');
             String id = slash < 0 ? rest : rest.substring(0, slash);
             String tab = slash < 0 ? null : rest.substring(slash + 1);
-            DshInstance instance = DshInstanceManager.find(id);
+            DshInstance instance = InstanceStore.find(id);
             if (instance == null) {
                 return false;
             }
@@ -262,7 +264,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
         }
 
         if (raw.toLowerCase(Locale.ROOT).startsWith("export-modpack:")) {
-            DshInstance instance = DshInstanceManager
+            DshInstance instance = InstanceStore
                     .find(raw.substring("export-modpack:".length()));
             if (instance == null) {
                 return false;

@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
 import com.mcxcc303.hdsl.launch.DshEnvironment;
 import com.mcxcc303.hdsl.core.DshException;
@@ -551,7 +554,7 @@ public final class InstanceSettingsPage extends ScrollPane {
         LineTextPane row = new LineTextPane();
         try {
             Path home = instance.homeDirectory();
-            int others = DshInstanceManager.othersSharingHome(instance).size();
+            int others = InstanceListing.othersSharingHome(instance).size();
             row.setTitle(others == 0
                     ? i18n("dsh.instance.home.path")
                     : i18n("dsh.instance.home.path.shared", others));
@@ -588,7 +591,7 @@ public final class InstanceSettingsPage extends ScrollPane {
     /// The icon chooser writes to storage itself, so the pane cannot rely on
     /// having produced the change and has to pick it up afterwards.
     private void reloadFromStorage() {
-        DshInstance stored = DshInstanceManager.find(instance.id());
+        DshInstance stored = InstanceStore.find(instance.id());
         if (stored != null) {
             instance = stored;
         }
@@ -720,7 +723,7 @@ public final class InstanceSettingsPage extends ScrollPane {
             DshInstanceManager.update(updated);
             // Re-read rather than trusting the copy passed in: the stored
             // instance is what the rest of the interface will show.
-            DshInstance stored = DshInstanceManager.find(updated.id());
+            DshInstance stored = InstanceStore.find(updated.id());
             if (stored != null) {
                 instance = stored;
             }

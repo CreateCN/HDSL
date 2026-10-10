@@ -50,7 +50,7 @@ class DshPackContentsTest {
     @Test
     void aBundleLeftOutIsNeitherCarriedNorNamed(@TempDir Path temp) throws Exception {
         Path home = Files.createTempDirectory("pack-contents-home");
-        DshInstance instance = DshInstanceManager.find(INSTANCE_ID);
+        DshInstance instance = InstanceStore.find(INSTANCE_ID);
         if (instance == null) {
             instance = DshInstanceManager.create(INSTANCE_ID, "0.1.6-alpha.2",
                     DshInstance.DEFAULT_PROFILE, home, DshHomeMode.ISOLATED, null,

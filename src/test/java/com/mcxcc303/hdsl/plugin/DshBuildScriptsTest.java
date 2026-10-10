@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
 import com.mcxcc303.hdsl.plugin.DshBuildScripts;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
@@ -52,7 +54,7 @@ class DshBuildScriptsTest {
     @AfterEach
     void removeInstance() {
         try {
-            if (DshInstanceManager.find(ID) != null) {
+            if (InstanceStore.find(ID) != null) {
                 DshInstanceManager.delete(ID);
             }
         } catch (Exception ignored) {

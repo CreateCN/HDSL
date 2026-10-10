@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import com.mcxcc303.hdsl.instance.InstanceFolders;
+
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
@@ -78,13 +80,13 @@ class DshLaunchArgumentsWindowsTest {
     /// Points the manager at this test's own folder.
     @BeforeEach
     void makeItIsolate() {
-        previousFolders = DshInstanceManager.setFolders(() -> List.of(folder));
+        previousFolders = InstanceFolders.setFolders(() -> List.of(folder));
     }
 
     /// Puts the folders back, so one test does not decide the next.
     @AfterEach
     void putItBack() {
-        DshInstanceManager.setFolders(previousFolders);
+        InstanceFolders.setFolders(previousFolders);
     }
 
     /// Skips a test when the launcher has no Node.js it may run the stub with.

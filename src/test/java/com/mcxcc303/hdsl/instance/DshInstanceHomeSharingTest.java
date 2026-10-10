@@ -67,16 +67,16 @@ class DshInstanceHomeSharingTest {
     /// Points the manager at the two folders.
     @BeforeEach
     void pointTheLauncherAtTheFolders() {
-        previous = DshInstanceManager.setFolders(() -> List.of(oneFolder, anotherFolder));
+        previous = InstanceFolders.setFolders(() -> List.of(oneFolder, anotherFolder));
     }
 
     /// Removes what the tests made and puts the folders back.
     @AfterEach
     void cleanUp() {
-        DshInstanceManager.setFolders(previous);
+        InstanceFolders.setFolders(previous);
         for (String id : made) {
             try {
-                if (DshInstanceManager.find(id) != null) {
+                if (InstanceStore.find(id) != null) {
                     DshInstanceManager.delete(id);
                 }
             } catch (Exception ignored) {
@@ -96,9 +96,9 @@ class DshInstanceHomeSharingTest {
                 "the instances themselves are still two, each in its own folder");
 
         assertEquals(List.of(there.id()),
-                DshInstanceManager.othersSharingHome(here).stream().map(DshInstance::id).toList());
+                InstanceListing.othersSharingHome(here).stream().map(DshInstance::id).toList());
         assertEquals(List.of(here.id()),
-                DshInstanceManager.othersSharingHome(there).stream().map(DshInstance::id).toList());
+                InstanceListing.othersSharingHome(there).stream().map(DshInstance::id).toList());
     }
 
     @Test
@@ -106,7 +106,7 @@ class DshInstanceHomeSharingTest {
         DshInstance here = make("private-one", oneFolder, "0.1.7-rc.2", DshHomeMode.ISOLATED);
         make("private-two", anotherFolder, "0.1.7-rc.2", DshHomeMode.ISOLATED);
 
-        assertTrue(DshInstanceManager.othersSharingHome(here).isEmpty(),
+        assertTrue(InstanceListing.othersSharingHome(here).isEmpty(),
                 "an isolated home is inside the instance's own folder, so nobody else can be using it");
     }
 
@@ -115,7 +115,7 @@ class DshInstanceHomeSharingTest {
         DshInstance here = make("version-one", oneFolder, "0.1.7-rc.2", DshHomeMode.VERSION_SHARED);
         make("version-two", anotherFolder, "0.1.6-alpha.2", DshHomeMode.VERSION_SHARED);
 
-        assertTrue(DshInstanceManager.othersSharingHome(here).isEmpty(),
+        assertTrue(InstanceListing.othersSharingHome(here).isEmpty(),
                 "a home shared by version is keyed by the version, so another version is another home");
     }
 

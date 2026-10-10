@@ -143,12 +143,12 @@ class DshPortsTest {
             assertEquals(given, named.portOrDefault(), "the field starts at the port it had");
             DshInstanceManager.update(named.withPortPolicy(DshPortMode.FIXED, 34567));
 
-            DshInstance back = DshPorts.withMode(DshInstanceManager.find(instance.id()),
+            DshInstance back = DshPorts.withMode(InstanceStore.find(instance.id()),
                     DshPortMode.AUTO);
 
             assertEquals(given, back.portOrDefault(),
                     "automatic gives back the port the launcher gave, not the named one");
-            assertEquals(given, DshPorts.autoPort(DshInstanceManager.find(instance.id())),
+            assertEquals(given, DshPorts.autoPort(InstanceStore.find(instance.id())),
                     "and it is written down, so the next switch survives a restart too");
         } finally {
             DshInstanceManager.delete(instance.id());
@@ -165,7 +165,7 @@ class DshPortsTest {
         try {
             DshInstanceManager.update(instance.withPortPolicy(DshPortMode.FIXED, 34567));
 
-            DshInstance back = DshPorts.withMode(DshInstanceManager.find(instance.id()),
+            DshInstance back = DshPorts.withMode(InstanceStore.find(instance.id()),
                     DshPortMode.AUTO);
 
             assertNotEquals(34567, back.portOrDefault(), "automatic is not the named port in disguise");
@@ -200,7 +200,7 @@ class DshPortsTest {
     /// @return the instance
     private static DshInstance managedInstance(String id) throws Exception {
         Path workspace = Files.createTempDirectory("ports-workspace");
-        DshInstance existing = DshInstanceManager.find(id);
+        DshInstance existing = InstanceStore.find(id);
         if (existing != null) {
             DshInstanceManager.delete(id);
         }

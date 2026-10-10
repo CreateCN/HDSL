@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXListView;
@@ -157,7 +159,7 @@ public final class SkillMarketPage extends StackPane implements Refreshable {
         instanceBox.setMaxWidth(Double.MAX_VALUE);
         instanceBox.setConverter(FXUtils.stringConverter(
                 instance -> instance == null ? i18n("dsh.market.no_instance") : instance.id()));
-        instanceBox.getItems().setAll(DshInstanceManager.list());
+        instanceBox.getItems().setAll(InstanceListing.list());
         instanceBox.setValue(GameDirectoryManager.selectedInstanceProperty().get());
 
         nameField.setPromptText(i18n("dsh.skills.market.hint"));

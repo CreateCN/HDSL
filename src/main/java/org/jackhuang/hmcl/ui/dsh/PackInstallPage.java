@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.harness.HarnessInstaller;
 
 import com.jfoenix.controls.JFXButton;
@@ -246,11 +248,11 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         String id = uniqueId(container.text("name"));
         String profile = container.profileName("pack");
 
-        PluginInstalls.runCreating(title, () -> DshInstanceManager.find(id), report -> {
+        PluginInstalls.runCreating(title, () -> InstanceStore.find(id), report -> {
             report.accept("Container version " + container.containerVersion()
                     + ", manifest version " + container.manifestVersion());
 
-            DshInstance existing = DshInstanceManager.find(id);
+            DshInstance existing = InstanceStore.find(id);
             if (existing == null) {
                 DshPackInstaller.installNew(archive, id, profile, version, report::accept);
                 return;
@@ -300,8 +302,8 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         // Asked once, before anything runs: the promise that a failure leaves no half-made instance
         // behind is about what this install made, and a retry must keep it rather than mistake the
         // instance it is finishing for one that was already there.
-        boolean existed = DshInstanceManager.find(id) != null;
-        PluginInstalls.runCreating(title, () -> DshInstanceManager.find(id), report -> {
+        boolean existed = InstanceStore.find(id) != null;
+        PluginInstalls.runCreating(title, () -> InstanceStore.find(id), report -> {
             try {
                 report.accept("Installing " + id + " from the older pack format");
                 DshModpacks.install(archive, id,
@@ -313,7 +315,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
                     // answer's address: it stays, and the retry finishes it.
                     throw failed;
                 }
-                DshInstance made = DshInstanceManager.find(id);
+                DshInstance made = InstanceStore.find(id);
                 if (!existed && made != null) {
                     HarnessInstaller.discardPartial(made);
                     try {
@@ -342,11 +344,11 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         if (base.isEmpty() || !Character.isLetterOrDigit(base.charAt(0))) {
             base = "pack-" + base;
         }
-        if (DshInstanceManager.find(base) == null) {
+        if (InstanceStore.find(base) == null) {
             return base;
         }
         for (int i = 2; i < 1000; i++) {
-            if (DshInstanceManager.find(base + "-" + i) == null) {
+            if (InstanceStore.find(base + "-" + i) == null) {
                 return base + "-" + i;
             }
         }

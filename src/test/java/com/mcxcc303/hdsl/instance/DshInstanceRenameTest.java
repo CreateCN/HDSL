@@ -67,14 +67,14 @@ class DshInstanceRenameTest {
             DshInstance renamed = DshInstanceManager.rename(id, newId);
 
             assertEquals(newId, renamed.id(), "the instance has to come back under its new id");
-            assertNotNull(DshInstanceManager.find(newId), "the new id has to be readable");
-            assertNull(DshInstanceManager.find(id), "the old id must hold nothing");
-            assertTrue(Files.isRegularFile(newDirectory.resolve(DshInstanceManager.MANIFEST_NAME)),
+            assertNotNull(InstanceStore.find(newId), "the new id has to be readable");
+            assertNull(InstanceStore.find(id), "the old id must hold nothing");
+            assertTrue(Files.isRegularFile(newDirectory.resolve(InstanceStore.MANIFEST_NAME)),
                     "the manifest has to move with the instance instead of being deleted");
             assertTrue(Files.isRegularFile(newDirectory.resolve("dsh/marker.txt")),
                     "the runtime has to move with the instance");
             assertFalse(Files.exists(oldDirectory), "the old folder has to be gone");
-            assertTrue(DshInstanceManager.list().stream().anyMatch(i -> i.id().equals(newId)),
+            assertTrue(InstanceListing.list().stream().anyMatch(i -> i.id().equals(newId)),
                     "the list has to show the new id");
 
             if (mode == DshHomeMode.ISOLATED) {

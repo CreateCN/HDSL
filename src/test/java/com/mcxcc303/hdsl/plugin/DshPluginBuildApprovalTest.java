@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.plugin.DshBuildScripts;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -115,7 +117,7 @@ class DshPluginBuildApprovalTest {
     void removeInstance() {
         for (String id : List.of(ID, OTHER_ID)) {
             try {
-                if (DshInstanceManager.find(id) != null) {
+                if (InstanceStore.find(id) != null) {
                     DshInstanceManager.delete(id);
                 }
             } catch (Exception ignored) {

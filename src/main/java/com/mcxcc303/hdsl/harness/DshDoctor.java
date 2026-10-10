@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.harness;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
@@ -103,7 +105,7 @@ public final class DshDoctor {
         out.println();
 
         out.println("Instances and the DeepSeek Harness each carries");
-        List<DshInstance> installed = DshInstanceManager.list();
+        List<DshInstance> installed = InstanceListing.list();
         if (installed.isEmpty()) {
             out.println("  (none)");
         } else {

@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.collections.FXCollections;
@@ -380,7 +382,7 @@ public final class GameDirectoryManager {
         try (var children = Files.list(root)) {
             return (int) children
                     .filter(Files::isDirectory)
-                    .filter(child -> Files.isRegularFile(child.resolve(DshInstanceManager.MANIFEST_NAME)))
+                    .filter(child -> Files.isRegularFile(child.resolve(InstanceStore.MANIFEST_NAME)))
                     .count();
         } catch (java.io.IOException e) {
             return 0;

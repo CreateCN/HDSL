@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
@@ -217,7 +219,7 @@ class DshInstancesWiringTest {
             GameDirectoryManager.selectedInstanceProperty().addListener(
                     (observable, was, now) -> seen.add(now == null ? null : now.id()));
 
-            GameDirectoryManager.setSelectedInstance(DshInstanceManager.find(other.id()));
+            GameDirectoryManager.setSelectedInstance(InstanceStore.find(other.id()));
 
             assertEquals(List.of(other.id()), seen);
         } finally {

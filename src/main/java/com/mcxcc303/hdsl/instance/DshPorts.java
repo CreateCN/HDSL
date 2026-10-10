@@ -305,7 +305,7 @@ public final class DshPorts {
     /// @return the ports in use on paper
     static Set<Integer> claimedPorts(@Nullable String exceptInstanceId) {
         Set<Integer> claimed = new HashSet<>();
-        for (DshInstance instance : List.copyOf(DshInstanceManager.list())) {
+        for (DshInstance instance : List.copyOf(InstanceListing.list())) {
             if (instance.id().equals(exceptInstanceId)) {
                 continue;
             }

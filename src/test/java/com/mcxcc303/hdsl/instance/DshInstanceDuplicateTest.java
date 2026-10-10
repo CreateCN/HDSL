@@ -61,7 +61,7 @@ class DshInstanceDuplicateTest {
     void removeInstances() {
         for (String id : List.of(SOURCE_ID, TARGET_ID)) {
             try {
-                if (DshInstanceManager.find(id) != null) {
+                if (InstanceStore.find(id) != null) {
                     DshInstanceManager.delete(id);
                 }
             } catch (Exception ignored) {

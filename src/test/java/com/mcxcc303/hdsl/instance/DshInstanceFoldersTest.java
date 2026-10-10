@@ -66,13 +66,13 @@ class DshInstanceFoldersTest {
     /// Points the manager at the two folders, the shown one first.
     @BeforeEach
     void pointTheLauncherAtTheFolders() {
-        previous = DshInstanceManager.setFolders(() -> List.of(shown, other));
+        previous = InstanceFolders.setFolders(() -> List.of(shown, other));
     }
 
     /// Puts the folders back for the next test.
     @AfterEach
     void restoreTheFolders() {
-        DshInstanceManager.setFolders(previous);
+        InstanceFolders.setFolders(previous);
     }
 
     /// Creates an instance in a folder.
@@ -88,7 +88,7 @@ class DshInstanceFoldersTest {
 
     @Test
     void aNewInstanceGoesIntoTheFolderTheLauncherIsShowing() throws Exception {
-        DshInstance created = create("shown-folder-instance", DshInstanceManager.currentFolder());
+        DshInstance created = create("shown-folder-instance", InstanceFolders.currentFolder());
 
         assertEquals(shown.resolve("shown-folder-instance"), created.instanceDirectory(),
                 "install an instance means the folder on screen, not the one the launcher owns");
@@ -103,7 +103,7 @@ class DshInstanceFoldersTest {
         Path directory = other.resolve("other-folder-instance");
         Files.createDirectories(directory.resolve("dsh"));
 
-        DshInstance found = DshInstanceManager.find("other-folder-instance");
+        DshInstance found = InstanceStore.find("other-folder-instance");
 
         assertNotNull(found, "an instance in a folder the launcher looks in has to be found");
         assertEquals(directory, found.instanceDirectory(),
@@ -111,7 +111,7 @@ class DshInstanceFoldersTest {
         assertEquals(directory.resolve("dsh"), found.dshDirectory(),
                 "the copy of DeepSeek Harness it runs is the one inside it");
         assertEquals(directory.resolve("home"), found.homeDirectory());
-        assertTrue(DshInstanceManager.list().stream().anyMatch(i -> i.id().equals(created.id())),
+        assertTrue(InstanceListing.list().stream().anyMatch(i -> i.id().equals(created.id())),
                 "every folder the launcher looks in is listed");
     }
 
@@ -124,9 +124,9 @@ class DshInstanceFoldersTest {
                 DshHomeMode.ISOLATED, null, List.of(), Map.of(), null, null, null, 0, 0L);
         Path directory = other.resolve("adopted");
         Files.createDirectories(directory);
-        JsonUtils.writeToJsonFile(directory.resolve(DshInstanceManager.MANIFEST_NAME), handWritten);
+        JsonUtils.writeToJsonFile(directory.resolve(InstanceStore.MANIFEST_NAME), handWritten);
 
-        DshInstance found = DshInstanceManager.find("adopted");
+        DshInstance found = InstanceStore.find("adopted");
 
         assertNotNull(found);
         assertEquals(directory, found.instanceDirectory(),
@@ -152,13 +152,13 @@ class DshInstanceFoldersTest {
         Path copy = shown.resolve("held-twice");
         copyFolder(other.resolve("held-twice"), copy);
 
-        List<DshInstance> listed = DshInstanceManager.list().stream()
+        List<DshInstance> listed = InstanceListing.list().stream()
                 .filter(instance -> "held-twice".equals(instance.id()))
                 .toList();
         assertEquals(1, listed.size(), "one name is one row, however many folders hold the name");
         assertEquals(copy, listed.get(0).instanceDirectory(),
                 "the folder being shown comes first, so the row is about its copy");
-        assertEquals(copy, DshInstanceManager.find("held-twice").instanceDirectory(),
+        assertEquals(copy, InstanceStore.find("held-twice").instanceDirectory(),
                 "and every lookup agrees with the row, rather than being a coin toss");
 
         DshInstanceManager.delete("held-twice");
@@ -222,7 +222,7 @@ class DshInstanceFoldersTest {
         assertTrue(Files.isDirectory(other.resolve("renaming-over")),
                 "the instance keeps its own directory, because the rename did not happen");
         assertEquals(other.resolve("renaming-over"),
-                DshInstanceManager.find("renaming-over").instanceDirectory());
+                InstanceStore.find("renaming-over").instanceDirectory());
         DshInstanceManager.delete("renaming-over");
     }
 
@@ -236,7 +236,7 @@ class DshInstanceFoldersTest {
         assertFalse(Files.exists(other.resolve("removed-from-other")));
         assertTrue(Files.isDirectory(shown.resolve("kept-in-shown")),
                 "removing one instance leaves the other folder alone");
-        assertNull(DshInstanceManager.find("removed-from-other"));
+        assertNull(InstanceStore.find("removed-from-other"));
     }
 
 }

@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
@@ -103,7 +105,7 @@ class DshPackForgeTest {
 
     @Test
     void theManifestSaysWhatTheSpecificationRequires() throws Exception {
-        DshInstance instance = DshInstanceManager.find("packforge-test");
+        DshInstance instance = InstanceStore.find("packforge-test");
         Path home = Files.createTempDirectory("packforge-home");
         if (instance == null) {
             instance = DshInstanceManager.create("packforge-test", "0.1.6-alpha.2",
@@ -153,7 +155,7 @@ class DshPackForgeTest {
     @Test
     void theProfilesOwnFilesSitAtTheRootAndTheRestUnderOverrides() throws Exception {
         String id = "packforge-layout";
-        DshInstance instance = DshInstanceManager.find(id);
+        DshInstance instance = InstanceStore.find(id);
         if (instance == null) {
             instance = DshInstanceManager.create(id, "0.1.6-alpha.2",
                     DshInstance.DEFAULT_PROFILE, Files.createTempDirectory("packforge-layout-home"),

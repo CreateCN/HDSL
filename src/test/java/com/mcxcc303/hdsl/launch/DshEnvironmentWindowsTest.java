@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import com.mcxcc303.hdsl.instance.InstanceFolders;
+
 import com.mcxcc303.hdsl.launch.DshEnvironment;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -89,7 +91,7 @@ class DshEnvironmentWindowsTest {
     /// Points the manager at this test's own folder and remembers the launcher's environment.
     @BeforeEach
     void makeItIsolate() {
-        previousFolders = DshInstanceManager.setFolders(() -> List.of(folder));
+        previousFolders = InstanceFolders.setFolders(() -> List.of(folder));
         previousGlobalEnvironment = Map.copyOf(SettingsManager.settings().globalEnvironment());
     }
 
@@ -97,7 +99,7 @@ class DshEnvironmentWindowsTest {
     @AfterEach
     void putItBack() {
         SettingsManager.settings().globalEnvironmentProperty().set(previousGlobalEnvironment);
-        DshInstanceManager.setFolders(previousFolders);
+        InstanceFolders.setFolders(previousFolders);
     }
 
     /// Skips a test when the launcher has no Node.js it may run the stub with.

@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -63,7 +65,7 @@ class DshSessionPacksTest {
     void removeInstances() {
         for (String id : List.of(SOURCE_ID, TARGET_ID)) {
             try {
-                if (DshInstanceManager.find(id) != null) {
+                if (InstanceStore.find(id) != null) {
                     DshInstanceManager.delete(id);
                 }
             } catch (Exception ignored) {

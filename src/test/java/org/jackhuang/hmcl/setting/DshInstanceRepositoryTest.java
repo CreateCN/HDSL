@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
@@ -74,7 +76,7 @@ class DshInstanceRepositoryTest {
                 DshPortMode.AUTO, 0, createdAt);
         Path directory = folder.resolve(id);
         Files.createDirectories(directory);
-        JsonUtils.writeToJsonFile(directory.resolve(DshInstanceManager.MANIFEST_NAME), instance);
+        JsonUtils.writeToJsonFile(directory.resolve(InstanceStore.MANIFEST_NAME), instance);
         return instance;
     }
 
@@ -206,7 +208,7 @@ class DshInstanceRepositoryTest {
 
         // The instance the selection names is deleted, as removing it from the
         // list does; the folder must not keep pointing at something that is gone.
-        Files.delete(root.resolve("alpha").resolve(DshInstanceManager.MANIFEST_NAME));
+        Files.delete(root.resolve("alpha").resolve(InstanceStore.MANIFEST_NAME));
         refresh(repository);
 
         assertNotNull(repository.getSelectedInstance());

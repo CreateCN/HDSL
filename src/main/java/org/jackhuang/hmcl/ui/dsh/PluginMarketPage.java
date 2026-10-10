@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+
 import com.mcxcc303.hdsl.harness.ReleaseQueries;
 
 import com.mcxcc303.hdsl.plugin.Catalog;
@@ -230,7 +232,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
         instanceBox.setMaxWidth(Double.MAX_VALUE);
         instanceBox.setConverter(FXUtils.stringConverter(
                 instance -> instance == null ? i18n("dsh.market.no_instance") : instance.id()));
-        instanceBox.getItems().setAll(DshInstanceManager.list());
+        instanceBox.getItems().setAll(InstanceListing.list());
         instanceBox.setValue(GameDirectoryManager.selectedInstanceProperty().get());
 
         versionBox.setMaxWidth(Double.MAX_VALUE);

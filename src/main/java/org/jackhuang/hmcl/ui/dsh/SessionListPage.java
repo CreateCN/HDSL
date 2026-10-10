@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceListing;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXPopup;
@@ -270,7 +272,7 @@ public final class SessionListPage extends ListPageBase<DshSession> implements R
     /// @param anchor  the button the popup is anchored to
     private void showTargets(DshSession session, Node anchor) {
         List<DshInstance> targets = new ArrayList<>();
-        for (DshInstance candidate : DshInstanceManager.list()) {
+        for (DshInstance candidate : InstanceListing.list()) {
             if (!candidate.id().equals(instance.id())) {
                 targets.add(candidate);
             }

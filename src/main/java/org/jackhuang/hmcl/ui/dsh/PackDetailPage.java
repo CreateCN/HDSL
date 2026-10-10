@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import com.jfoenix.controls.JFXButton;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
@@ -366,11 +368,11 @@ public final class PackDetailPage extends DecoratorAnimatedPage implements Decor
         if (base.isEmpty() || !Character.isLetterOrDigit(base.charAt(0))) {
             base = "pack-" + base;
         }
-        if (DshInstanceManager.find(base) == null) {
+        if (InstanceStore.find(base) == null) {
             return base;
         }
         for (int i = 2; i < 1000; i++) {
-            if (DshInstanceManager.find(base + "-" + i) == null) {
+            if (InstanceStore.find(base + "-" + i) == null) {
                 return base + "-" + i;
             }
         }

@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import com.mcxcc303.hdsl.instance.InstanceFolders;
+
 import com.mcxcc303.hdsl.launch.DshCustomCommands;
 import com.mcxcc303.hdsl.launch.DshEnvironment;
 import com.mcxcc303.hdsl.core.DshException;
@@ -75,13 +77,13 @@ class DshCustomCommandsWindowsTest {
     /// Points the manager at this test's own folder.
     @BeforeEach
     void makeItIsolate() {
-        previousFolders = DshInstanceManager.setFolders(() -> List.of(folder));
+        previousFolders = InstanceFolders.setFolders(() -> List.of(folder));
     }
 
     /// Puts the folders back, so one test does not decide the next.
     @AfterEach
     void putItBack() {
-        DshInstanceManager.setFolders(previousFolders);
+        InstanceFolders.setFolders(previousFolders);
     }
 
     /// The interpreter the launcher has to be handing the line to.

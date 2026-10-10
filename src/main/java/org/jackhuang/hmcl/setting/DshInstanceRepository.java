@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.mcxcc303.hdsl.instance.InstanceStore;
+
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
@@ -206,7 +208,7 @@ public final class DshInstanceRepository {
     /// the publication is moved onto the interface thread, because the snapshot
     /// is what interface bindings hang off.
     public void refresh() {
-        List<DshInstance> instances = DshInstanceManager.listIn(directory.directory());
+        List<DshInstance> instances = InstanceStore.listIn(directory.directory());
         publish(new Snapshot(directory, instances, revisions.incrementAndGet()));
     }
 
