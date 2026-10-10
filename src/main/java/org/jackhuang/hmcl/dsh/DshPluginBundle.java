@@ -135,8 +135,11 @@ public final class DshPluginBundle {
     ///
     /// @param declared         the specification
     /// @param profileDirectory the profile, for a specification that is relative
+    /// Shared with [DshPluginInstaller], which has to know the package a specification is about
+    /// before it can ask about that package's install scripts.
+    ///
     /// @return the file, or `null` when the specification does not name one
-    private static @Nullable Path fileOf(String declared, Path profileDirectory) {
+    static @Nullable Path fileOf(String declared, Path profileDirectory) {
         String raw = declared.trim();
         if (raw.startsWith("link:")) {
             // A link is a promise about a directory, not a file, and the directory is not part of
@@ -324,8 +327,22 @@ public final class DshPluginBundle {
                         Files.copy(zip, target, StandardCopyOption.REPLACE_EXISTING);
                         return target.toAbsolutePath().normalize();
                     }
-                    Path target = pluginsDirectory.resolve(carried)
-                            .resolve(rest.substring(slash + 1).replace('/', java.io.File.separatorChar));
+                    Path base = pluginsDirectory.toAbsolutePath().normalize();
+                    Path target = base.resolve(carried)
+                            .resolve(rest.substring(slash + 1).replace('/', java.io.File.separatorChar))
+                            .normalize();
+                    // A pack is an archive somebody downloaded, so where each of its members lands is
+                    // checked rather than assumed: the name a payload carries is a path, and a path
+                    // is what an archive chooses for itself. `plugins/<name>-<version>/../../x.yml`
+                    // passes the check above — the payload is this package's — and would otherwise be
+                    // written over whatever the two `..` reach, which for a plugin directory inside an
+                    // instance is the instance, the profile and, from there, anything the user owns.
+                    if (!target.startsWith(base)) {
+                        LOG.warning("Not unpacking " + entryName + " out of " + pack.getFileName()
+                                + ": it would be written outside " + base);
+                        throw new IOException("That pack tries to write outside the plugin directory ("
+                                + entryName + ")");
+                    }
                     Files.createDirectories(target.getParent());
                     // Read straight out of the archive: closing anything here would close the
                     // archive, and the entries after this one would be gone.
