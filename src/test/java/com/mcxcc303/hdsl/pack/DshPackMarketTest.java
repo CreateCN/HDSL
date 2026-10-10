@@ -18,7 +18,6 @@
 package com.mcxcc303.hdsl.pack;
 
 import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.pack.DshPackInstaller;
 import com.mcxcc303.hdsl.pack.DshPackMarket;
 
 import org.junit.jupiter.api.Test;
@@ -178,7 +177,7 @@ class DshPackMarketTest {
     @Test
     void aContainerIsRecognisedByItsMarker() throws Exception {
         Path pack = container();
-        DshPackInstaller.Container recognised = DshPackInstaller.identify(pack);
+        DspackContainer.Container recognised = DspackContainer.identify(pack);
 
         assertEquals(3, recognised.containerVersion());
         assertEquals(5, recognised.manifestVersion());
@@ -191,19 +190,19 @@ class DshPackMarketTest {
     @Test
     void whatIsNotAPackIsRefusedWithoutGuessing() throws Exception {
         Path plain = archive("readme.txt", "just a zip");
-        assertThrows(DshException.class, () -> DshPackInstaller.identify(plain));
+        assertThrows(DshException.class, () -> DspackContainer.identify(plain));
         Files.deleteIfExists(plain);
 
         Path future = archive(
                 "dspack.json", "{\"format\":\"dspack\",\"version\":9}",
                 "manifest.json", "{}");
-        assertThrows(DshException.class, () -> DshPackInstaller.identify(future));
+        assertThrows(DshException.class, () -> DspackContainer.identify(future));
         Files.deleteIfExists(future);
 
         Path mismatched = archive(
                 "dspack.json", "{\"format\":\"dspack\",\"version\":3}",
                 "manifest.json", "{\"manifestVersion\":4,\"type\":\"profile\"}");
-        assertThrows(DshException.class, () -> DshPackInstaller.identify(mismatched));
+        assertThrows(DshException.class, () -> DspackContainer.identify(mismatched));
         Files.deleteIfExists(mismatched);
     }
 
@@ -218,7 +217,7 @@ class DshPackMarketTest {
         Path destination = Files.createTempDirectory("profile");
         Path home = Files.createTempDirectory("home");
 
-        DshPackInstaller.Landed landed = DshPackInstaller.land(pack, destination, home);
+        DspackLander.Landed landed = DspackLander.land(pack, destination, home);
 
         assertEquals(2, landed.overrides(), "both overrides land in the profile");
         assertEquals(1, landed.home(), "home/ lands in the home");
@@ -248,16 +247,16 @@ class DshPackMarketTest {
         Path destination = Files.createTempDirectory("profile");
         Path home = Files.createTempDirectory("home");
 
-        DshPackInstaller.Landed machine = DshPackInstaller.land(pack, destination, home,
-                java.util.EnumSet.of(DshPackInstaller.Part.MACHINE));
+        DspackLander.Landed machine = DspackLander.land(pack, destination, home,
+                java.util.EnumSet.of(DspackLander.Part.MACHINE));
         assertEquals(1, machine.machine());
         assertEquals(0, machine.overrides());
         assertTrue(Files.isRegularFile(destination.resolve("package.json")));
         assertFalse(Files.exists(destination.resolve("cordis.patch.yml")),
                 "the overrides must not be written before the dependencies are installed");
 
-        DshPackInstaller.Landed rest = DshPackInstaller.land(pack, destination, home,
-                java.util.EnumSet.of(DshPackInstaller.Part.OVERRIDES, DshPackInstaller.Part.HOME));
+        DspackLander.Landed rest = DspackLander.land(pack, destination, home,
+                java.util.EnumSet.of(DspackLander.Part.OVERRIDES, DspackLander.Part.HOME));
         assertEquals(1, rest.overrides());
         assertEquals(1, rest.home());
         assertEquals(0, rest.machine());
@@ -276,7 +275,7 @@ class DshPackMarketTest {
         Path destination = Files.createTempDirectory("profile");
         Path home = Files.createTempDirectory("home");
 
-        assertThrows(DshException.class, () -> DshPackInstaller.land(pack, destination, home));
+        assertThrows(DshException.class, () -> DspackLander.land(pack, destination, home));
         Files.deleteIfExists(pack);
     }
 
@@ -287,7 +286,7 @@ class DshPackMarketTest {
             Path pack = container(name, "secret");
             Path destination = Files.createTempDirectory("profile");
             Path home = Files.createTempDirectory("home");
-            assertThrows(DshException.class, () -> DshPackInstaller.land(pack, destination, home),
+            assertThrows(DshException.class, () -> DspackLander.land(pack, destination, home),
                     name + " must not be written from a pack");
             Files.deleteIfExists(pack);
         }
@@ -298,7 +297,7 @@ class DshPackMarketTest {
         Path pack = container("overrides/inner.zip", "PK");
         Path destination = Files.createTempDirectory("profile");
         Path home = Files.createTempDirectory("home");
-        assertThrows(DshException.class, () -> DshPackInstaller.land(pack, destination, home));
+        assertThrows(DshException.class, () -> DspackLander.land(pack, destination, home));
         Files.deleteIfExists(pack);
     }
 
@@ -312,14 +311,14 @@ class DshPackMarketTest {
                 org.jackhuang.hmcl.util.DigestUtils.digestToString("SHA-256", pack),
                 bytes.length, "x", "y", 5, "profile", null, null, null, null, null, null, null);
         // The one the index described is accepted, so the check is not simply refusing everything.
-        DshPackInstaller.verify(right, pack);
+        DspackDownload.verify(right, pack);
 
         // A digest that does not match is a different file, and must not be installed.
         DshPackMarket.Entry wrongDigest = new DshPackMarket.Entry("x.y", "y", "1.0.0", "Y", null,
                 "https://example.invalid/y.dspack",
                 "0000000000000000000000000000000000000000000000000000000000000000",
                 bytes.length, "x", "y", 5, "profile", null, null, null, null, null, null, null);
-        assertThrows(DshException.class, () -> DshPackInstaller.verify(wrongDigest, pack));
+        assertThrows(DshException.class, () -> DspackDownload.verify(wrongDigest, pack));
 
         // A file that is the wrong length did not arrive whole, which is worth saying in those words
         // rather than as a digest mismatch.
@@ -327,7 +326,7 @@ class DshPackMarketTest {
                 "https://example.invalid/y.dspack", right.sha256(), bytes.length + 100,
                 "x", "y", 5, "profile", null, null, null, null, null, null, null);
         DshException refused = assertThrows(DshException.class,
-                () -> DshPackInstaller.verify(wrongSize, pack));
+                () -> DspackDownload.verify(wrongSize, pack));
         assertTrue(refused.getMessage().contains("whole"),
                 "the length failure must be reported as one: " + refused.getMessage());
 
@@ -366,7 +365,7 @@ class DshPackMarketTest {
                 "https://example.invalid/n.dspack",
                 "1111111111111111111111111111111111111111111111111111111111111111",
                 12345, "no", "such", null, null, null, null, null, null, null, null, null);
-        assertFalse(DshPackInstaller.isCached(entry));
-        assertNotNull(DshPackInstaller.archiveFile(entry));
+        assertFalse(DspackDownload.isCached(entry));
+        assertNotNull(DspackDownload.archiveFile(entry));
     }
 }

@@ -23,7 +23,6 @@ import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.pack.DshPackForge;
-import com.mcxcc303.hdsl.pack.DshPackInstaller;
 
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
@@ -189,17 +188,17 @@ class DshPackForgeTest {
 
             // And what the installer does with each place, in the order it does it.
             Path destination = Files.createTempDirectory("packforge-landed");
-            DshPackInstaller.Landed machine = DshPackInstaller.land(pack, destination,
+            DspackLander.Landed machine = DspackLander.land(pack, destination,
                     Files.createTempDirectory("packforge-target-home"),
-                    java.util.EnumSet.of(DshPackInstaller.Part.MACHINE));
+                    java.util.EnumSet.of(DspackLander.Part.MACHINE));
             assertEquals(2, machine.machine(), "the pack carries two machine files");
             assertTrue(Files.isRegularFile(destination.resolve("package.json")),
                     "they land first, because the dependency install reads them");
             assertFalse(Files.exists(destination.resolve("cordis.patch.yml")),
                     "and the overrides do not land with them");
 
-            DshPackInstaller.land(pack, destination, null,
-                    java.util.EnumSet.of(DshPackInstaller.Part.OVERRIDES));
+            DspackLander.land(pack, destination, null,
+                    java.util.EnumSet.of(DspackLander.Part.OVERRIDES));
             assertTrue(Files.isRegularFile(destination.resolve("cordis.patch.yml")),
                     "the composition lands afterwards, on top of what the install wrote");
         } finally {

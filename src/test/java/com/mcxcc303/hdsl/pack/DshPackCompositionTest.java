@@ -1,6 +1,5 @@
 package com.mcxcc303.hdsl.pack;
 
-import com.mcxcc303.hdsl.pack.DshPackInstaller;
 
 import org.junit.jupiter.api.Test;
 
@@ -60,6 +59,6 @@ class DshPackCompositionTest {
     }
 
     private static String failure(String output) {
-        return DshPackInstaller.failureOf(output);
+        return DspackLander.failureOf(output);
     }
 }

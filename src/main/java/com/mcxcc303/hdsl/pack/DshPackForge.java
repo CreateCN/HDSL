@@ -318,7 +318,7 @@ public final class DshPackForge {
                     // `overrides/` arrives too late to be installed from. One predicate decides
                     // which is which, and the installer reads the archive with the same one.
                     copy(zip, profile.resolve(entry.relative()),
-                            DshPackInstaller.isMachineFile(entry.relative())
+                            DspackSafety.isMachineFile(entry.relative())
                                     ? entry.relative()
                                     : OVERRIDES + entry.relative());
                 }

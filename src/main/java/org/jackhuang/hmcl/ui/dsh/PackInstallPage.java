@@ -17,6 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.pack.DspackContainer;
+import com.mcxcc303.hdsl.pack.DspackDownload;
+import com.mcxcc303.hdsl.pack.DspackLander;
+
 import com.mcxcc303.hdsl.pack.ModpackInstaller;
 import com.mcxcc303.hdsl.pack.PackManifest;
 
@@ -39,7 +43,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.pack.DshPackInstaller;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
@@ -168,7 +171,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
                 handler.reject(i18n("dsh.pack.url.empty"));
                 return;
             }
-            Path target = DshPackInstaller.cacheDirectory()
+            Path target = DspackDownload.cacheDirectory()
                     .resolve("downloaded-" + System.currentTimeMillis() + ".dspack");
             try {
                 Files.createDirectories(target.getParent());
@@ -234,9 +237,9 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         // what the retry looks the instance up by, and a pack that cannot be read at all should say
         // so without a progress dialog having flashed first.
         String title = i18n("dsh.pack.installing", archive.getFileName().toString());
-        DshPackInstaller.Container container;
+        DspackContainer.Container container;
         try {
-            container = DshPackInstaller.identify(archive);
+            container = DspackContainer.identify(archive);
         } catch (DshException e) {
             Controllers.dialog(e.getMessage(), title, MessageDialogPane.MessageType.ERROR);
             return;
@@ -256,13 +259,13 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
 
             DshInstance existing = InstanceStore.find(id);
             if (existing == null) {
-                DshPackInstaller.installNew(archive, id, profile, version, report::accept);
+                DspackLander.installNew(archive, id, profile, version, report::accept);
                 return;
             }
             // A retry after an install-script answer. The instance is the one pnpm asked about, and
             // the question is written into its profile, so it is finished here rather than made again.
             report.accept("Finishing " + id + " now that the install scripts are answered");
-            DshPackInstaller.finish(archive, existing, report::accept);
+            DspackLander.finish(archive, existing, report::accept);
         }, () -> Controllers.navigate(MainPage.instance().getInstancesPage()));
     }
 

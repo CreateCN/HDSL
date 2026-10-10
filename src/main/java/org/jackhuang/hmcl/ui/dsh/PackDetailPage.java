@@ -17,6 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.pack.DspackContainer;
+import com.mcxcc303.hdsl.pack.DspackDownload;
+import com.mcxcc303.hdsl.pack.DspackLander;
+
 import com.mcxcc303.hdsl.instance.InstanceStore;
 
 import com.jfoenix.controls.JFXButton;
@@ -34,7 +38,6 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.pack.DshPackInstaller;
 import com.mcxcc303.hdsl.pack.DshPackMarket;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -89,7 +92,7 @@ public final class PackDetailPage extends DecoratorAnimatedPage implements Decor
     private final Label readme = new Label();
 
     /// What was read out of the manifest, for the install to use.
-    private @Nullable DshPackInstaller.Container container;
+    private @Nullable DspackContainer.Container container;
 
     /// The button that installs.
     ///
@@ -321,17 +324,17 @@ public final class PackDetailPage extends DecoratorAnimatedPage implements Decor
     /// before it is opened, its container is recognised before anything is created, and only then is
     /// an instance made. A failure at any step leaves nothing behind but a file in the cache.
     private void install() {
-        Path archive = DshPackInstaller.archiveFile(entry);
+        Path archive = DspackDownload.archiveFile(entry);
         String id = suggestedId();
 
         ProgressDialog.run(i18n("dsh.pack.installing", entry.title()), report -> {
             report.accept("Downloading " + entry.downloadUrl());
             // The digest and the length are both checked inside, as the bytes arrive and before the
             // file is moved into place, so what comes back is what the market described.
-            DshPackInstaller.download(entry, report::accept);
+            DspackDownload.download(entry, report::accept);
             report.accept("The pack matches the market's size and SHA-256");
 
-            DshPackInstaller.Container container0 = DshPackInstaller.identify(archive);
+            DspackContainer.Container container0 = DspackContainer.identify(archive);
             report.accept("Container version " + container0.containerVersion()
                     + ", manifest version " + container0.manifestVersion());
             container = container0;
@@ -346,7 +349,7 @@ public final class PackDetailPage extends DecoratorAnimatedPage implements Decor
                         + "needs, and one must be installed before it can be", null);
             }
 
-            DshPackInstaller.installNew(archive, id, profile, version, report::accept);
+            DspackLander.installNew(archive, id, profile, version, report::accept);
         }, () -> {
             // Land on the instance list, which is where the thing that was just made is. The
             // original does the same after installing a modpack: the installation is over, and what
