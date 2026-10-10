@@ -18,13 +18,12 @@
 package org.jackhuang.hmcl.ui.dsh.install;
 
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshPackageRegistry;
-import org.jackhuang.hmcl.dsh.DshPreset;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshPackageRegistry;
+import com.mcxcc303.hdsl.DshPreset;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.dsh.VersionFilterBar;

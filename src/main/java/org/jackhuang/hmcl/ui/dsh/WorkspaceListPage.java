@@ -20,6 +20,12 @@ package org.jackhuang.hmcl.ui.dsh;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXListView;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshSession;
+import com.mcxcc303.hdsl.DshSessions;
+import com.mcxcc303.hdsl.DshWorkspace;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -29,11 +35,6 @@ import javafx.scene.input.MouseButton;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshSession;
-import org.jackhuang.hmcl.dsh.DshSessions;
-import org.jackhuang.hmcl.dsh.DshWorkspace;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -290,7 +291,7 @@ public final class WorkspaceListPage extends ListPageBase<DshWorkspace> implemen
             HBox.setHgrow(content, Priority.ALWAYS);
             content.setMouseTransparent(true);
 
-            icon.setImage(org.jackhuang.hmcl.dsh.DshInstanceIcon.COMMAND.load());
+            icon.setImage(DshInstanceIcon.COMMAND.load());
             FXUtils.installFastTooltip(open, i18n("dsh.workspace.open"));
 
             tick.setOnAction(event -> {

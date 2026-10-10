@@ -18,6 +18,16 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.DshDependencyPolicy;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshIsolationPolicy;
+import com.mcxcc303.hdsl.DshLauncherVisibility;
+import com.mcxcc303.hdsl.DshProxyMode;
+import com.mcxcc303.hdsl.DshVendor;
+import com.mcxcc303.hdsl.NodeSource;
+import com.mcxcc303.hdsl.skin.DshSkinChoice;
 import org.glavo.monetfx.ColorStyle;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.theme.BackgroundLoadPolicy;
@@ -379,7 +389,7 @@ public final class SettingsManager {
         /// @param baseUrl  the endpoint, for a vendor whose address is per account
         /// @param label    what the person calls it
         private record AccountSnapshot(
-                @Nullable org.jackhuang.hmcl.dsh.DshAccount.AccountKind kind,
+                @Nullable DshAccount.AccountKind kind,
                 String vendorId, String apiKey,
                 @Nullable String baseUrl, @Nullable String label,
                 @Nullable String model,
@@ -582,7 +592,7 @@ public final class SettingsManager {
             snapshot.autoDownloadThreads = settings.autoDownloadThreadsProperty().get();
             snapshot.downloadConcurrency = settings.downloadConcurrencyProperty().get();
             snapshot.proxyMode = (settings.proxyModeProperty().get() == null
-                    ? org.jackhuang.hmcl.dsh.DshProxyMode.SYSTEM : settings.proxyModeProperty().get()).id();
+                    ? DshProxyMode.SYSTEM : settings.proxyModeProperty().get()).id();
             snapshot.proxyHost = settings.proxyHostProperty().get();
             snapshot.proxyPort = settings.proxyPortProperty().get();
             snapshot.proxyAuthenticated = settings.proxyAuthenticatedProperty().get();
@@ -621,8 +631,8 @@ public final class SettingsManager {
             }
             if (defaultHomeMode != null) {
                 settings.defaultHomeModeProperty().set(parseEnum(
-                        org.jackhuang.hmcl.dsh.DshHomeMode.class, defaultHomeMode,
-                        org.jackhuang.hmcl.dsh.DshHomeMode.ISOLATED));
+                        DshHomeMode.class, defaultHomeMode,
+                        DshHomeMode.ISOLATED));
             }
             if (gameDirectories != null) {
                 settings.gameDirectoriesProperty().set(java.util.List.copyOf(gameDirectories));
@@ -692,22 +702,22 @@ public final class SettingsManager {
             }
             if (accounts != null) {
                 for (AccountSnapshot account : accounts) {
-                    settings.getAccounts().add(new org.jackhuang.hmcl.dsh.DshAccount(
+                    settings.getAccounts().add(new DshAccount(
                             account.kind() == null
-                                    ? org.jackhuang.hmcl.dsh.DshAccount.AccountKind.THIRD_PARTY
+                                    ? DshAccount.AccountKind.THIRD_PARTY
                                     : account.kind(),
                             account.vendorId(), account.apiKey(), account.baseUrl(),
                             account.label(), account.model(),
-                            new org.jackhuang.hmcl.dsh.skin.DshSkinChoice(
+                            new DshSkinChoice(
                                     // Read through the forgiving reader rather than the enum's own:
                                     // a name this launcher does not know — a file written by a later
                                     // version, or one edited by hand — must not stop the whole
                                     // settings file from loading.
                                     java.util.Objects.requireNonNullElse(
-                                            org.jackhuang.hmcl.dsh.skin.DshSkinChoice.Type
+                                            DshSkinChoice.Type
                                                     .fromStorage(account.skinType()),
-                                            org.jackhuang.hmcl.dsh.skin.DshSkinChoice.Type.DEFAULT),
-                                    org.jackhuang.hmcl.dsh.skin.DshSkinChoice.TextureModel
+                                            DshSkinChoice.Type.DEFAULT),
+                                    DshSkinChoice.TextureModel
                                             .fromStorage(account.skinModel()),
                                     account.skinPath(),
                                     account.skinCapePath())));
@@ -721,11 +731,11 @@ public final class SettingsManager {
                     if (vendor.id() == null || vendor.baseUrl() == null || vendor.baseUrl().isBlank()) {
                         continue;
                     }
-                    settings.getCustomVendors().add(new org.jackhuang.hmcl.dsh.DshVendor(
+                    settings.getCustomVendors().add(new DshVendor(
                             vendor.id(),
                             vendor.displayName() == null ? vendor.id() : vendor.displayName(),
                             vendor.apiKeyEnv() == null ? "" : vendor.apiKeyEnv(),
-                            vendor.api() == null ? org.jackhuang.hmcl.dsh.DshVendor.APIS.get(0) : vendor.api(),
+                            vendor.api() == null ? DshVendor.APIS.get(0) : vendor.api(),
                             vendor.baseUrl(), false));
                 }
             }
@@ -740,7 +750,7 @@ public final class SettingsManager {
                 settings.animationDisabledProperty().set(animationDisabled);
             }
             if (nodeSource != null) {
-                settings.nodeSourceProperty().set(org.jackhuang.hmcl.dsh.NodeSource.of(nodeSource));
+                settings.nodeSourceProperty().set(NodeSource.of(nodeSource));
             }
             if (selectedInstance != null) {
                 settings.getSelectedInstance().clear();
@@ -752,13 +762,13 @@ public final class SettingsManager {
                 settings.openBrowserOnLaunchProperty().set(openBrowserOnLaunch);
             }
             if (buildScriptPolicy != null) {
-                settings.buildScriptPolicyProperty().set(org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.of(buildScriptPolicy));
+                settings.buildScriptPolicyProperty().set(DshBuildScriptPolicy.of(buildScriptPolicy));
             }
             if (launcherVisibility != null) {
-                settings.launcherVisibilityProperty().set(org.jackhuang.hmcl.dsh.DshLauncherVisibility.of(launcherVisibility));
+                settings.launcherVisibilityProperty().set(DshLauncherVisibility.of(launcherVisibility));
             }
             if (isolationPolicy != null) {
-                settings.isolationPolicyProperty().set(org.jackhuang.hmcl.dsh.DshIsolationPolicy.of(isolationPolicy));
+                settings.isolationPolicyProperty().set(DshIsolationPolicy.of(isolationPolicy));
             }
             if (showLogs != null) {
                 settings.showLogsProperty().set(showLogs);
@@ -787,7 +797,7 @@ public final class SettingsManager {
                 // whole settings file: a policy is a preference, and losing it costs one choice.
                 try {
                     settings.dependencyPolicyProperty().set(
-                            org.jackhuang.hmcl.dsh.DshDependencyPolicy.valueOf(dependencyPolicy));
+                            DshDependencyPolicy.valueOf(dependencyPolicy));
                 } catch (IllegalArgumentException e) {
                     LOG.warning("Unknown dependency policy in the settings: " + dependencyPolicy);
                 }
@@ -811,7 +821,7 @@ public final class SettingsManager {
                 settings.downloadConcurrencyProperty().set(downloadConcurrency);
             }
             if (proxyMode != null) {
-                settings.proxyModeProperty().set(org.jackhuang.hmcl.dsh.DshProxyMode.of(proxyMode));
+                settings.proxyModeProperty().set(DshProxyMode.of(proxyMode));
             }
             if (proxyHost != null) {
                 settings.proxyHostProperty().set(proxyHost);

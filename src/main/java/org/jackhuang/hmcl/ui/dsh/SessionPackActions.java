@@ -17,15 +17,14 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshSession;
-import org.jackhuang.hmcl.dsh.DshSessionPacks;
-import org.jackhuang.hmcl.dsh.DshSessions;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshSession;
+import com.mcxcc303.hdsl.DshSessionPacks;
+import com.mcxcc303.hdsl.DshSessions;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
-import org.jackhuang.hmcl.ui.wizard.Refreshable;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.nio.file.Path;

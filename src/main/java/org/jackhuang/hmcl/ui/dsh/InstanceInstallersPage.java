@@ -21,19 +21,17 @@ import javafx.beans.binding.Bindings;
 import javafx.scene.Node;
 import javafx.scene.control.Skin;
 import javafx.scene.image.ImageView;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshInstanceIcon;
-import org.jackhuang.hmcl.dsh.DshPluginCatalog;
-import org.jackhuang.hmcl.dsh.DshPluginInstaller;
-import org.jackhuang.hmcl.dsh.DshPreset;
-import org.jackhuang.hmcl.dsh.DshPresetCatalog;
-import org.jackhuang.hmcl.dsh.DshVersionManager;
-import org.jackhuang.hmcl.task.Schedulers;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshPluginCatalog;
+import com.mcxcc303.hdsl.DshPluginInstaller;
+import com.mcxcc303.hdsl.DshPreset;
+import com.mcxcc303.hdsl.DshPresetCatalog;
+import com.mcxcc303.hdsl.DshVersionManager;
 import org.jackhuang.hmcl.theme.Themes;
 import org.jackhuang.hmcl.ui.Controllers;
-import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.ListPageBase;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.ToolbarListPageSkin;
@@ -214,7 +212,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
         // The package's own page is the link that always exists for a plugin, and
         // it is where its versions and its repository are named. The catalogue is
         // asked first, because a plugin it knows has a page of its own.
-        DshPluginCatalog.Plugin known = org.jackhuang.hmcl.dsh.DshPluginCatalog.find(name).orElse(null);
+        DshPluginCatalog.Plugin known = DshPluginCatalog.find(name).orElse(null);
         if (known != null) {
             return known;
         }

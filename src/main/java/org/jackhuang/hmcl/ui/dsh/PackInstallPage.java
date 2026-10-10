@@ -18,6 +18,12 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshModpacks;
+import com.mcxcc303.hdsl.DshPluginInstaller;
+import com.mcxcc303.hdsl.DshVersionManager;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -28,12 +34,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshPackInstaller;
-import org.jackhuang.hmcl.dsh.DshPackMarket;
-import org.jackhuang.hmcl.dsh.DshVersionManager;
+import com.mcxcc303.hdsl.DshPackInstaller;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
@@ -47,8 +48,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -291,7 +290,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         // instance the question was about, and an id computed again would be a second instance.
         String id;
         try {
-            id = uniqueId(org.jackhuang.hmcl.dsh.DshModpacks.readManifest(archive).name());
+            id = uniqueId(DshModpacks.readManifest(archive).name());
         } catch (DshException e) {
             Controllers.dialog(e.getMessage(), title, MessageDialogPane.MessageType.ERROR);
             return;
@@ -304,18 +303,18 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         PluginInstalls.runCreating(title, () -> DshInstanceManager.find(id), report -> {
             try {
                 report.accept("Installing " + id + " from the older pack format");
-                org.jackhuang.hmcl.dsh.DshModpacks.install(archive, id,
+                DshModpacks.install(archive, id,
                         Path.of(System.getProperty("user.home")), report::accept);
             } catch (DshException | RuntimeException failed) {
-                if (failed instanceof org.jackhuang.hmcl.dsh.DshPluginInstaller
+                if (failed instanceof DshPluginInstaller
                         .DshBuildScriptApprovalRequired) {
                     // The question is written into this instance's profile, so the instance is the
                     // answer's address: it stays, and the retry finishes it.
                     throw failed;
                 }
-                org.jackhuang.hmcl.dsh.DshInstance made = DshInstanceManager.find(id);
+                DshInstance made = DshInstanceManager.find(id);
                 if (!existed && made != null) {
-                    org.jackhuang.hmcl.dsh.DshVersionManager.discardPartial(made);
+                    DshVersionManager.discardPartial(made);
                     try {
                         DshInstanceManager.delete(id);
                     } catch (DshException | RuntimeException cleanupFailure) {

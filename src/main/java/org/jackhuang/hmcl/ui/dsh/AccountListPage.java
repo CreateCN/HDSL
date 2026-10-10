@@ -17,13 +17,12 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXRadioButton;
+import com.mcxcc303.hdsl.DshInstanceIcon;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Cursor;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.BorderPane;
@@ -32,15 +31,13 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshAccount;
-import org.jackhuang.hmcl.dsh.DshVendor;
-import org.jackhuang.hmcl.dsh.skin.DshSkin;
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.DshVendor;
+import com.mcxcc303.hdsl.skin.DshSkin;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
-import org.jackhuang.hmcl.ui.construct.AdvancedListBox;
-import org.jackhuang.hmcl.ui.construct.ClassTitle;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.ui.construct.LineTextPane;
@@ -49,7 +46,6 @@ import org.jackhuang.hmcl.ui.dsh.settings.AccountSettingsDialog;
 import org.jackhuang.hmcl.ui.dsh.settings.AddVendorDialog;
 import org.jackhuang.hmcl.ui.dsh.settings.SkinDialog;
 import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.Nullable;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -267,8 +263,8 @@ public final class AccountListPage extends DecoratorAnimatedPage implements Deco
     /// @return the mark, white on a dark surface and black on a light one
     private static javafx.scene.image.Image harnessMark() {
         return (org.jackhuang.hmcl.theme.Themes.darkModeProperty().get()
-                ? org.jackhuang.hmcl.dsh.DshInstanceIcon.DSH_WHITE
-                : org.jackhuang.hmcl.dsh.DshInstanceIcon.DSH_BLACK).load();
+                ? DshInstanceIcon.DSH_WHITE
+                : DshInstanceIcon.DSH_BLACK).load();
     }
 
     private javafx.scene.Node vendorItem(String title, @org.jetbrains.annotations.Nullable String subtitle,

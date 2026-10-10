@@ -1,0 +1,435 @@
+/*
+ * HDSL
+ * Copyright (C) 2026  HDSL contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package com.mcxcc303.hdsl;
+
+import org.jackhuang.hmcl.util.platform.OperatingSystem;
+import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Pattern;
+
+import static org.jackhuang.hmcl.util.logging.Logger.LOG;
+
+/// Opens the system's terminal on an instance, set up the way the launcher sets it up.
+///
+/// A launch is all or nothing: the harness composes its whole profile before it answers
+/// anything, so one plugin that cannot resolve stops the process, and what a person is left
+/// with is a launch that failed rather than the tool that failed. This is the way out of
+/// that — a shell in the instance's own working directory with the instance's own toolchain
+/// in front of the system's, where dsh is this instance's harness and npm is the npm that
+/// instance installs with, so the failure can be reproduced and read a line at a time.
+///
+/// What is written is a script rather than a command line, because a terminal started from a
+/// running desktop inherits the desktop's environment and not the launcher's — gnome-terminal
+/// in particular hands the request to a server that has been running since login. Exports in
+/// a file survive both, and a `set` in a batch file survives the Windows equivalents of the
+/// same detour.
+///
+/// The script is the platform's own kind: a `#!/usr/bin/env bash` file on Linux, a batch
+/// file on Windows, each saying exactly the same things in its own grammar.
+@NotNullByDefault
+public final class DshInstanceTerminal {
+    /// Where sessions are written, inside the launcher's data directory.
+    private static final String DIRECTORY = "terminals";
+
+    /// The directory the dsh shim sits in.
+    private static final String BIN = "bin";
+
+    /// What a session's script is called.
+    ///
+    /// A shell script carries its own interpreter; a batch file is read by the
+    /// command interpreter that a terminal on Windows opens anyway.
+    private static final String SCRIPT = OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+            ? "open.cmd" : "open.sh";
+
+    /// What the dsh shim is called.
+    ///
+    /// `dsh` resolves through `PATH` on either platform; on Windows only a
+    /// `.cmd` of that name is one the interpreter will run.
+    private static final String SHIM = OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+            ? "dsh.cmd" : "dsh";
+
+    /// What an environment variable may be called to be written into the script.
+    private static final Pattern NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+
+    /// The terminal emulators tried, most preferred first, for a Linux desktop.
+    ///
+    /// Most take a form of "run this command"; gnome-terminal and kgx want a bare --, and
+    /// kitty and foot take the command as an argument of their own. Each is handed the
+    /// script's path, which is executable and carries its own interpreter, so no shell has to
+    /// be quoted twice.
+    private static final List<Emulator> LINUX_EMULATORS = List.of(
+            new Emulator("x-terminal-emulator", List.of("-e")),
+            new Emulator("kgx", List.of("--")),
+            new Emulator("gnome-terminal", List.of("--")),
+            new Emulator("konsole", List.of("-e")),
+            new Emulator("xfce4-terminal", List.of("-e")),
+            new Emulator("mate-terminal", List.of("-e")),
+            new Emulator("tilix", List.of("-e")),
+            new Emulator("kitty", List.of()),
+            new Emulator("alacritty", List.of("-e")),
+            new Emulator("wezterm", List.of("start", "--")),
+            new Emulator("foot", List.of()),
+            new Emulator("xterm", List.of("-e")));
+
+    /// The terminals tried on Windows, most preferred first.
+    ///
+    /// Windows Terminal (`wt.exe`) takes a command line to open a new tab of;
+    /// `cmd.exe` opens a console of its own through `start`, which every
+    /// Windows has. The script is handed to `cmd /k`, which runs it and stays
+    /// open — the same "leave a shell" the Linux script ends with.
+    private static final List<Emulator> WINDOWS_EMULATORS = List.of(
+            new Emulator("wt.exe", List.of("cmd.exe", "/k")),
+            new Emulator("cmd.exe", List.of("/c", "start", "HDSL", "cmd.exe", "/k")));
+
+    private DshInstanceTerminal() {
+    }
+
+    /// One terminal emulator and how it is told what to run.
+    ///
+    /// @param command   the executable's name
+    /// @param arguments what has to come between it and the command
+    private record Emulator(String command, List<String> arguments) {
+    }
+
+    /// Opens a terminal on an instance.
+    ///
+    /// @param instance the instance
+    /// @param account  the account it launches with, or null
+    /// @throws DshException when there is no terminal to open, or it cannot be started
+    public static void open(DshInstance instance, @Nullable DshAccount account) throws DshException {
+        Path script = write(instance, account);
+        Emulator emulator = find();
+        if (emulator == null) {
+            throw new DshException("No terminal emulator was found. Install one of: "
+                    + String.join(", ", emulators().stream().map(Emulator::command).toList()));
+        }
+
+        List<String> command = new ArrayList<>();
+        command.add(emulator.command());
+        command.addAll(emulator.arguments());
+        command.add(script.toString());
+        try {
+            new ProcessBuilder(command).start();
+            LOG.info("Opened " + emulator.command() + " on " + instance.id() + " with " + script);
+        } catch (IOException e) {
+            throw new DshException("Failed to start " + emulator.command(), e);
+        }
+    }
+
+    /// Returns the terminal emulators for this platform.
+    ///
+    /// @return the list, most preferred first
+    private static List<Emulator> emulators() {
+        return OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+                ? WINDOWS_EMULATORS : LINUX_EMULATORS;
+    }
+
+    /// Returns the first terminal emulator this system has.
+    ///
+    /// @return the emulator, or null when there is none
+    private static @Nullable Emulator find() {
+        for (Emulator emulator : emulators()) {
+            if (DshNodeRuntime.which(emulator.command()).isPresent()) {
+                return emulator;
+            }
+        }
+        return null;
+    }
+
+    /// Writes a session's script and its dsh shim, and returns the script.
+    ///
+    /// Written beside the launcher's own data and not removed when the terminal closes: the
+    /// launcher cannot tell when that happens, a session is worth being able to open again,
+    /// and a file that is rewritten on every open cannot go stale.
+    ///
+    /// The batch file is written in the system's own charset rather than UTF-8, because the
+    /// Windows command interpreter reads a script in the charset of the machine and not in
+    /// the one the file was written in — a path outside the ASCII range has to travel in the
+    /// encoding the reader expects or it arrives wrong.
+    ///
+    /// @param instance the instance
+    /// @param account  the account it launches with, or null
+    /// @return the script to hand the terminal
+    /// @throws DshException when it cannot be written
+    public static Path write(DshInstance instance, @Nullable DshAccount account) throws DshException {
+        DshNodeRuntime runtime = DshLauncher.resolveRuntime(instance);
+        Path directory = directory().resolve(instance.id());
+        Path script = directory.resolve(SCRIPT);
+        Path shim = directory.resolve(BIN).resolve(SHIM);
+        Charset charset = OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+                ? OperatingSystem.NATIVE_CHARSET : StandardCharsets.UTF_8;
+        try {
+            Files.createDirectories(shim.getParent());
+            Files.writeString(script, scriptText(instance, account, runtime), charset);
+            Files.writeString(shim, shimText(instance, runtime), charset);
+        } catch (IOException e) {
+            throw new DshException("Failed to write the terminal session for " + instance.id(), e);
+        }
+        executable(script);
+        executable(shim);
+        return script;
+    }
+
+    /// Returns where sessions are written.
+    ///
+    /// @return the directory, which may not exist
+    static Path directory() {
+        return org.jackhuang.hmcl.Metadata.HMCL_USER_HOME.resolve(DIRECTORY);
+    }
+
+    /// Builds the script that sets a shell up for an instance.
+    ///
+    /// @param instance the instance
+    /// @param account  the account to launch with, or null for none
+    /// @return the script
+    /// @throws DshException when the instance's paths cannot be resolved
+    public static String scriptText(DshInstance instance, @Nullable DshAccount account) throws DshException {
+        return scriptText(instance, account, DshLauncher.resolveRuntime(instance));
+    }
+
+    /// Builds the script, with the runtime given rather than looked up.
+    ///
+    /// The environment is the launcher's own, in the launcher's own order: the home it runs
+    /// against, whatever the launcher-wide and per-instance environment says, the account's
+    /// key when there is one, and PATH last so that the instance's tools are in front of
+    /// whatever any of that asked for.
+    ///
+    /// @param instance  the instance
+    /// @param account   the account to launch with, or null for none
+    /// @param runtime   the node runtime the instance runs on
+    /// @return the script
+    /// @throws DshException when the instance's paths cannot be resolved
+    static String scriptText(DshInstance instance, @Nullable DshAccount account, DshNodeRuntime runtime)
+            throws DshException {
+        return OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS
+                ? windowsScriptText(instance, account, runtime)
+                : linuxScriptText(instance, account, runtime);
+    }
+
+    /// Builds the environment every platform's script exports, in the launcher's order.
+    ///
+    /// @param instance the instance
+    /// @param account  the account to launch with, or null for none
+    /// @param runtime  the node runtime the instance runs on
+    /// @return the environment
+    /// @throws DshException when the instance's paths cannot be resolved
+    private static Map<String, String> environment(DshInstance instance, @Nullable DshAccount account,
+                                                   DshNodeRuntime runtime) throws DshException {
+        Path home = instance.homeDirectory();
+        Map<String, String> environment = new LinkedHashMap<>();
+        environment.put("DSH_HOME", home.toString());
+        environment.putAll(DshEnvironment.of(instance));
+        if (account != null && account.carriesAKey()) {
+            // The same variable and the same place in the order as a launch: the key is what
+            // makes the harness answer at all, and a terminal without it reproduces every
+            // failure except the one being looked for.
+            environment.put(DshAccountRoute.environmentVariable(account.displayName()),
+                    account.apiKey().trim());
+        }
+        String inherited = environment.getOrDefault("PATH", System.getenv("PATH"));
+        environment.put("PATH", runtime.binDirectory()
+                + (inherited == null || inherited.isBlank() ? "" : File.pathSeparator + inherited));
+        return environment;
+    }
+
+    /// Builds the batch script that sets a Windows shell up for an instance.
+    ///
+    /// @param instance the instance
+    /// @param account  the account to launch with, or null for none
+    /// @param runtime  the node runtime the instance runs on
+    /// @return the script
+    /// @throws DshException when the instance's paths cannot be resolved
+    private static String windowsScriptText(DshInstance instance, @Nullable DshAccount account,
+                                            DshNodeRuntime runtime) throws DshException {
+        // The instance directory itself, not its workspace: this shell is for looking
+        // at the instance — its home, its dsh, its manifest — rather than for the work a
+        // session started there would be scoped to.
+        //
+        // And **its** directory, not the one the launcher owns under that name: an instance read
+        // out of a folder somebody added lives in that folder, and answering with
+        // `DshPaths.instanceDirectory(id)` opened the session in a directory that either does not
+        // exist or belongs to a different instance that happens to share the name. Measured against
+        // a real install: the `codex` instance lives in `D:\HDSHL\1\codex`, and the terminal opened
+        // in `%APPDATA%\.hdsl\instances\codex`, which was not there.
+        Path where = instance.instanceDirectory();
+        Path bin = directory().resolve(instance.id()).resolve(BIN);
+        Map<String, String> environment = environment(instance, account, runtime);
+
+        StringBuilder text = new StringBuilder();
+        text.append("@echo off\r\n");
+        text.append("rem Written by Hello DeepSeek! Launcher, again on every open.\r\n");
+        text.append("rem\r\n");
+        text.append("rem This shell is set up the way the launcher sets the instance up when it starts\r\n");
+        text.append("rem it: the same home, the same environment, the same toolchain. dsh here is this\r\n");
+        text.append("rem instance's own harness and npm is the npm it installs with, so running dsh web\r\n");
+        text.append("rem in this shell starts this instance's harness and nothing else's.\r\n");
+        text.append("rem\r\n");
+        text.append("rem With arguments it runs them and exits; with none it leaves a shell.\r\n");
+        text.append("\r\n");
+        text.append("cd /d \"").append(where).append("\" || exit /b 1\r\n");
+        for (Map.Entry<String, String> variable : environment.entrySet()) {
+            if (!NAME.matcher(variable.getKey()).matches()) {
+                // A name the interpreter cannot hold is dropped rather than written into
+                // something that is no longer a set: the environment editor accepts any text.
+                LOG.warning("Not setting " + variable.getKey() + ": not a usable variable name");
+                continue;
+            }
+            // The instance's own tools first, and its dsh shim before even those; the shim's
+            // directory is what a `dsh` typed into this shell finds first.
+            String value = "PATH".equals(variable.getKey())
+                    ? bin + File.pathSeparator + variable.getValue()
+                    : variable.getValue();
+            text.append("set \"").append(variable.getKey()).append('=').append(value).append("\"\r\n");
+        }
+        text.append("\r\n");
+        text.append("echo This shell is set up for the instance ").append(instance.id()).append(".\r\n");
+        text.append("echo dsh is its own harness; npm is the one it uses. Try: dsh web\r\n");
+        text.append("\r\n");
+        text.append("if \"%~1\"==\"\" goto shell\r\n");
+        text.append("call %*\r\n");
+        text.append("exit /b %ERRORLEVEL%\r\n");
+        text.append(":shell\r\n");
+        return text.toString();
+    }
+
+    /// Builds the shell script that sets a Linux shell up for an instance.
+    ///
+    /// @param instance the instance
+    /// @param account  the account to launch with, or null for none
+    /// @param runtime  the node runtime the instance runs on
+    /// @return the script
+    /// @throws DshException when the instance's paths cannot be resolved
+    private static String linuxScriptText(DshInstance instance, @Nullable DshAccount account,
+                                          DshNodeRuntime runtime) throws DshException {
+        // The instance directory itself, not its workspace: this shell is for looking
+        // at the instance — its home, its dsh, its manifest — rather than for the work a
+        // session started there would be scoped to. The instance's own, for the reason
+        // [DshInstanceTerminal#windowsScriptText] states.
+        Path where = instance.instanceDirectory();
+        Path bin = directory().resolve(instance.id()).resolve(BIN);
+        Map<String, String> environment = environment(instance, account, runtime);
+
+        StringBuilder text = new StringBuilder();
+        text.append("#!/usr/bin/env bash\n");
+        text.append("# Written by Hello DeepSeek! Launcher, again on every open.\n");
+        text.append("#\n");
+        text.append("# This shell is set up the way the launcher sets the instance up when it starts\n");
+        text.append("# it: the same home, the same environment, the same toolchain. dsh here is this\n");
+        text.append("# instance's own harness and npm is the npm it installs with, so running dsh web\n");
+        text.append("# in this shell starts this instance's harness and nothing else's.\n");
+        text.append("#\n");
+        text.append("# With arguments it runs them and exits; with none it leaves a shell.\n");
+        text.append('\n');
+        text.append("cd ").append(quote(where.toString())).append(" || exit 1\n");
+        for (Map.Entry<String, String> variable : environment.entrySet()) {
+            if (!NAME.matcher(variable.getKey()).matches()) {
+                // A name a shell cannot hold is dropped rather than quoted into something
+                // that is no longer an export: the environment editor accepts any text.
+                LOG.warning("Not exporting " + variable.getKey() + ": not a usable variable name");
+                continue;
+            }
+            // The instance's own tools first, and its dsh shim before even those.
+            String value = "PATH".equals(variable.getKey())
+                    ? bin + File.pathSeparator + variable.getValue()
+                    : variable.getValue();
+            text.append("export ").append(variable.getKey()).append('=')
+                    .append(quote(value)).append('\n');
+        }
+        text.append('\n');
+        text.append("echo ").append(quote("This shell is set up for the instance "
+                + instance.id() + ".")).append('\n');
+        text.append("echo ").append(quote("dsh is its own harness; npm is the one it uses. "
+                + "Try: dsh web")).append('\n');
+        text.append('\n');
+        text.append("if [ \"$#\" -gt 0 ]; then\n");
+        text.append("    exec \"$@\"\n");
+        text.append("fi\n");
+        text.append("exec ").append(quote(shell())).append(" -i\n");
+        return text.toString();
+    }
+
+    /// Builds the dsh shim a session puts in front of the system's.
+    ///
+    /// @param instance the instance
+    /// @param runtime  the node runtime the instance runs on
+    /// @return the shim's text
+    /// @throws DshException when the instance's entry script cannot be resolved
+    static String shimText(DshInstance instance, DshNodeRuntime runtime) throws DshException {
+        if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+            return "@echo off\r\n"
+                    + "rem The instance's own dsh: what dsh means in the terminal the launcher opened on\r\n"
+                    + "rem it. The instance's entry script, run by the instance's own node.\r\n"
+                    + "\"" + runtime.node() + "\" \"" + instance.dshEntryPoint() + "\" %*\r\n";
+        }
+        return "#!/usr/bin/env bash\n"
+                + "# The instance's own dsh: what dsh means in the terminal the launcher opened on\n"
+                + "# it. The instance's entry script, run by the instance's own node.\n"
+                + "exec " + quote(runtime.node().toString()) + " "
+                + quote(instance.dshEntryPoint().toString()) + " \"$@\"\n";
+    }
+
+    /// Quotes a value for a shell.
+    ///
+    /// @param value the value
+    /// @return it, in single quotes, with any single quote of its own escaped
+    static String quote(String value) {
+        return "'" + value.replace("'", "'\\''") + "'";
+    }
+
+    /// Returns the shell a session leaves open.
+    ///
+    /// On Windows that is the command interpreter itself — the terminal was
+    /// opened on `cmd /k`, which is this script's shell once the script ends —
+    /// so what is answered there is only ever read for the messages above.
+    ///
+    /// @return the user's shell, or bash
+    static String shell() {
+        if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+            String comSpec = System.getenv("ComSpec");
+            return comSpec == null || comSpec.isBlank() ? "cmd.exe" : comSpec;
+        }
+        String shell = System.getenv("SHELL");
+        return shell == null || shell.isBlank() ? "/bin/bash" : shell;
+    }
+
+    /// Makes a file executable.
+    ///
+    /// Nothing to do on Windows: a file there runs by naming it, and the
+    /// permission bit this sets is not a thing that platform has.
+    ///
+    /// @param file the file
+    private static void executable(Path file) {
+        if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+            return;
+        }
+        if (!file.toFile().setExecutable(true, true)) {
+            LOG.warning("Could not make " + file + " executable");
+        }
+    }
+}

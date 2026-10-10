@@ -22,12 +22,11 @@ import com.jfoenix.controls.JFXDialogLayout;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.NodeRelease;
-import org.jackhuang.hmcl.dsh.NodeRuntimeManager;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.NodeRelease;
+import com.mcxcc303.hdsl.NodeRuntimeManager;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
-import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.LineButton;
@@ -35,9 +34,7 @@ import org.jackhuang.hmcl.ui.construct.LineTextPane;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.construct.SpinnerPane;
 import org.jetbrains.annotations.NotNullByDefault;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 

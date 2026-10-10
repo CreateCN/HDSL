@@ -17,45 +17,40 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
-import javafx.geometry.Insets;
+import com.mcxcc303.hdsl.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.DshEnvironment;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshLaunchArguments;
+import com.mcxcc303.hdsl.DshLauncherVisibility;
+import com.mcxcc303.hdsl.DshNodeRuntime;
+import com.mcxcc303.hdsl.DshPortMode;
+import com.mcxcc303.hdsl.DshPorts;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshAccount;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
+
 import java.util.List;
 import java.util.Locale;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import org.jackhuang.hmcl.dsh.NodeRuntimeManager;
-import org.jackhuang.hmcl.dsh.NodeRuntime;
-import org.jackhuang.hmcl.dsh.DshNodeRuntime;
-import org.jackhuang.hmcl.dsh.DshHomeMode;
-import org.jackhuang.hmcl.dsh.DshInstanceSettings;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshPortMode;
-import org.jackhuang.hmcl.dsh.DshPorts;
+import com.mcxcc303.hdsl.NodeRuntimeManager;
+import com.mcxcc303.hdsl.NodeRuntime;
+import com.mcxcc303.hdsl.DshInstanceSettings;
 import org.jackhuang.hmcl.ui.Controllers;
-import org.jackhuang.hmcl.ui.dsh.VersionPickerPage;
-import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.FXUtils;
-import javafx.scene.image.Image;
-import org.jackhuang.hmcl.dsh.DshInstanceIcons;
-import org.jackhuang.hmcl.ui.construct.LineButton;
+import com.mcxcc303.hdsl.DshInstanceIcons;
 import org.jackhuang.hmcl.ui.dsh.InstanceIconDialog;
 import org.jackhuang.hmcl.ui.construct.ImagePickerItem;
-import org.jackhuang.hmcl.dsh.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshInstanceIcon;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LineInheritableSelectButton;
 import org.jackhuang.hmcl.ui.construct.LineInheritableTextField;
 import org.jackhuang.hmcl.ui.construct.LineInheritableToggleButton;
-import org.jackhuang.hmcl.ui.construct.LinePane;
 import org.jackhuang.hmcl.ui.construct.LineSelectButton;
 import org.jackhuang.hmcl.ui.construct.LineTextPane;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
-import org.jackhuang.hmcl.ui.construct.LineInheritableSelectButton;
-import org.jackhuang.hmcl.ui.construct.LinePane;
-import org.jackhuang.hmcl.ui.construct.LineSelectButton;
 import org.jackhuang.hmcl.ui.construct.NumberValidator;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -210,18 +205,18 @@ public final class InstanceSettingsPage extends ScrollPane {
     /// get out of the way while another wants it to stay.
     ///
     /// @return the row
-    private LineInheritableSelectButton<org.jackhuang.hmcl.dsh.DshLauncherVisibility> launcherVisibilityRow() {
-        LineInheritableSelectButton<org.jackhuang.hmcl.dsh.DshLauncherVisibility> row =
+    private LineInheritableSelectButton<DshLauncherVisibility> launcherVisibilityRow() {
+        LineInheritableSelectButton<DshLauncherVisibility> row =
                 new LineInheritableSelectButton<>();
         row.setTitle(i18n("dsh.settings.launcher.visibility"));
-        row.setItems(java.util.List.of(org.jackhuang.hmcl.dsh.DshLauncherVisibility.values()));
+        row.setItems(java.util.List.of(DshLauncherVisibility.values()));
         row.setNullSafeConverter(choice -> choice == null ? ""
                 : i18n("dsh.settings.launcher.visibility." + choice.id()));
 
         String own = DshInstanceSettings.launcherVisibility(instance);
         row.setOverridden(own != null);
         row.setValue(own != null
-                ? org.jackhuang.hmcl.dsh.DshLauncherVisibility.of(own)
+                ? DshLauncherVisibility.of(own)
                 : settings().launcherVisibilityFor(instance.id()));
 
         javafx.beans.value.ChangeListener<Object> store = (observable, was, value) -> {
@@ -309,16 +304,16 @@ public final class InstanceSettingsPage extends ScrollPane {
         // file rather than from the map: the constructor turns an absent member into an empty map
         // for safety, so an instance that adds nothing and one that has never been asked both look
         // empty in memory. The file is what remembers which it is.
-        boolean own = org.jackhuang.hmcl.dsh.DshInstanceSettings.environmentIsOwn(instance);
+        boolean own = DshInstanceSettings.environmentIsOwn(instance);
         row.setOverridden(own);
-        row.setText(org.jackhuang.hmcl.dsh.DshEnvironment.format(
+        row.setText(DshEnvironment.format(
                 own ? instance.environment() : settings().globalEnvironment()));
 
         // Typing is only this instance's to store while the row is the one deciding; what is
         // written is this instance's own set, which is what is laid over the launcher's.
         row.textProperty().addListener((observable, was, text) -> {
             if (row.isOverridden()) {
-                write(instance.withEnvironment(org.jackhuang.hmcl.dsh.DshEnvironment.parse(text)));
+                write(instance.withEnvironment(DshEnvironment.parse(text)));
                 rememberEnvironment(instance, true);
             }
         });
@@ -333,7 +328,7 @@ public final class InstanceSettingsPage extends ScrollPane {
             } else {
                 write(instance.withEnvironment(null));
                 rememberEnvironment(instance, false);
-                row.setText(org.jackhuang.hmcl.dsh.DshEnvironment.format(settings().globalEnvironment()));
+                row.setText(DshEnvironment.format(settings().globalEnvironment()));
             }
         });
 
@@ -370,13 +365,13 @@ public final class InstanceSettingsPage extends ScrollPane {
     private ComponentList buildScriptsList() {
         // The entries are the policies with a null in front, which is what
         // "follow the launcher" is.
-        java.util.List<org.jackhuang.hmcl.dsh.DshBuildScriptPolicy> choices = new java.util.ArrayList<>();
+        java.util.List<DshBuildScriptPolicy> choices = new java.util.ArrayList<>();
 
-        choices.addAll(java.util.List.of(org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.AUTO,
-                org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.MANUAL,
-                org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.NEVER));
+        choices.addAll(java.util.List.of(DshBuildScriptPolicy.AUTO,
+                DshBuildScriptPolicy.MANUAL,
+                DshBuildScriptPolicy.NEVER));
 
-        LineInheritableSelectButton<org.jackhuang.hmcl.dsh.DshBuildScriptPolicy> row =
+        LineInheritableSelectButton<DshBuildScriptPolicy> row =
                 new LineInheritableSelectButton<>();
         row.setTitle(i18n("dsh.settings.build_scripts.approve"));
         row.setItems(choices);
@@ -384,10 +379,10 @@ public final class InstanceSettingsPage extends ScrollPane {
 
         String own = DshInstanceSettings.buildScriptPolicy(instance);
         row.setOverridden(own != null);
-        row.setValue(own != null ? org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.of(own)
+        row.setValue(own != null ? DshBuildScriptPolicy.of(own)
                 : settings().buildScriptPolicy());
 
-        java.util.function.Consumer<org.jackhuang.hmcl.dsh.DshBuildScriptPolicy> store = policy -> {
+        java.util.function.Consumer<DshBuildScriptPolicy> store = policy -> {
             try {
                 DshInstanceSettings.setBuildScriptPolicy(instance,
                         policy == null ? null : policy.id());
@@ -481,7 +476,7 @@ public final class InstanceSettingsPage extends ScrollPane {
                 // Shown as one line and stored as the arguments it names, so what runs is what was
                 // typed rather than what a second parser made of it later.
                 write(instance.withLaunchOptions(
-                        org.jackhuang.hmcl.dsh.DshLaunchArguments.tokenize(text),
+                        DshLaunchArguments.tokenize(text),
                         instance.environment()));
             }
         });

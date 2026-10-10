@@ -17,8 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstallProgress;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstallProgress;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.task.TaskListener;

@@ -22,8 +22,8 @@ import javafx.beans.binding.Bindings;
 import javafx.beans.binding.ObjectBinding;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 

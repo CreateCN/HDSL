@@ -17,10 +17,10 @@
  */
 package org.jackhuang.hmcl.setting;
 
-import org.jackhuang.hmcl.dsh.DshHomeMode;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshPaths;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshPaths;
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;

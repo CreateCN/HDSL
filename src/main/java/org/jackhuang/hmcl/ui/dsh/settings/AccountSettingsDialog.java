@@ -28,26 +28,16 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.geometry.Pos;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshAccount;
-import org.jackhuang.hmcl.dsh.DshVendor;
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.DshVendor;
 import org.jackhuang.hmcl.setting.SettingsManager;
-import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.SVG;
-import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
-import org.jackhuang.hmcl.ui.construct.LinePane;
-import org.jackhuang.hmcl.ui.construct.LineTextPane;
 import org.jackhuang.hmcl.ui.construct.SpinnerPane;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// Adds an account, and manages the ones already there.
 ///

@@ -19,6 +19,8 @@ package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXPopup;
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.skin.DshSkin;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -38,11 +40,11 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceIcon;
-import org.jackhuang.hmcl.dsh.DshInstanceIcons;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshProcessManager;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshInstanceIcons;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshProcessManager;
 import org.jackhuang.hmcl.setting.DshInstanceRepository;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -61,7 +63,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 import java.util.Locale;
 
-import static org.jackhuang.hmcl.setting.SettingsManager.settings;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 /// The launcher home.
@@ -184,7 +185,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
         org.jackhuang.hmcl.setting.SettingsManager.settings()
                 .activeAccountKeyProperty().addListener((observable, was, now) -> refreshAccountItem());
         org.jackhuang.hmcl.setting.SettingsManager.settings().getAccounts()
-                .addListener((javafx.collections.ListChangeListener<org.jackhuang.hmcl.dsh.DshAccount>)
+                .addListener((javafx.collections.ListChangeListener<DshAccount>)
                         change -> javafx.application.Platform.runLater(this::refreshAccountItem));
 
         ticker = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshActionState()));
@@ -244,7 +245,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
             int slash = rest.indexOf('/');
             String id = slash < 0 ? rest : rest.substring(0, slash);
             String tab = slash < 0 ? null : rest.substring(slash + 1);
-            org.jackhuang.hmcl.dsh.DshInstance instance = org.jackhuang.hmcl.dsh.DshInstanceManager.find(id);
+            DshInstance instance = DshInstanceManager.find(id);
             if (instance == null) {
                 return false;
             }
@@ -261,7 +262,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
         }
 
         if (raw.toLowerCase(Locale.ROOT).startsWith("export-modpack:")) {
-            org.jackhuang.hmcl.dsh.DshInstance instance = org.jackhuang.hmcl.dsh.DshInstanceManager
+            DshInstance instance = DshInstanceManager
                     .find(raw.substring("export-modpack:".length()));
             if (instance == null) {
                 return false;
@@ -301,7 +302,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
             case "skin" -> {
                 // A skin belongs to an account, so the deep link opens the chooser for whichever
                 // account is in force — which is what a person would reach it through.
-                org.jackhuang.hmcl.dsh.DshAccount chosen =
+                DshAccount chosen =
                         org.jackhuang.hmcl.setting.SettingsManager.settings().activeAccount();
                 if (chosen == null) {
                     Controllers.dialog(i18n("dsh.launch.needs_account"),
@@ -449,7 +450,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
     /// The account is **asked for by name**, not taken from the top of the list: the entry has to
     /// follow the choice, and the choice is no longer encoded in the list's order.
     private void refreshAccountItem() {
-        org.jackhuang.hmcl.dsh.DshAccount account =
+        DshAccount account =
                 org.jackhuang.hmcl.setting.SettingsManager.settings().activeAccount();
         if (account == null) {
             accountItem.setTitle(i18n("dsh.account.none.short"));
@@ -469,7 +470,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
     /// skin was never the account's to begin with, but it reads as the account's when it sits where
     /// the account's face was.
     private void drawAccountAvatar() {
-        org.jackhuang.hmcl.dsh.DshAccount active =
+        DshAccount active =
                 org.jackhuang.hmcl.setting.SettingsManager.settings().activeAccount();
         accountAvatar.getGraphicsContext2D().clearRect(0, 0, 32, 32);
 
@@ -481,7 +482,7 @@ public final class MainPage extends DecoratorAnimatedPage implements DecoratorPa
         // The account's own face, whether or not one has been chosen: an account with no skin wears
         // the picture its identity selects, as it does in the original's own sidebar.
         AccountAvatar.draw(accountAvatar,
-                org.jackhuang.hmcl.dsh.skin.DshSkin.headImage(active.key()));
+                DshSkin.headImage(active.key()));
     }
 
     private void openCurrentInstance() {

@@ -21,51 +21,42 @@ import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXTextField;
-import javafx.application.Platform;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshPackageRegistry;
+import com.mcxcc303.hdsl.DshPluginCatalog;
+import com.mcxcc303.hdsl.DshPluginRequirements;
+import com.mcxcc303.hdsl.DshVersionManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.Skin;
-import javafx.scene.control.SkinBase;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
-import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshPluginCatalog;
-import org.jackhuang.hmcl.dsh.DshPluginInstaller;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.MDListCell;
-import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.construct.PageAware;
-import org.jackhuang.hmcl.ui.construct.RipplerContainer;
 import org.jackhuang.hmcl.ui.construct.SpinnerPane;
 import org.jackhuang.hmcl.ui.construct.TwoLineListItem;
 import org.jackhuang.hmcl.ui.wizard.Refreshable;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.awt.Desktop;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.function.Function;
 
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -492,7 +483,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                return org.jackhuang.hmcl.dsh.DshVersionManager.fetchReleases().stream().map(release -> release.version()).toList();
+                return DshVersionManager.fetchReleases().stream().map(release -> release.version()).toList();
             } catch (DshException e) {
                 throw new CompletionException(e);
             }
@@ -538,11 +529,11 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
             // declares when it is another one.
             java.util.Map<String, String> core = version == null
                     || version.equals(instance.version())
-                    ? org.jackhuang.hmcl.dsh.DshPluginRequirements.coreVersions(instance)
-                    : org.jackhuang.hmcl.dsh.DshPluginRequirements.coreVersionsOf(version);
-            com.google.gson.JsonObject peers = org.jackhuang.hmcl.dsh.DshPackageRegistry
+                    ? DshPluginRequirements.coreVersions(instance)
+                    : DshPluginRequirements.coreVersionsOf(version);
+            com.google.gson.JsonObject peers = DshPackageRegistry
                     .peerDependencies(plugin.npm(), plugin.version());
-            return org.jackhuang.hmcl.dsh.DshPluginRequirements.fits(peers, core);
+            return DshPluginRequirements.fits(peers, core);
         }).whenComplete((result, failure) -> FXUtils.runInFX(() -> {
             fitting.put(name, failure != null || result == null ? Boolean.TRUE : result);
             if (chosenVersion != null) {

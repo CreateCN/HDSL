@@ -20,6 +20,11 @@ package org.jackhuang.hmcl.ui.dsh;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXCheckBox;
 import com.jfoenix.controls.JFXListView;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshSkill;
+import com.mcxcc303.hdsl.DshSkills;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -29,11 +34,6 @@ import javafx.scene.control.Skin;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshSkill;
-import org.jackhuang.hmcl.dsh.DshSkills;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -393,7 +393,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
             content.setMouseTransparent(true);
             setSelectable();
 
-            icon.setImage(org.jackhuang.hmcl.dsh.DshInstanceIcon.COMMAND.load());
+            icon.setImage(DshInstanceIcon.COMMAND.load());
             FXUtils.installFastTooltip(reveal, i18n("reveal.in_file_manager"));
             FXUtils.installFastTooltip(remove, i18n("button.remove"));
 

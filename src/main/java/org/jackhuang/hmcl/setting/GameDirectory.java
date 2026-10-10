@@ -18,7 +18,7 @@
 package org.jackhuang.hmcl.setting;
 
 import com.google.gson.annotations.SerializedName;
-import org.jackhuang.hmcl.dsh.DshPaths;
+import com.mcxcc303.hdsl.DshPaths;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 

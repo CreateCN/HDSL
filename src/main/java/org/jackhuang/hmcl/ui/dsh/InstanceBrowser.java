@@ -17,10 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshPorts;
-import org.jackhuang.hmcl.dsh.DshProcess;
-import org.jackhuang.hmcl.dsh.DshProcessManager;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshPorts;
+import com.mcxcc303.hdsl.DshProcess;
+import com.mcxcc303.hdsl.DshProcessManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;

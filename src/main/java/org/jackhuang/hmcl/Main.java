@@ -17,7 +17,7 @@
  */
 package org.jackhuang.hmcl;
 
-import org.jackhuang.hmcl.dsh.DshCli;
+import com.mcxcc303.hdsl.DshCli;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.Arrays;

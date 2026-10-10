@@ -29,7 +29,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import org.jackhuang.hmcl.dsh.DshPaths;
+import com.mcxcc303.hdsl.DshPaths;
 import org.jackhuang.hmcl.setting.LauncherSettings;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.setting.FontManager;
@@ -53,7 +53,7 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 ///
 /// Responsibilities are deliberately small: create the root page, hand it to
 /// the ported window decorator, apply the stylesheets and manage shutdown.
-/// Everything DeepSeek Harness specific lives in `org.jackhuang.hmcl.dsh`.
+/// Everything DeepSeek Harness specific lives in `com.mcxcc303.hdsl`.
 @NotNullByDefault
 public final class Launcher extends Application {
     /// How many runs' logs are kept.

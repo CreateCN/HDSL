@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
+import com.mcxcc303.hdsl.DshException;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -26,13 +27,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.TextFlow;
 import javafx.stage.Stage;
 import org.jackhuang.hmcl.Metadata;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshProcess;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshProcess;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.LogLine;
@@ -369,7 +369,7 @@ public final class DshCrashDialog extends Stage {
     private String instanceDirectory() {
         try {
             return instance.instanceDirectory().toString();
-        } catch (org.jackhuang.hmcl.dsh.DshException | RuntimeException e) {
+        } catch (DshException | RuntimeException e) {
             return "-";
         }
     }

@@ -38,11 +38,10 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.util.Duration;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshInstanceManager;
-import org.jackhuang.hmcl.dsh.DshProcessManager;
-import org.jackhuang.hmcl.dsh.DshProcessManager.LaunchState;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshProcessManager.LaunchState;
 import org.jackhuang.hmcl.setting.DshInstanceRepository;
 import org.jackhuang.hmcl.setting.GameDirectory;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
@@ -70,9 +69,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 
-import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
-import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// Lists the DeepSeek Harness instances managed by HDSL.
 ///

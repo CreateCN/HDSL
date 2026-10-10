@@ -17,9 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import org.jackhuang.hmcl.dsh.DshHomeMode;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshNodeRuntime;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshNodeRuntime;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

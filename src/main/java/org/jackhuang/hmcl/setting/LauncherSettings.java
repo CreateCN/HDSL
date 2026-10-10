@@ -19,6 +19,18 @@ package org.jackhuang.hmcl.setting;
 
 import java.util.Map;
 
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.DshDependencyPolicy;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceManager;
+import com.mcxcc303.hdsl.DshInstanceSettings;
+import com.mcxcc303.hdsl.DshIsolationPolicy;
+import com.mcxcc303.hdsl.DshLauncherVisibility;
+import com.mcxcc303.hdsl.DshNodeRuntime;
+import com.mcxcc303.hdsl.DshProxyMode;
+import com.mcxcc303.hdsl.DshVendor;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.ObjectProperty;
@@ -33,7 +45,7 @@ import javafx.collections.ObservableSet;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import org.glavo.monetfx.ColorStyle;
-import org.jackhuang.hmcl.dsh.NodeSource;
+import com.mcxcc303.hdsl.NodeSource;
 import org.jackhuang.hmcl.util.i18n.SupportedLocale;
 import org.jackhuang.hmcl.theme.BackgroundLoadPolicy;
 import org.jackhuang.hmcl.theme.BuiltinBackground;
@@ -108,8 +120,8 @@ public final class LauncherSettings {
     /// An install script runs with the user's own rights and nobody has read it, which
     /// is why a package manager stops and asks. Answering is a decision, so the
     /// launcher asks by default and an instance can be told otherwise.
-    private final ObjectProperty<org.jackhuang.hmcl.dsh.DshBuildScriptPolicy> buildScriptPolicy =
-            new SimpleObjectProperty<>(org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.MANUAL);
+    private final ObjectProperty<DshBuildScriptPolicy> buildScriptPolicy =
+            new SimpleObjectProperty<>(DshBuildScriptPolicy.MANUAL);
 
     /// Whether the launcher writes debug lines to its log.
     private final BooleanProperty debugLog = new SimpleBooleanProperty(false);
@@ -180,18 +192,18 @@ public final class LauncherSettings {
     /// rewriting what is there. That is the honest behaviour — the alternative would be reinstalling
     /// a working instance because somebody opened a settings page.
     ///
-    /// Defaults to [org.jackhuang.hmcl.dsh.DshDependencyPolicy#CORE_PINNED], and that default is the
+    /// Defaults to [DshDependencyPolicy#CORE_PINNED], and that default is the
     /// point of the setting: the harness's own ranges let a package the launcher never chose arrive
     /// underneath it, which has twice stopped an instance from starting. Shipping "whatever resolves"
     /// as the default would be shipping that.
-    private final javafx.beans.property.ObjectProperty<org.jackhuang.hmcl.dsh.DshDependencyPolicy>
+    private final javafx.beans.property.ObjectProperty<DshDependencyPolicy>
             dependencyPolicy = new javafx.beans.property.SimpleObjectProperty<>(
-                    org.jackhuang.hmcl.dsh.DshDependencyPolicy.CORE_PINNED);
+                    DshDependencyPolicy.CORE_PINNED);
 
     /// Returns how much of a new instance's dependency tree is held.
     ///
     /// @return the property
-    public javafx.beans.property.ObjectProperty<org.jackhuang.hmcl.dsh.DshDependencyPolicy>
+    public javafx.beans.property.ObjectProperty<DshDependencyPolicy>
             dependencyPolicyProperty() {
         return dependencyPolicy;
     }
@@ -199,38 +211,38 @@ public final class LauncherSettings {
     /// Returns how much of a new instance's dependency tree is held.
     ///
     /// @return the policy
-    public org.jackhuang.hmcl.dsh.DshDependencyPolicy dependencyPolicy() {
+    public DshDependencyPolicy dependencyPolicy() {
         var value = dependencyPolicy.get();
-        return value == null ? org.jackhuang.hmcl.dsh.DshDependencyPolicy.CORE_PINNED : value;
+        return value == null ? DshDependencyPolicy.CORE_PINNED : value;
     }
 
     /// Whether a new instance keeps its own home.
-    private final ObjectProperty<org.jackhuang.hmcl.dsh.DshIsolationPolicy> isolationPolicy =
-            new SimpleObjectProperty<>(org.jackhuang.hmcl.dsh.DshIsolationPolicy.WITH_PLUGINS);
+    private final ObjectProperty<DshIsolationPolicy> isolationPolicy =
+            new SimpleObjectProperty<>(DshIsolationPolicy.WITH_PLUGINS);
 
     /// Returns whether a new instance keeps its own home.
     ///
     /// @return the property
-    public ObjectProperty<org.jackhuang.hmcl.dsh.DshIsolationPolicy> isolationPolicyProperty() {
+    public ObjectProperty<DshIsolationPolicy> isolationPolicyProperty() {
         return isolationPolicy;
     }
 
     /// Returns the policy a new instance is created under.
     ///
     /// @return the policy
-    public org.jackhuang.hmcl.dsh.DshIsolationPolicy isolationPolicy() {
+    public DshIsolationPolicy isolationPolicy() {
         return isolationPolicy.get() == null
-                ? org.jackhuang.hmcl.dsh.DshIsolationPolicy.WITH_PLUGINS : isolationPolicy.get();
+                ? DshIsolationPolicy.WITH_PLUGINS : isolationPolicy.get();
     }
 
     /// What the launcher does with itself once an instance is running.
-    private final ObjectProperty<org.jackhuang.hmcl.dsh.DshLauncherVisibility> launcherVisibility =
-            new SimpleObjectProperty<>(org.jackhuang.hmcl.dsh.DshLauncherVisibility.KEEP);
+    private final ObjectProperty<DshLauncherVisibility> launcherVisibility =
+            new SimpleObjectProperty<>(DshLauncherVisibility.KEEP);
 
     /// Returns what the launcher does with itself once an instance is running.
     ///
     /// @return the property
-    public ObjectProperty<org.jackhuang.hmcl.dsh.DshLauncherVisibility> launcherVisibilityProperty() {
+    public ObjectProperty<DshLauncherVisibility> launcherVisibilityProperty() {
         return launcherVisibility;
     }
 
@@ -241,9 +253,9 @@ public final class LauncherSettings {
     /// happens to resolve to.
     ///
     /// @return the choice, never `null`
-    public org.jackhuang.hmcl.dsh.DshLauncherVisibility launcherVisibility() {
-        org.jackhuang.hmcl.dsh.DshLauncherVisibility choice = launcherVisibility.get();
-        return choice == null ? org.jackhuang.hmcl.dsh.DshLauncherVisibility.KEEP : choice;
+    public DshLauncherVisibility launcherVisibility() {
+        DshLauncherVisibility choice = launcherVisibility.get();
+        return choice == null ? DshLauncherVisibility.KEEP : choice;
     }
 
     /// The variables every instance runs with, unless it sets its own.
@@ -289,8 +301,8 @@ public final class LauncherSettings {
     }
 
     /// How the launcher reaches the network.
-    private final ObjectProperty<org.jackhuang.hmcl.dsh.DshProxyMode> proxyMode =
-            new SimpleObjectProperty<>(org.jackhuang.hmcl.dsh.DshProxyMode.SYSTEM);
+    private final ObjectProperty<DshProxyMode> proxyMode =
+            new SimpleObjectProperty<>(DshProxyMode.SYSTEM);
 
     /// The proxy's host.
     private final javafx.beans.property.StringProperty proxyHost =
@@ -314,7 +326,7 @@ public final class LauncherSettings {
     /// Returns how the launcher reaches the network.
     ///
     /// @return the property
-    public ObjectProperty<org.jackhuang.hmcl.dsh.DshProxyMode> proxyModeProperty() {
+    public ObjectProperty<DshProxyMode> proxyModeProperty() {
         return proxyMode;
     }
 
@@ -413,11 +425,11 @@ public final class LauncherSettings {
     /// An instance may pin its own; this is what "follow the global setting"
     /// resolves to, and what a new instance starts with.
     private final ObjectProperty<String> defaultNodeRuntime =
-            new SimpleObjectProperty<>(this, DEFAULT_NODE_RUNTIME, org.jackhuang.hmcl.dsh.DshNodeRuntime.SYSTEM);
+            new SimpleObjectProperty<>(this, DEFAULT_NODE_RUNTIME, DshNodeRuntime.SYSTEM);
 
     /// The DSH_HOME policy new instances are given.
-    private final ObjectProperty<org.jackhuang.hmcl.dsh.DshHomeMode> defaultHomeMode =
-            new SimpleObjectProperty<>(this, DEFAULT_HOME_MODE, org.jackhuang.hmcl.dsh.DshHomeMode.ISOLATED);
+    private final ObjectProperty<DshHomeMode> defaultHomeMode =
+            new SimpleObjectProperty<>(this, DEFAULT_HOME_MODE, DshHomeMode.ISOLATED);
 
     /// The folders the launcher looks for instances in.
     private final ObjectProperty<java.util.List<GameDirectory>> gameDirectories =
@@ -518,13 +530,13 @@ public final class LauncherSettings {
     /// it performs on the user's behalf, and this stands in the same place. Kept in the launcher's
     /// own settings — which already holds this machine's proxy password — and never written into an
     /// instance, a profile or a pack.
-    private final javafx.collections.ObservableList<org.jackhuang.hmcl.dsh.DshAccount> accounts =
+    private final javafx.collections.ObservableList<DshAccount> accounts =
             javafx.collections.FXCollections.observableArrayList();
 
     /// Returns the accounts.
     ///
     /// @return the list
-    public javafx.collections.ObservableList<org.jackhuang.hmcl.dsh.DshAccount> getAccounts() {
+    public javafx.collections.ObservableList<DshAccount> getAccounts() {
         return accounts;
     }
 
@@ -535,13 +547,13 @@ public final class LauncherSettings {
     /// next account on it is two fields rather than the same address typed again. Kept here rather
     /// than in a file of its own because there is no more to one than the four things the harness
     /// needs in order to route it.
-    private final javafx.collections.ObservableList<org.jackhuang.hmcl.dsh.DshVendor> customVendors =
+    private final javafx.collections.ObservableList<DshVendor> customVendors =
             javafx.collections.FXCollections.observableArrayList();
 
     /// Returns the suppliers this machine has been told about.
     ///
     /// @return the list
-    public javafx.collections.ObservableList<org.jackhuang.hmcl.dsh.DshVendor> getCustomVendors() {
+    public javafx.collections.ObservableList<DshVendor> getCustomVendors() {
         return customVendors;
     }
 
@@ -552,10 +564,10 @@ public final class LauncherSettings {
     /// be told from the other, is worse than ignoring the second.
     ///
     /// @return the list
-    public java.util.List<org.jackhuang.hmcl.dsh.DshVendor> allVendors() {
-        java.util.List<org.jackhuang.hmcl.dsh.DshVendor> all =
-                new java.util.ArrayList<>(org.jackhuang.hmcl.dsh.DshVendor.offered());
-        for (org.jackhuang.hmcl.dsh.DshVendor vendor : customVendors) {
+    public java.util.List<DshVendor> allVendors() {
+        java.util.List<DshVendor> all =
+                new java.util.ArrayList<>(DshVendor.offered());
+        for (DshVendor vendor : customVendors) {
             boolean known = all.stream().anyMatch(known0 -> known0.id().equalsIgnoreCase(vendor.id()));
             if (!known) {
                 all.add(vendor);
@@ -595,14 +607,14 @@ public final class LauncherSettings {
     /// account means it for everything and does not need to be told so.
     ///
     /// @return the account, or `null` when there are none
-    public @Nullable org.jackhuang.hmcl.dsh.DshAccount activeAccount() {
-        java.util.List<org.jackhuang.hmcl.dsh.DshAccount> all = getAccounts();
+    public @Nullable DshAccount activeAccount() {
+        java.util.List<DshAccount> all = getAccounts();
         if (all.isEmpty()) {
             return null;
         }
         String chosen = activeAccountKey();
         if (chosen != null) {
-            for (org.jackhuang.hmcl.dsh.DshAccount account : all) {
+            for (DshAccount account : all) {
                 if (account.matchesKey(chosen)) {
                     return account;
                 }
@@ -694,7 +706,7 @@ public final class LauncherSettings {
     /// Returns the default DSH_HOME policy property.
     ///
     /// @return the property
-    public ObjectProperty<org.jackhuang.hmcl.dsh.DshHomeMode> defaultHomeModeProperty() {
+    public ObjectProperty<DshHomeMode> defaultHomeModeProperty() {
         return defaultHomeMode;
     }
 
@@ -764,7 +776,7 @@ public final class LauncherSettings {
     /// Returns what happens when a plugin wants to run an install script.
     ///
     /// @return the launcher's policy, for instances that do not override it
-    public ObjectProperty<org.jackhuang.hmcl.dsh.DshBuildScriptPolicy> buildScriptPolicyProperty() {
+    public ObjectProperty<DshBuildScriptPolicy> buildScriptPolicyProperty() {
         return buildScriptPolicy;
     }
 
@@ -778,10 +790,10 @@ public final class LauncherSettings {
     /// @param instanceId the instance
     /// @return the command, or an empty string for none
     public String preLaunchCommandFor(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshInstance instance =
-                org.jackhuang.hmcl.dsh.DshInstanceManager.find(instanceId);
+        DshInstance instance =
+                DshInstanceManager.find(instanceId);
         if (instance != null) {
-            String own = org.jackhuang.hmcl.dsh.DshInstanceSettings.preLaunchCommand(instance);
+            String own = DshInstanceSettings.preLaunchCommand(instance);
             if (own != null) {
                 return own;
             }
@@ -794,10 +806,10 @@ public final class LauncherSettings {
     /// @param instanceId the instance
     /// @return the command, or an empty string for none
     public String postExitCommandFor(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshInstance instance =
-                org.jackhuang.hmcl.dsh.DshInstanceManager.find(instanceId);
+        DshInstance instance =
+                DshInstanceManager.find(instanceId);
         if (instance != null) {
-            String own = org.jackhuang.hmcl.dsh.DshInstanceSettings.postExitCommand(instance);
+            String own = DshInstanceSettings.postExitCommand(instance);
             if (own != null) {
                 return own;
             }
@@ -819,10 +831,10 @@ public final class LauncherSettings {
     /// @param instanceId the instance
     /// @return whether the window opens
     public boolean showLogsFor(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshInstance instance =
-                org.jackhuang.hmcl.dsh.DshInstanceManager.find(instanceId);
+        DshInstance instance =
+                DshInstanceManager.find(instanceId);
         if (instance != null) {
-            Boolean own = org.jackhuang.hmcl.dsh.DshInstanceSettings.showLogs(instance);
+            Boolean own = DshInstanceSettings.showLogs(instance);
             if (own != null) {
                 return own;
             }
@@ -838,10 +850,10 @@ public final class LauncherSettings {
     /// @param instanceId the instance
     /// @return whether debug lines are written
     public boolean debugLogFor(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshInstance instance =
-                org.jackhuang.hmcl.dsh.DshInstanceManager.find(instanceId);
+        DshInstance instance =
+                DshInstanceManager.find(instanceId);
         if (instance != null) {
-            Boolean own = org.jackhuang.hmcl.dsh.DshInstanceSettings.debugLog(instance);
+            Boolean own = DshInstanceSettings.debugLog(instance);
             if (own != null) {
                 return own;
             }
@@ -856,26 +868,26 @@ public final class LauncherSettings {
     ///
     /// @param instanceId the instance
     /// @return the choice
-    public org.jackhuang.hmcl.dsh.DshLauncherVisibility launcherVisibilityFor(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshInstance instance =
-                org.jackhuang.hmcl.dsh.DshInstanceManager.find(instanceId);
+    public DshLauncherVisibility launcherVisibilityFor(String instanceId) {
+        DshInstance instance =
+                DshInstanceManager.find(instanceId);
         if (instance != null) {
-            String own = org.jackhuang.hmcl.dsh.DshInstanceSettings.launcherVisibility(instance);
+            String own = DshInstanceSettings.launcherVisibility(instance);
             if (own != null) {
-                return org.jackhuang.hmcl.dsh.DshLauncherVisibility.of(own);
+                return DshLauncherVisibility.of(own);
             }
         }
-        org.jackhuang.hmcl.dsh.DshLauncherVisibility launcher =
+        DshLauncherVisibility launcher =
                 launcherVisibility.get();
-        return launcher == null ? org.jackhuang.hmcl.dsh.DshLauncherVisibility.KEEP : launcher;
+        return launcher == null ? DshLauncherVisibility.KEEP : launcher;
     }
 
     /// Returns the launcher's policy.
     ///
     /// @return the policy
-    public org.jackhuang.hmcl.dsh.DshBuildScriptPolicy buildScriptPolicy() {
+    public DshBuildScriptPolicy buildScriptPolicy() {
         return buildScriptPolicy.get() == null
-                ? org.jackhuang.hmcl.dsh.DshBuildScriptPolicy.MANUAL : buildScriptPolicy.get();
+                ? DshBuildScriptPolicy.MANUAL : buildScriptPolicy.get();
     }
 
 

@@ -20,6 +20,11 @@ package org.jackhuang.hmcl.ui.dsh;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXSpinner;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshRelease;
+import com.mcxcc303.hdsl.DshVersionManager;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -37,11 +42,6 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshRelease;
-import org.jackhuang.hmcl.dsh.DshVersionManager;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -473,7 +473,7 @@ public final class DownloadPage extends DecoratorAnimatedPage implements Decorat
             }
 
             setGraphic(graphic);
-            icon.setImage(org.jackhuang.hmcl.dsh.DshInstanceIcon.DSH_APPLICATION.load());
+            icon.setImage(DshInstanceIcon.DSH_APPLICATION.load());
 
             content.setTitle(release.version());
             content.getTags().clear();

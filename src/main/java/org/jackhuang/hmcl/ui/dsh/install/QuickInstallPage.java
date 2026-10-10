@@ -19,14 +19,13 @@ package org.jackhuang.hmcl.ui.dsh.install;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXTextField;
+import com.mcxcc303.hdsl.DshInstanceManager;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import org.jetbrains.annotations.Nullable;
 import javafx.scene.Node;
-import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -36,25 +35,16 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshException;
+import com.mcxcc303.hdsl.DshException;
 import org.jackhuang.hmcl.theme.Themes;
-import org.jackhuang.hmcl.dsh.DshHomeMode;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshNodeRuntime;
-import org.jackhuang.hmcl.dsh.DshPaths;
-import org.jackhuang.hmcl.dsh.DshInstanceIcon;
-import org.jackhuang.hmcl.dsh.DshPreset;
-import org.jackhuang.hmcl.dsh.DshPresetCatalog;
-import org.jackhuang.hmcl.dsh.DshVersionManager;
-import org.jackhuang.hmcl.dsh.NodeRuntime;
-import org.jackhuang.hmcl.dsh.NodeRuntimeManager;
+import com.mcxcc303.hdsl.DshPaths;
+import com.mcxcc303.hdsl.DshInstanceIcon;
+import com.mcxcc303.hdsl.DshPreset;
+import com.mcxcc303.hdsl.DshPresetCatalog;
+import com.mcxcc303.hdsl.DshVersionManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
-import org.jackhuang.hmcl.ui.construct.LineButton;
-import org.jackhuang.hmcl.ui.construct.LineFileChooserButton;
-import org.jackhuang.hmcl.ui.construct.LineSelectButton;
-import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.LineTextPane;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
@@ -62,10 +52,8 @@ import org.jackhuang.hmcl.ui.wizard.WizardPage;
 import org.jackhuang.hmcl.util.SettingsMap;
 import org.jetbrains.annotations.NotNullByDefault;
 
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -455,7 +443,7 @@ public final class QuickInstallPage extends BorderPane implements WizardPage {
                     org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.WARNING);
             return false;
         }
-        if (org.jackhuang.hmcl.dsh.DshInstanceManager.exists(name.trim())) {
+        if (DshInstanceManager.exists(name.trim())) {
             org.jackhuang.hmcl.ui.Controllers.dialog(i18n("dsh.install.name.taken", name.trim()),
                     i18n("dsh.install.step.quick"),
                     org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.WARNING);

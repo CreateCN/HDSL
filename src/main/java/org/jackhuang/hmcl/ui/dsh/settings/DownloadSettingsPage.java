@@ -17,11 +17,14 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshPluginCatalog;
+import com.mcxcc303.hdsl.DshProxyMode;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.NodeSource;
+import com.mcxcc303.hdsl.NodeSource;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -134,10 +137,10 @@ public final class DownloadSettingsPage extends ScrollPane {
         rebuild[0] = () -> {
             box.getChildren().setAll(caption, hint);
             java.util.List<String> configured =
-                    org.jackhuang.hmcl.dsh.DshPluginCatalog.configuredSources();
+                    DshPluginCatalog.configuredSources();
             if (configured.isEmpty()) {
                 javafx.scene.control.Label builtIn = new javafx.scene.control.Label(
-                        i18n("dsh.settings.catalog.builtin", org.jackhuang.hmcl.dsh.DshPluginCatalog.CATALOG_URL));
+                        i18n("dsh.settings.catalog.builtin", DshPluginCatalog.CATALOG_URL));
                 builtIn.setWrapText(true);
                 builtIn.getStyleClass().add("subtitle-label");
                 box.getChildren().add(builtIn);
@@ -167,8 +170,8 @@ public final class DownloadSettingsPage extends ScrollPane {
         remove.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         remove.setOnAction(event -> {
             try {
-                org.jackhuang.hmcl.dsh.DshPluginCatalog.removeSource(source);
-            } catch (org.jackhuang.hmcl.dsh.DshException e) {
+                DshPluginCatalog.removeSource(source);
+            } catch (DshException e) {
                 org.jackhuang.hmcl.ui.Controllers.dialog(e.getMessage(),
                         i18n("dsh.settings.catalog.source_failed"),
                         org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.ERROR);
@@ -201,13 +204,13 @@ public final class DownloadSettingsPage extends ScrollPane {
                 i18n("dsh.settings.catalog.add"),
                 (value, handler) -> {
                     String source = value == null ? "" : value.trim();
-                    if (!org.jackhuang.hmcl.dsh.DshPluginCatalog.isUsableSource(source)) {
+                    if (!DshPluginCatalog.isUsableSource(source)) {
                         handler.reject(i18n("dsh.settings.catalog.add.invalid"));
                         return;
                     }
                     try {
-                        org.jackhuang.hmcl.dsh.DshPluginCatalog.addSource(source);
-                    } catch (org.jackhuang.hmcl.dsh.DshException refused) {
+                        DshPluginCatalog.addSource(source);
+                    } catch (DshException refused) {
                         handler.reject(refused.getMessage());
                         return;
                     }
@@ -246,7 +249,7 @@ public final class DownloadSettingsPage extends ScrollPane {
         cache.setTitle(i18n("dsh.settings.download.cache"));
         cache.setHasSubtitle(true);
         cache.descriptionProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
-                () -> org.jackhuang.hmcl.dsh.DshPluginCatalog.cacheDirectory().toString(),
+                () -> DshPluginCatalog.cacheDirectory().toString(),
                 settings().cacheDirectoryCustomProperty(), settings().cacheDirectoryProperty()));
 
         com.jfoenix.controls.JFXButton clear = new com.jfoenix.controls.JFXButton(
@@ -255,7 +258,7 @@ public final class DownloadSettingsPage extends ScrollPane {
         clear.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         clear.setOnAction(event -> {
             // Says what it did, because a button that quietly removes nothing looks broken.
-            int removed = org.jackhuang.hmcl.dsh.DshPluginCatalog.clearCache();
+            int removed = DshPluginCatalog.clearCache();
             clear.setText(i18n("dsh.settings.download.cache.cleared", removed));
         });
         cache.setHeaderRight(clear);
@@ -350,9 +353,9 @@ public final class DownloadSettingsPage extends ScrollPane {
         proxyTypePane.setPadding(new javafx.geometry.Insets(10, 0, 0, 0));
 
         javafx.scene.control.ToggleGroup group = new javafx.scene.control.ToggleGroup();
-        java.util.Map<org.jackhuang.hmcl.dsh.DshProxyMode, com.jfoenix.controls.JFXRadioButton> buttons =
+        java.util.Map<DshProxyMode, com.jfoenix.controls.JFXRadioButton> buttons =
                 new java.util.LinkedHashMap<>();
-        for (org.jackhuang.hmcl.dsh.DshProxyMode mode : org.jackhuang.hmcl.dsh.DshProxyMode.values()) {
+        for (DshProxyMode mode : DshProxyMode.values()) {
             // The original's own control and its own wording, so the line reads the same.
             com.jfoenix.controls.JFXRadioButton button =
                     new com.jfoenix.controls.JFXRadioButton(i18n(proxyModeKey(mode)));
@@ -364,8 +367,8 @@ public final class DownloadSettingsPage extends ScrollPane {
         buttons.get(currentProxyMode()).setSelected(true);
         group.selectedToggleProperty().addListener((observable, was, now) -> {
             settings().proxyModeProperty().set(now != null
-                    && now.getUserData() instanceof org.jackhuang.hmcl.dsh.DshProxyMode mode
-                    ? mode : org.jackhuang.hmcl.dsh.DshProxyMode.SYSTEM);
+                    && now.getUserData() instanceof DshProxyMode mode
+                    ? mode : DshProxyMode.SYSTEM);
         });
         proxyList.getChildren().add(proxyTypePane);
 
@@ -425,9 +428,9 @@ public final class DownloadSettingsPage extends ScrollPane {
     /// Returns the proxy mode in force.
     ///
     /// @return the mode, never `null`
-    private static org.jackhuang.hmcl.dsh.DshProxyMode currentProxyMode() {
+    private static DshProxyMode currentProxyMode() {
         return java.util.Objects.requireNonNullElse(
-                settings().proxyModeProperty().get(), org.jackhuang.hmcl.dsh.DshProxyMode.SYSTEM);
+                settings().proxyModeProperty().get(), DshProxyMode.SYSTEM);
     }
 
     /// Returns the string key for one proxy mode.
@@ -436,7 +439,7 @@ public final class DownloadSettingsPage extends ScrollPane {
     ///
     /// @param mode the mode
     /// @return the key
-    private static String proxyModeKey(org.jackhuang.hmcl.dsh.DshProxyMode mode) {
+    private static String proxyModeKey(DshProxyMode mode) {
         return switch (mode) {
             case SYSTEM -> "settings.launcher.proxy.default";
             case NONE -> "settings.launcher.proxy.none";

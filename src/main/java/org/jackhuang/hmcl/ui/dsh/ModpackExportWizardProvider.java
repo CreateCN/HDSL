@@ -19,9 +19,12 @@ package org.jackhuang.hmcl.ui.dsh;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshPackForge;
+import com.mcxcc303.hdsl.DshPluginSettings;
 import javafx.scene.Node;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshModpacks;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshModpacks;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardProvider;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -111,8 +114,8 @@ public final class ModpackExportWizardProvider implements WizardProvider {
         settings.put("modpack.instance", instance.id());
         try {
             settings.put(SETTINGS, new java.util.LinkedHashSet<>(
-                    org.jackhuang.hmcl.dsh.DshPluginSettings.sectionsOf(instance.homeDirectory())));
-        } catch (org.jackhuang.hmcl.dsh.DshException e) {
+                    DshPluginSettings.sectionsOf(instance.homeDirectory())));
+        } catch (DshException e) {
             settings.put(SETTINGS, new java.util.LinkedHashSet<String>());
         }
     }
@@ -138,13 +141,13 @@ public final class ModpackExportWizardProvider implements WizardProvider {
         chooser.setTitle(i18n("modpack.wizard.step.initialization.save"));
         chooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(
                 packforge ? i18n("dsh.packforge.filter") : i18n("dsh.modpack.filter"),
-                packforge ? "*.dspack" : "*" + org.jackhuang.hmcl.dsh.DshModpacks.FILE_EXTENSION));
+                packforge ? "*.dspack" : "*" + DshModpacks.FILE_EXTENSION));
 
         String name = string(settings, NAME, instance.id());
         chooser.setInitialFileName(packforge
-                ? org.jackhuang.hmcl.dsh.DshPackForge.Options.kebab(name) + "-"
+                ? DshPackForge.Options.kebab(name) + "-"
                         + string(settings, VERSION, "1.0.0") + ".dspack"
-                : name + org.jackhuang.hmcl.dsh.DshModpacks.FILE_EXTENSION);
+                : name + DshModpacks.FILE_EXTENSION);
 
         java.io.File chosen = chooser.showSaveDialog(org.jackhuang.hmcl.ui.Controllers.getStage());
         if (chosen == null) {
@@ -166,8 +169,8 @@ public final class ModpackExportWizardProvider implements WizardProvider {
                 line -> org.jackhuang.hmcl.ui.FXUtils.runInFX(() -> title.set(line));
 
         if (packforge) {
-            org.jackhuang.hmcl.dsh.DshPackForge.Options options =
-                    new org.jackhuang.hmcl.dsh.DshPackForge.Options(
+            DshPackForge.Options options =
+                    new DshPackForge.Options(
                             string(settings, NAME, instance.id()),
                             string(settings, VERSION, "1.0.0"),
                             string(settings, NAME, instance.id()),
@@ -176,7 +179,7 @@ public final class ModpackExportWizardProvider implements WizardProvider {
             return org.jackhuang.hmcl.task.Task.runAsync(i18n("modpack.export"),
                     () -> ModpackFilesPage.writePackForge(instance, target, options, report));
         }
-        org.jackhuang.hmcl.dsh.DshModpacks.Options options = optionsOf(settings);
+        DshModpacks.Options options = optionsOf(settings);
         return org.jackhuang.hmcl.task.Task.runAsync(i18n("modpack.export"),
                 () -> ModpackFilesPage.write(instance, target, options, report));
     }
@@ -224,9 +227,9 @@ public final class ModpackExportWizardProvider implements WizardProvider {
     ///
     /// @param settings the wizard's settings
     /// @return the options a pack is written with
-    public static org.jackhuang.hmcl.dsh.DshModpacks.Options optionsOf(
+    public static DshModpacks.Options optionsOf(
             org.jackhuang.hmcl.util.SettingsMap settings) {
-        return new org.jackhuang.hmcl.dsh.DshModpacks.Options(
+        return new DshModpacks.Options(
                 string(settings, NAME, ""),
                 string(settings, VERSION, "1.0"),
                 string(settings, AUTHOR, ""),

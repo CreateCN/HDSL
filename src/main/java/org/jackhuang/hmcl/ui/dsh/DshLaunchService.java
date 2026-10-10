@@ -17,15 +17,16 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import org.jackhuang.hmcl.dsh.DshAccount;
-import org.jackhuang.hmcl.dsh.DshAccountRoute;
-import org.jackhuang.hmcl.dsh.DshException;
-import org.jackhuang.hmcl.dsh.DshInstance;
-import org.jackhuang.hmcl.dsh.DshLauncher;
-import org.jackhuang.hmcl.dsh.DshPorts;
-import org.jackhuang.hmcl.dsh.DshProcess;
-import org.jackhuang.hmcl.dsh.DshProcessManager;
-import org.jackhuang.hmcl.dsh.DshProcessManager.LaunchState;
+import com.mcxcc303.hdsl.DshAccount;
+import com.mcxcc303.hdsl.DshAccountRoute;
+import com.mcxcc303.hdsl.DshException;
+import com.mcxcc303.hdsl.DshInstance;
+import com.mcxcc303.hdsl.DshLauncher;
+import com.mcxcc303.hdsl.DshLauncherVisibility;
+import com.mcxcc303.hdsl.DshPorts;
+import com.mcxcc303.hdsl.DshProcess;
+import com.mcxcc303.hdsl.DshProcessManager;
+import com.mcxcc303.hdsl.DshProcessManager.LaunchState;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
 import org.jackhuang.hmcl.ui.construct.TaskExecutorDialogPane;
@@ -44,7 +45,6 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 
 import static org.jackhuang.hmcl.setting.SettingsManager.settings;
@@ -104,11 +104,11 @@ public final class DshLaunchService {
     /// @param account  the account it will launch with, or `null`
     /// @throws java.util.concurrent.CompletionException when the vendor refused the key
     private static void checkAccount(DshInstance instance,
-                                     @Nullable org.jackhuang.hmcl.dsh.DshAccount account) {
+                                     @Nullable DshAccount account) {
         if (account == null || !account.carriesAKey()) {
             return;
         }
-        org.jackhuang.hmcl.dsh.DshAccount.Check result = account.check();
+        DshAccount.Check result = account.check();
         switch (result.outcome()) {
             case VALID -> LOG.info("The account " + account.displayName() + " is valid");
             case UNREACHABLE, UNKNOWN -> LOG.warning("Could not confirm the account "
@@ -448,9 +448,9 @@ public final class DshLaunchService {
     ///
     /// @param instanceId the instance being started
     private static void applyLauncherVisibility(String instanceId) {
-        org.jackhuang.hmcl.dsh.DshLauncherVisibility choice =
+        DshLauncherVisibility choice =
                 settings().launcherVisibilityFor(instanceId);
-        switch (choice == null ? org.jackhuang.hmcl.dsh.DshLauncherVisibility.KEEP : choice) {
+        switch (choice == null ? DshLauncherVisibility.KEEP : choice) {
             case HIDE -> Controllers.getStage().hide();
             case MINIMIZE -> Controllers.getStage().setIconified(true);
             case KEEP -> {

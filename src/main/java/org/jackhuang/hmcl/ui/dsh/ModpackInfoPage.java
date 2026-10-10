@@ -22,7 +22,7 @@ import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshInstance;
+import com.mcxcc303.hdsl.DshInstance;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LinePane;

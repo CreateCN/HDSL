@@ -17,6 +17,7 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
+import com.mcxcc303.hdsl.DshDependencyPolicy;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.Metadata;
@@ -83,10 +84,10 @@ public final class GeneralSettingsPage extends ScrollPane {
     /// Builds the row that decides how a pack's dependencies are resolved.
     ///
     /// @return the row
-    private LineSelectButton<org.jackhuang.hmcl.dsh.DshDependencyPolicy> buildDependencyPolicyRow() {
-        LineSelectButton<org.jackhuang.hmcl.dsh.DshDependencyPolicy> row = new LineSelectButton<>();
+    private LineSelectButton<DshDependencyPolicy> buildDependencyPolicyRow() {
+        LineSelectButton<DshDependencyPolicy> row = new LineSelectButton<>();
         row.setTitle(i18n("dsh.settings.dependency_policy"));
-        row.setItems(org.jackhuang.hmcl.dsh.DshDependencyPolicy.values());
+        row.setItems(DshDependencyPolicy.values());
         row.setNullSafeConverter(policy -> i18n(
                 "dsh.settings.dependency_policy." + policy.name().toLowerCase(java.util.Locale.ROOT)));
         row.setValue(settings().dependencyPolicy());

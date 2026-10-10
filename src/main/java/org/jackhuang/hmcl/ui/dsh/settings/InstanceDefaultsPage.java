@@ -17,14 +17,17 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
+import com.mcxcc303.hdsl.DshBuildScriptPolicy;
+import com.mcxcc303.hdsl.DshEnvironment;
+import com.mcxcc303.hdsl.DshHomeMode;
+import com.mcxcc303.hdsl.DshIsolationPolicy;
+import com.mcxcc303.hdsl.DshLauncherVisibility;
+import com.mcxcc303.hdsl.DshNodeRuntime;
+import com.mcxcc303.hdsl.DshPaths;
+import com.mcxcc303.hdsl.NodeRuntime;
+import com.mcxcc303.hdsl.NodeRuntimeManager;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import org.jackhuang.hmcl.dsh.DshBuildScriptPolicy;
-import org.jackhuang.hmcl.dsh.DshHomeMode;
-import org.jackhuang.hmcl.dsh.DshLauncherVisibility;
-import org.jackhuang.hmcl.dsh.DshNodeRuntime;
-import org.jackhuang.hmcl.dsh.NodeRuntime;
-import org.jackhuang.hmcl.dsh.NodeRuntimeManager;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
@@ -115,9 +118,9 @@ public final class InstanceDefaultsPage extends ScrollPane {
         home.setTitle(i18n("dsh.settings.default_home"));
         // The policy first, then what "not isolated" means — the original's arrangement, and the
         // one that reads correctly: the rule decides, and the mode below says what it falls back to.
-        LineSelectButton<org.jackhuang.hmcl.dsh.DshIsolationPolicy> policy = new LineSelectButton<>();
+        LineSelectButton<DshIsolationPolicy> policy = new LineSelectButton<>();
         policy.setTitle(i18n("dsh.settings.isolation"));
-        policy.setItems(org.jackhuang.hmcl.dsh.DshIsolationPolicy.values());
+        policy.setItems(DshIsolationPolicy.values());
         policy.setConverter(choice -> choice == null ? ""
                 : i18n("dsh.settings.isolation." + choice.id()));
         policy.setValue(settings().isolationPolicy());
@@ -282,7 +285,7 @@ public final class InstanceDefaultsPage extends ScrollPane {
 
         org.jackhuang.hmcl.ui.construct.LineButton folder = new org.jackhuang.hmcl.ui.construct.LineButton();
         folder.setTitle(i18n("settings.launcher.launcher_log.reveal"));
-        folder.setSubtitle(org.jackhuang.hmcl.dsh.DshPaths.LOGS.toString());
+        folder.setSubtitle(DshPaths.LOGS.toString());
         folder.setLeading(org.jackhuang.hmcl.ui.SVG.FOLDER_OPEN, 16);
         // Revealed rather than opened: the file explorer selects the folder this way, and the
         // folder is made first so that the first run — which has not written one yet — gives a
@@ -299,7 +302,7 @@ public final class InstanceDefaultsPage extends ScrollPane {
     ///
     /// @return the log folder
     private static java.nio.file.Path logFolder() {
-        java.nio.file.Path logs = org.jackhuang.hmcl.dsh.DshPaths.LOGS;
+        java.nio.file.Path logs = DshPaths.LOGS;
         try {
             java.nio.file.Files.createDirectories(logs);
         } catch (java.io.IOException e) {
@@ -323,9 +326,9 @@ public final class InstanceDefaultsPage extends ScrollPane {
 
         com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField();
         field.setMinWidth(420);
-        field.setText(org.jackhuang.hmcl.dsh.DshEnvironment.format(settings().globalEnvironment()));
+        field.setText(DshEnvironment.format(settings().globalEnvironment()));
         field.textProperty().addListener((observable, was, text) ->
-                settings().globalEnvironmentProperty().set(org.jackhuang.hmcl.dsh.DshEnvironment.parse(text)));
+                settings().globalEnvironmentProperty().set(DshEnvironment.parse(text)));
         pane.setRight(field);
 
         ComponentList list = new ComponentList();
