@@ -2,9 +2,10 @@
 //
 // The presentation layer (window chrome, component library, animations, theme
 // engine, image pipeline, async task engine, i18n) is transplanted from HMCL
-// and kept under its original `org.jackhuang.hmcl.*` package names, as GPLv3
-// requires the original copyright notices to stay intact. Everything that
-// launched Minecraft has been removed; the domain layer is HDSL's own.
+// and kept under its original `org.jackhuang.hmcl.*` package names, so that the
+// original copyright notices stay intact as GPLv3 requires. Everything that
+// launched Minecraft has been removed; the domain layer is HDSL's own and lives
+// under `com.mcxcc303.hdsl.*`, which is what tells the two apart.
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.jackhuang.hmcl.gradle.pack.CreateDeb
