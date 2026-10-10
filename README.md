@@ -7,6 +7,7 @@
 <div align="center">
 
 [![CI](https://img.shields.io/github/actions/workflow/status/MCXCC303/HDSL/build.yml?branch=master&label=CI&logo=github&style=flat-square)](https://github.com/MCXCC303/HDSL/actions/workflows/build.yml)
+[![DSH](https://img.shields.io/badge/DSH-Launcher-4D6BFE?style=flat-square&logo=deepseek&logoColor=ffffff)](https://www.deepseek.com)
 [![License](https://img.shields.io/badge/License-GPLv3-blue?style=flat-square)](LICENSE)
 [![Java](https://img.shields.io/badge/Java-21-orange?style=flat-square&logo=openjdk&logoColor=ffffff)](https://openjdk.org/projects/jdk/21)
 
@@ -112,7 +113,7 @@ HDSL 是 HMCL 的衍生作品，目前功能正在快速完善，欢迎通过该
 ## 致谢
 Bemly (Bemly_, For MacOS Transplanting)
 
-afjvdg（afjvdg, For Windows Transplanting）
+afjvdg (afjvdg, For Windows Transplanting)
 
 DeepSeek V4.1 Flash
 
