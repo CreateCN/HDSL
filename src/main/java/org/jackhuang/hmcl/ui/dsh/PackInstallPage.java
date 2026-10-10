@@ -17,13 +17,14 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import com.jfoenix.controls.JFXButton;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -314,7 +315,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
                 }
                 DshInstance made = DshInstanceManager.find(id);
                 if (!existed && made != null) {
-                    DshVersionManager.discardPartial(made);
+                    HarnessInstaller.discardPartial(made);
                     try {
                         DshInstanceManager.delete(id);
                     } catch (DshException | RuntimeException cleanupFailure) {

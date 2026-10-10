@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXSpinner;
@@ -24,7 +26,6 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.harness.DshRelease;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -320,7 +321,7 @@ public final class DownloadPage extends DecoratorAnimatedPage implements Decorat
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                return DshVersionManager.fetchReleases();
+                return ReleaseQueries.fetchReleases();
             } catch (DshException e) {
                 throw new CompletionException(e);
             }

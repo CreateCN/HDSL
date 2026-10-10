@@ -116,7 +116,7 @@ public final class DshDoctor {
                 }
                 out.println("  " + instance.id() + "  dsh " + instance.version()
                         + "  ->  " + location
-                        + (DshVersionManager.isInstalled(instance) ? "" : "  [INCOMPLETE]"));
+                        + (HarnessInstaller.isInstalled(instance) ? "" : "  [INCOMPLETE]"));
             }
         }
         out.println();
@@ -126,7 +126,7 @@ public final class DshDoctor {
             out.println("  skipped (toolchain incomplete)");
         } else {
             try {
-                List<DshRelease> releases = DshVersionManager.fetchReleases();
+                List<DshRelease> releases = ReleaseQueries.fetchReleases();
                 out.println("  reachable, " + releases.size() + " published version(s)");
                 releases.stream().limit(5).forEach(release ->
                         out.println("    " + release.version()

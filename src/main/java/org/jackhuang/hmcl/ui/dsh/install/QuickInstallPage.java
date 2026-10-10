@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh.install;
 
+import com.mcxcc303.hdsl.harness.AppBootPin;
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXTextField;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
@@ -41,7 +44,6 @@ import com.mcxcc303.hdsl.core.DshPaths;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.harness.DshPreset;
 import com.mcxcc303.hdsl.harness.DshPresetCatalog;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
@@ -271,7 +273,7 @@ public final class QuickInstallPage extends BorderPane implements WizardPage {
             if (launcherVersion != null) {
                 versions.add(launcherVersion);
             }
-            for (String version : DshVersionManager.fetchPackageVersions(DshVersionManager.APP_BOOT_PACKAGE)) {
+            for (String version : ReleaseQueries.fetchPackageVersions(AppBootPin.APP_BOOT_PACKAGE)) {
                 if (!versions.contains(version)) {
                     versions.add(version);
                 }

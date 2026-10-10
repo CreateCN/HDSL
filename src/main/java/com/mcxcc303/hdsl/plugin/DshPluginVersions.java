@@ -17,7 +17,8 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.harness.DshVersionManager;
+import com.mcxcc303.hdsl.harness.VersionOrder;
+
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -240,7 +241,7 @@ public final class DshPluginVersions {
         }
 
         List<String> panel = new ArrayList<>(named);
-        panel.sort((left, right) -> DshVersionManager.compareVersions(right, left));
+        panel.sort((left, right) -> VersionOrder.compareVersions(right, left));
         if (asked) {
             panel.remove(harnessVersion);
             panel.add(0, harnessVersion);
@@ -366,7 +367,7 @@ public final class DshPluginVersions {
             }
         }
         List<String> versions = new ArrayList<>(claimed);
-        versions.sort((left, right) -> DshVersionManager.compareVersions(right, left));
+        versions.sort((left, right) -> VersionOrder.compareVersions(right, left));
         return List.copyOf(versions);
     }
 

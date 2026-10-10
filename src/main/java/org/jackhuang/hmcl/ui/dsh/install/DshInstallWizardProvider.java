@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh.install;
 
+import com.mcxcc303.hdsl.harness.AppBootPin;
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import javafx.scene.Node;
 import org.jackhuang.hmcl.ui.dsh.DshInstallProgress;
 import com.mcxcc303.hdsl.core.DshCommand;
@@ -26,7 +29,6 @@ import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.harness.DshPreset;
 import com.mcxcc303.hdsl.harness.DshPresetCatalog;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -235,14 +237,14 @@ public final class DshInstallWizardProvider implements WizardProvider {
 
             try {
                 report.accept(i18n("dsh.install.progress.fetching", version));
-                DshVersionManager.install(instance, report);
+                HarnessInstaller.install(instance, report);
                 updateProgress(1.0);
 
                 String appBoot = settings.get(APP_BOOT);
                 if (appBoot != null && !appBoot.isBlank() && !appBoot.equals(version)) {
                     LOG.info("Instance " + instance.id() + " was asked for boot library " + appBoot
                             + " instead of the launcher's own " + version);
-                    DshVersionManager.overrideAppBoot(instance, appBoot);
+                    AppBootPin.overrideAppBoot(instance, appBoot);
                 }
 
                 if (!specs.isEmpty()) {
@@ -264,7 +266,7 @@ public final class DshInstallWizardProvider implements WizardProvider {
                 }
                 // An instance whose runtime never arrived is not an instance; it
                 // would appear in the list and fail to start.
-                DshVersionManager.discardPartial(instance);
+                HarnessInstaller.discardPartial(instance);
                 try {
                     DshInstanceManager.delete(instance.id());
                 } catch (RuntimeException | DshException cleanupFailure) {

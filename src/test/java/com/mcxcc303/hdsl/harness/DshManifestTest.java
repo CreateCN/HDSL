@@ -19,7 +19,6 @@ package com.mcxcc303.hdsl.harness;
 
 import com.mcxcc303.hdsl.plugin.DshDependencyPolicy;
 import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -58,7 +57,7 @@ class DshManifestTest {
     /// @throws DshException when the manifest cannot be written
     @Test
     void pinsTheLauncherExactly() throws IOException, DshException {
-        DshVersionManager.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
+        HarnessInstaller.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
                 DshDependencyPolicy.LATEST);
 
         JsonObject manifest = JsonParser.parseString(
@@ -79,7 +78,7 @@ class DshManifestTest {
     /// @throws IOException when the file cannot be read back
     @Test
     void pinsTheBootLibraryWherePnpmReadsIt() throws IOException, DshException {
-        DshVersionManager.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
+        HarnessInstaller.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
                 DshDependencyPolicy.LATEST);
 
         Path workspace = prefix.resolve("pnpm-workspace.yaml");
@@ -96,7 +95,7 @@ class DshManifestTest {
     /// @throws IOException when the file cannot be read back
     @Test
     void writesTheBootLibraryItIsGiven() throws IOException, DshException {
-        DshVersionManager.writeManifest(prefix, "0.1.6-alpha.1", "0.1.5-rc.2", null,
+        HarnessInstaller.writeManifest(prefix, "0.1.6-alpha.1", "0.1.5-rc.2", null,
                 DshDependencyPolicy.LATEST);
 
         assertTrue(Files.readString(prefix.resolve("pnpm-workspace.yaml")).contains("0.1.5-rc.2"),
@@ -121,12 +120,12 @@ class DshManifestTest {
                   '@deepseek-ai/dsh-app-boot': 0.1.7-rc.1
                   '@deepseek-ai/cordis': 4.0.4
                 """;
-        assertEquals("0.1.7-rc.1", DshVersionManager.appBootPin(workspace),
+        assertEquals("0.1.7-rc.1", AppBootPin.appBootPin(workspace),
                 "the list entry names the package and a version, but it is not the pin");
 
-        assertNull(DshVersionManager.appBootPin("  - '@deepseek-ai/dsh-app-boot@0.1.7-rc.1'\n"),
+        assertNull(AppBootPin.appBootPin("  - '@deepseek-ai/dsh-app-boot@0.1.7-rc.1'\n"),
                 "a file that only lists the package pins nothing");
-        assertEquals("0.1.5-alpha.2", DshVersionManager.appBootPin(
+        assertEquals("0.1.5-alpha.2", AppBootPin.appBootPin(
                 "overrides:\n  \"@deepseek-ai/dsh-app-boot\": '0.1.5-alpha.2'\n"),
                 "quotes around either half are the spelling, not the value");
     }
@@ -141,7 +140,7 @@ class DshManifestTest {
     /// @throws DshException when the manifest cannot be written
     @Test
     void aValueYamlWouldReadAsAnIndicatorIsQuoted() throws IOException, DshException {
-        DshVersionManager.writeManifest(prefix, "0.1.6-alpha.1", "@0.1.7-rc.1", null,
+        HarnessInstaller.writeManifest(prefix, "0.1.6-alpha.1", "@0.1.7-rc.1", null,
                 DshDependencyPolicy.LATEST);
 
         String text = Files.readString(prefix.resolve("pnpm-workspace.yaml"));
@@ -155,7 +154,7 @@ class DshManifestTest {
     /// @throws DshException when the manifest cannot be written
     @Test
     void anOrdinaryVersionIsWrittenPlainly() throws IOException, DshException {
-        DshVersionManager.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
+        HarnessInstaller.writeManifest(prefix, "0.1.6-alpha.1", "0.1.6-alpha.1", null,
                 DshDependencyPolicy.LATEST);
 
         String text = Files.readString(prefix.resolve("pnpm-workspace.yaml"));
@@ -175,7 +174,7 @@ class DshManifestTest {
         held.put("\u0040deepseek-ai/cordis", "4.0.2");
         held.put("\u0040deepseek-ai/dsh-app-boot", "0.1.6-alpha.1");
 
-        java.util.Map<String, String> overrides = DshVersionManager.mergeOverrides(
+        java.util.Map<String, String> overrides = HarnessInstaller.mergeOverrides(
                 "0.1.5-alpha.2", held);
 
         assertEquals(2, overrides.size(), "two packages, and no key written twice");
@@ -195,20 +194,20 @@ class DshManifestTest {
                 + "\"@deepseek-ai/cordis\":\"^4.0.2\","
                 + "\"@deepseek-ai/cordis-plugin-loader\":\"^1.0.3\"}]";
 
-        com.google.gson.JsonObject declared = DshVersionManager.declaredDependencies(answer);
+        com.google.gson.JsonObject declared = HarnessInstaller.declaredDependencies(answer);
 
         assertNotNull(declared, "an array of one object is npm's answer for a named version");
         assertEquals("^4.0.2", declared.get("\u0040deepseek-ai/cordis").getAsString());
-        assertEquals("4.0.2", DshVersionManager.floorOf(
+        assertEquals("4.0.2", HarnessInstaller.floorOf(
                 declared.get("\u0040deepseek-ai/cordis").getAsString()));
     }
 
     /// A package that declares nothing, and an answer that is not JSON, both say "nothing to hold".
     @Test
     void anAnswerWithNoDependenciesIsNotAnError() {
-        assertNull(DshVersionManager.declaredDependencies("[]"));
-        assertNull(DshVersionManager.declaredDependencies("null"));
-        assertNull(DshVersionManager.declaredDependencies("not json"));
+        assertNull(HarnessInstaller.declaredDependencies("[]"));
+        assertNull(HarnessInstaller.declaredDependencies("null"));
+        assertNull(HarnessInstaller.declaredDependencies("not json"));
     }
 
     /// Only the ranges that have a floor are read; the rest are left alone.
@@ -217,25 +216,25 @@ class DshManifestTest {
     /// simply resolves freely — which is the policy's own answer for anything it does not hold.
     @Test
     void aFloorIsReadFromTheRangesThatHaveOne() {
-        assertEquals("4.0.2", DshVersionManager.floorOf("^4.0.2"));
-        assertEquals("1.0.3", DshVersionManager.floorOf("~1.0.3"));
-        assertEquals("2.0.0", DshVersionManager.floorOf(">=2.0.0"));
-        assertEquals("0.1.5-alpha.2", DshVersionManager.floorOf("0.1.5-alpha.2"),
+        assertEquals("4.0.2", HarnessInstaller.floorOf("^4.0.2"));
+        assertEquals("1.0.3", HarnessInstaller.floorOf("~1.0.3"));
+        assertEquals("2.0.0", HarnessInstaller.floorOf(">=2.0.0"));
+        assertEquals("0.1.5-alpha.2", HarnessInstaller.floorOf("0.1.5-alpha.2"),
                 "an exact version is its own floor");
-        assertEquals("0.1.5-alpha.2", DshVersionManager.floorOf("^0.1.5-alpha.2"),
+        assertEquals("0.1.5-alpha.2", HarnessInstaller.floorOf("^0.1.5-alpha.2"),
                 "a prerelease floor is still a floor");
     }
 
     /// What cannot be read is not guessed at.
     @Test
     void aRangeWithNoReadableFloorIsLeftAlone() {
-        assertNull(DshVersionManager.floorOf("*"));
-        assertNull(DshVersionManager.floorOf("latest"));
-        assertNull(DshVersionManager.floorOf(">=1.0.0 <2.0.0"));
-        assertNull(DshVersionManager.floorOf("github:owner/repo#sha"));
-        assertNull(DshVersionManager.floorOf("workspace:*"));
-        assertNull(DshVersionManager.floorOf(""));
-        assertNull(DshVersionManager.floorOf(null));
+        assertNull(HarnessInstaller.floorOf("*"));
+        assertNull(HarnessInstaller.floorOf("latest"));
+        assertNull(HarnessInstaller.floorOf(">=1.0.0 <2.0.0"));
+        assertNull(HarnessInstaller.floorOf("github:owner/repo#sha"));
+        assertNull(HarnessInstaller.floorOf("workspace:*"));
+        assertNull(HarnessInstaller.floorOf(""));
+        assertNull(HarnessInstaller.floorOf(null));
     }
 
     /// The default holds the vendor's own packages and nothing else.

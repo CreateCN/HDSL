@@ -17,6 +17,9 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.harness.AppBootPin;
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -31,7 +34,6 @@ import com.mcxcc303.hdsl.launch.DshSession;
 import com.mcxcc303.hdsl.launch.DshSessions;
 import com.mcxcc303.hdsl.skill.DshSkill;
 import com.mcxcc303.hdsl.skill.DshSkills;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 
 import java.util.Set;
 
@@ -392,7 +394,7 @@ public final class DshModpacks {
 
         Path patch = profileDirectory.resolve("cordis.patch.yml");
         boolean hasPatch = Files.isRegularFile(patch);
-        String appBoot = DshVersionManager.readAppBoot(instance);
+        String appBoot = AppBootPin.readAppBoot(instance);
         if (appBoot != null && appBoot.equals(instance.version())) {
             // A pin equal to the version is what an instance has by default; a pack
             // does not need to say so, and saying it would make the pack claim a
@@ -601,17 +603,17 @@ public final class DshModpacks {
                     folder != null ? folder : DshInstanceManager.currentFolder());
         }
 
-        boolean installed = DshVersionManager.isInstalled(existing);
+        boolean installed = HarnessInstaller.isInstalled(existing);
         if (!installed) {
             report(onStage, "Installing DeepSeek Harness " + manifest.dshVersion());
-            DshVersionManager.install(existing, manifest.dshVersion(), onStage);
+            HarnessInstaller.install(existing, manifest.dshVersion(), onStage);
         } else {
             report(onStage, "Instance " + id + " already has its own DeepSeek Harness");
         }
 
         if (manifest.appBoot() != null && !manifest.appBoot().equals(existing.version())) {
             report(onStage, "Holding it to boot library " + manifest.appBoot());
-            DshVersionManager.overrideAppBoot(existing, manifest.appBoot(), onStage);
+            AppBootPin.overrideAppBoot(existing, manifest.appBoot(), onStage);
         }
 
         int plugins = restoreProfile(existing, manifest, pack, onStage);

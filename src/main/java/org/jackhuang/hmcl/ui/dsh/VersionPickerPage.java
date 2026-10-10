@@ -1,5 +1,8 @@
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+import com.mcxcc303.hdsl.harness.VersionOrder;
+
 import com.jfoenix.controls.JFXButton;
 import javafx.beans.property.ReadOnlyObjectProperty;
 import javafx.beans.property.ReadOnlyObjectWrapper;
@@ -16,7 +19,6 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.harness.DshRelease;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
@@ -110,10 +112,10 @@ public final class VersionPickerPage extends VBox implements DecoratorPage {
 
         java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
-                DshVersionManager.Lockstep twins = DshVersionManager.lockstepVersionsAndOldest();
+                VersionOrder.Lockstep twins = VersionOrder.lockstepVersionsAndOldest();
                 lockstep = twins.versions();
                 oldestLockstep = twins.oldest();
-                return DshVersionManager.fetchReleases();
+                return ReleaseQueries.fetchReleases();
             } catch (DshException e) {
                 throw new java.util.concurrent.CompletionException(e);
             }
@@ -172,7 +174,7 @@ public final class VersionPickerPage extends VBox implements DecoratorPage {
         // is the difference between a list of versions and a list of versions that
         // can be used.
         boolean installable = lockstep.isEmpty() || lockstep.contains(release.version())
-                || DshVersionManager.predatesLockstep(release.version(), oldestLockstep);
+                || VersionOrder.predatesLockstep(release.version(), oldestLockstep);
         if (!current && !installable) {
             content.addTag(i18n("dsh.instance.upgrade.missing"));
         }

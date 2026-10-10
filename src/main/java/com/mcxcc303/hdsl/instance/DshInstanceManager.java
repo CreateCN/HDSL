@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.DshFiles;
 import com.mcxcc303.hdsl.plugin.DshLocalPluginPaths;
@@ -26,7 +28,6 @@ import com.mcxcc303.hdsl.core.DshPaths;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.launch.DshProcessManager;
 import com.mcxcc303.hdsl.harness.DshSurface;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -668,7 +669,7 @@ public final class DshInstanceManager {
                     source.extraArguments(), source.environment())
                     .withIcon(source.iconOrDefault());
             update(copy);
-        } else if (DshVersionManager.isInstalled(copy)) {
+        } else if (HarnessInstaller.isInstalled(copy)) {
             // An id taken by an instance that is already whole is somebody else's. One that is
             // half-made is this call's own earlier attempt, kept because pnpm asked about an install
             // script: the answer goes into that instance's profile, so the work continues there
@@ -691,7 +692,7 @@ public final class DshInstanceManager {
                 throw failed;
             }
             LOG.warning("Could not copy " + id + " to " + normalized + "; removing the copy", failed);
-            DshVersionManager.discardPartial(copy);
+            HarnessInstaller.discardPartial(copy);
             try {
                 delete(normalized);
             } catch (DshException | RuntimeException cleanupFailure) {

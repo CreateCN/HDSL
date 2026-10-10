@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.mcxcc303.hdsl.plugin.Catalog;
 import com.mcxcc303.hdsl.plugin.CatalogClient;
 import com.mcxcc303.hdsl.plugin.CatalogParser;
@@ -30,7 +32,6 @@ import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.harness.DshPackageRegistry;
 import com.mcxcc303.hdsl.plugin.DshPluginRequirements;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -486,7 +487,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
 
         CompletableFuture.supplyAsync(() -> {
             try {
-                return DshVersionManager.fetchReleases().stream().map(release -> release.version()).toList();
+                return ReleaseQueries.fetchReleases().stream().map(release -> release.version()).toList();
             } catch (DshException e) {
                 throw new CompletionException(e);
             }

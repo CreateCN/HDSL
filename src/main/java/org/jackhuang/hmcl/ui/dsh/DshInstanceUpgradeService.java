@@ -1,11 +1,12 @@
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import com.mcxcc303.hdsl.core.DshCommand;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.task.Task;
 import org.jackhuang.hmcl.task.TaskExecutor;
 import org.jackhuang.hmcl.task.TaskListener;
@@ -62,7 +63,7 @@ public final class DshInstanceUpgradeService {
         Task<Void> task = Task.runAsync(i18n("dsh.instance.upgrade", version), () -> {
             LOG.info("Moving instance " + instance.id() + " to DeepSeek Harness " + version);
 
-            DshVersionManager.install(instance, version, progress::accept);
+            HarnessInstaller.install(instance, version, progress::accept);
             DshInstanceManager.update(withVersion(instance, version));
 
             if (!specs.isEmpty()) {

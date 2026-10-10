@@ -17,6 +17,9 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.mcxcc303.hdsl.plugin.CatalogSources;
 
 import com.mcxcc303.hdsl.launch.DshAcpClient;
@@ -39,7 +42,6 @@ import com.mcxcc303.hdsl.harness.DshRelease;
 import com.mcxcc303.hdsl.launch.DshSession;
 import com.mcxcc303.hdsl.pack.DshSessionPacks;
 import com.mcxcc303.hdsl.launch.DshSessions;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import com.mcxcc303.hdsl.runtime.NodeRelease;
 import com.mcxcc303.hdsl.runtime.NodeRuntime;
 import com.mcxcc303.hdsl.runtime.NodeRuntimeManager;
@@ -60,7 +62,7 @@ import java.util.Map;
 ///
 /// This exists so that the launcher's core can be driven, scripted and verified
 /// without a display. The GUI is a second consumer of exactly the same
-/// [DshVersionManager] and [DshInstanceManager] calls.
+/// [HarnessInstaller] and [DshInstanceManager] calls.
 @NotNullByDefault
 public final class DshCli {
     private DshCli() {
@@ -444,12 +446,12 @@ public final class DshCli {
                     for (DshInstance instance : instances) {
                         out.println(instance.id() + "\t" + instance.version()
                                 + "\t" + instance.dshDirectory()
-                                + (DshVersionManager.isInstalled(instance) ? "" : "\t[INCOMPLETE]"));
+                                + (HarnessInstaller.isInstalled(instance) ? "" : "\t[INCOMPLETE]"));
                     }
                     return 0;
                 }
                 case LIST_REMOTE -> {
-                    for (DshRelease release : DshVersionManager.fetchReleases()) {
+                    for (DshRelease release : ReleaseQueries.fetchReleases()) {
                         String tag = release.primaryTag();
                         out.println(release.version()
                                 + "\t" + release.type().id()
@@ -652,7 +654,7 @@ public final class DshCli {
                     }
 
                     out.println("Moving " + instance.id() + " from " + instance.version() + " to " + version);
-                    DshVersionManager.install(instance, version, out::println);
+                    HarnessInstaller.install(instance, version, out::println);
                     // Rebuilt from the instance rather than from the fields the
                     // command happens to care about: everything the upgrade does
                     // not change — the folder it lives in, its icon, its port —

@@ -1,5 +1,8 @@
 package org.jackhuang.hmcl.ui.dsh.install;
 
+import com.mcxcc303.hdsl.harness.AppBootPin;
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.jfoenix.controls.JFXButton;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -12,7 +15,6 @@ import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.dsh.VersionFilterBar;
 import org.jackhuang.hmcl.ui.FXUtils;
@@ -127,7 +129,7 @@ public final class AppBootSelectPage extends VBox implements WizardPage {
 
         java.util.concurrent.CompletableFuture.supplyAsync(() -> {
             try {
-                return DshVersionManager.fetchPackageVersions(DshVersionManager.APP_BOOT_PACKAGE);
+                return ReleaseQueries.fetchPackageVersions(AppBootPin.APP_BOOT_PACKAGE);
             } catch (DshException e) {
                 throw new java.util.concurrent.CompletionException(e);
             }

@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.AppBootPin;
+
 import com.mcxcc303.hdsl.plugin.Catalog;
 import com.mcxcc303.hdsl.plugin.CatalogClient;
 
@@ -31,7 +33,6 @@ import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.harness.DshPreset;
 import com.mcxcc303.hdsl.harness.DshPresetCatalog;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.theme.Themes;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.ListPageBase;
@@ -137,7 +138,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
 
         InstallerListItem row = new InstallerListItem(mark, i18n("dsh.install.app_boot"));
 
-        String appBoot = DshVersionManager.readAppBoot(instance);
+        String appBoot = AppBootPin.readAppBoot(instance);
         if (appBoot == null || appBoot.equals(instance.version())) {
             // Nothing pinned, or pinned to the version the runtime itself is:
             // both are the pairing, which is what "matched" says.
@@ -246,7 +247,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
             // The chooser reports the launcher's own version as `null`, because
             // a wizard that runs inside another one has no instance to pin it to.
             String appBoot = chosen == null ? instance.version() : chosen;
-            String current = DshVersionManager.readAppBoot(instance);
+            String current = AppBootPin.readAppBoot(instance);
             String from = current == null || current.isBlank() ? instance.version() : current;
             if (from.equals(appBoot)) {
                 return;
@@ -254,7 +255,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
             Controllers.confirm(i18n("dsh.install.app_boot.change.confirm", from, appBoot),
                     i18n("dsh.install.app_boot"),
                     () -> ProgressDialog.run(i18n("dsh.install.app_boot"), progress ->
-                            DshVersionManager.overrideAppBoot(instance, appBoot, progress::accept),
+                            AppBootPin.overrideAppBoot(instance, appBoot, progress::accept),
                             this::refresh),
                     null);
         }), i18n("dsh.install.app_boot"));

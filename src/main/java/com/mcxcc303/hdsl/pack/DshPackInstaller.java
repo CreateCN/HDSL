@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+
 import com.mcxcc303.hdsl.plugin.CatalogClient;
 
 import com.mcxcc303.hdsl.core.DshException;
@@ -27,7 +29,6 @@ import com.mcxcc303.hdsl.launch.DshLauncher;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.launch.DshProcess;
 import com.mcxcc303.hdsl.account.DshProfilePatch;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 
 import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.util.DigestUtils;
@@ -638,7 +639,7 @@ public final class DshPackInstaller {
             }
             org.jackhuang.hmcl.util.logging.Logger.LOG.warning(
                     "Could not finish the pack in " + instance.id() + "; removing it", failed);
-            DshVersionManager.discardPartial(instance);
+            HarnessInstaller.discardPartial(instance);
             try {
                 DshInstanceManager.delete(instance.id());
             } catch (DshException | RuntimeException cleanupFailure) {
@@ -837,7 +838,7 @@ public final class DshPackInstaller {
                 DshHomeMode.ISOLATED, null, List.of(), java.util.Map.of());
         try {
             say(report, "Installing DeepSeek Harness " + version);
-            DshVersionManager.install(instance, version, report);
+            HarnessInstaller.install(instance, version, report);
 
             say(report, "Writing the pack's files into "
                     + instance.homeDirectory().resolve("profiles").resolve(instance.profile()));
@@ -857,7 +858,7 @@ public final class DshPackInstaller {
             // for a reason that is no longer on screen.
             org.jackhuang.hmcl.util.logging.Logger.LOG.warning(
                     "Could not install the pack into " + id + "; removing the instance made for it", failed);
-            DshVersionManager.discardPartial(instance);
+            HarnessInstaller.discardPartial(instance);
             try {
                 DshInstanceManager.delete(id);
             } catch (DshException | RuntimeException cleanupFailure) {

@@ -17,10 +17,11 @@
  */
 package com.mcxcc303.hdsl.runtime;
 
+import com.mcxcc303.hdsl.harness.VersionOrder;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.DshFiles;
 import com.mcxcc303.hdsl.core.DshPaths;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -164,7 +165,7 @@ public final class NodeRuntimeManager {
         } catch (IOException e) {
             LOG.warning("Failed to enumerate installed Node runtimes in " + root, e);
         }
-        runtimes.sort(Comparator.comparing(NodeRuntime::version, DshVersionManager::compareVersions).reversed());
+        runtimes.sort(Comparator.comparing(NodeRuntime::version, VersionOrder::compareVersions).reversed());
         return runtimes;
     }
 
@@ -246,7 +247,7 @@ public final class NodeRuntimeManager {
             releases.add(new NodeRelease(version.substring(1), lts, asString(object, "date")));
         }
 
-        releases.sort(Comparator.comparing(NodeRelease::version, DshVersionManager::compareVersions).reversed());
+        releases.sort(Comparator.comparing(NodeRelease::version, VersionOrder::compareVersions).reversed());
         return releases;
     }
 

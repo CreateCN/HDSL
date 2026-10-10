@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+
 import com.mcxcc303.hdsl.plugin.Catalog;
 
 import com.jfoenix.controls.JFXButton;
@@ -43,7 +45,6 @@ import com.mcxcc303.hdsl.harness.DshPackageRegistry;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginRequirements;
 import com.mcxcc303.hdsl.plugin.DshPluginVersions;
-import com.mcxcc303.hdsl.harness.DshVersionManager;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
@@ -290,7 +291,7 @@ public final class PluginDetailPage extends DecoratorAnimatedPage implements Dec
                         DshNodeRuntime runtime = instance == null
                                 ? DshNodeRuntime.detect().orElse(null)
                                 : DshLauncher.resolveRuntime(instance);
-                        for (String version : DshVersionManager.fetchPackageVersions(runtime, plugin.npm())) {
+                        for (String version : ReleaseQueries.fetchPackageVersions(runtime, plugin.npm())) {
                             published.add(new DshPluginVersions.Published(version,
                                     DshPluginVersions.channelOf(version, null), null, new JsonObject(), List.of()));
                         }

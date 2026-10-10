@@ -81,7 +81,7 @@ public final class DshPackageRegistry {
 
         List<String> versions = parseVersions(result.text());
         versions.sort(Comparator.comparing((String version) -> version,
-                DshVersionManager::compareVersions).reversed());
+                VersionOrder::compareVersions).reversed());
         return versions;
     }
 
