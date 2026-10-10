@@ -17,6 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.plugin.Catalog;
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+import com.mcxcc303.hdsl.plugin.CatalogParser;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXComboBox;
 import com.jfoenix.controls.JFXListView;
@@ -25,7 +29,6 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.harness.DshPackageRegistry;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.plugin.DshPluginRequirements;
 import com.mcxcc303.hdsl.harness.DshVersionManager;
 import javafx.collections.FXCollections;
@@ -80,13 +83,13 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
     private static final int PAGE_SIZE = 24;
 
     /// Every plugin the catalogue listed.
-    private final ObservableList<DshPluginCatalog.Plugin> all = FXCollections.observableArrayList();
+    private final ObservableList<Catalog.Plugin> all = FXCollections.observableArrayList();
 
     /// The plugins on the page being shown.
-    private final ObservableList<DshPluginCatalog.Plugin> shown = FXCollections.observableArrayList();
+    private final ObservableList<Catalog.Plugin> shown = FXCollections.observableArrayList();
 
     /// The list the results are drawn in.
-    private final JFXListView<DshPluginCatalog.Plugin> listView = new JFXListView<>();
+    private final JFXListView<Catalog.Plugin> listView = new JFXListView<>();
 
     /// The pane that reports loading and failure.
     private final SpinnerPane spinner = new SpinnerPane();
@@ -164,7 +167,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
         listView.setPadding(Insets.EMPTY);
         listView.getStyleClass().add("no-horizontal-scrollbar");
         listView.setItems(shown);
-        listView.setCellFactory(view -> new PluginCell((JFXListView<DshPluginCatalog.Plugin>) view));
+        listView.setCellFactory(view -> new PluginCell((JFXListView<Catalog.Plugin>) view));
         listView.setPlaceholder(placeholder(i18n("search.no_results_found")));
         spinner.setContent(listView);
         root.getChildren().add(spinner);
@@ -353,7 +356,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
         spinner.setLoading(true);
         CompletableFuture.supplyAsync(() -> {
             try {
-                return DshPluginCatalog.fetch();
+                return CatalogClient.fetch();
             } catch (DshException e) {
                 throw new CompletionException(e);
             }
@@ -419,8 +422,8 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
     private void search() {
         String query = nameField.getText() == null ? "" : nameField.getText().trim().toLowerCase();
         CategoryFilter category = categoryBox.getValue();
-        List<DshPluginCatalog.Plugin> matching = new ArrayList<>();
-        for (DshPluginCatalog.Plugin plugin : DshPluginCatalog.sorted(all, sortBox.getValue())) {
+        List<Catalog.Plugin> matching = new ArrayList<>();
+        for (Catalog.Plugin plugin : CatalogParser.sorted(all, sortBox.getValue())) {
             if (!query.isEmpty() && !matches(plugin, query)) {
                 continue;
             }
@@ -443,7 +446,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
     /// @param plugin the plugin
     /// @param query  the query, already lower-cased
     /// @return whether it matches
-    private static boolean matches(DshPluginCatalog.Plugin plugin, String query) {
+    private static boolean matches(Catalog.Plugin plugin, String query) {
         if (plugin.name().toLowerCase().contains(query)
                 || plugin.owner().toLowerCase().contains(query)) {
             return true;
@@ -509,7 +512,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
     ///
     /// @param plugin the plugin
     /// @return whether it fits, or whether it fits as far as is known
-    private boolean fits(DshPluginCatalog.Plugin plugin) {
+    private boolean fits(Catalog.Plugin plugin) {
         String name = plugin.npm() == null ? plugin.name() : plugin.npm();
         Boolean known = fitting.get(name);
         if (known != null) {
@@ -601,7 +604,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
     /// the list cells wear, with the row's action wired to the rippler — which is
     /// what takes the press, and the reason a handler put on the pane inside it
     /// never fires.
-    private final class PluginCell extends MDListCell<DshPluginCatalog.Plugin> {
+    private final class PluginCell extends MDListCell<Catalog.Plugin> {
         /// The plugin's name, description and tags.
         private final TwoLineListItem content = new TwoLineListItem();
 
@@ -611,10 +614,10 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
         /// Creates the cell.
         ///
         /// @param listView the list it belongs to
-        PluginCell(JFXListView<DshPluginCatalog.Plugin> listView) {
+        PluginCell(JFXListView<Catalog.Plugin> listView) {
             super(listView);
             onClicked(() -> {
-                DshPluginCatalog.Plugin item = getItem();
+                Catalog.Plugin item = getItem();
                 if (item != null) {
                     Controllers.navigate(new PluginDetailPage(item, target()));
                 }
@@ -622,7 +625,7 @@ public final class PluginMarketPage extends StackPane implements Refreshable, Pa
         }
 
         @Override
-        protected void updateControl(@Nullable DshPluginCatalog.Plugin plugin, boolean empty) {
+        protected void updateControl(@Nullable Catalog.Plugin plugin, boolean empty) {
             if (empty || plugin == null) {
                 return;
             }

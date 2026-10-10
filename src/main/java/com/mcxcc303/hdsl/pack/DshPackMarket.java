@@ -17,8 +17,9 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+
 import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -483,7 +484,7 @@ public final class DshPackMarket {
     static Path cachedFile(String url) {
         // Named from the address rather than fixed, so that a launcher pointed at a mirror does not
         // overwrite the copy it kept from the community one: the two are different documents.
-        return DshPluginCatalog.cacheDirectory().resolve("market-" + hashedName(url) + ".json");
+        return CatalogClient.cacheDirectory().resolve("market-" + hashedName(url) + ".json");
     }
 
     /// Hashes an address into a file name.

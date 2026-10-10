@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.plugin.Catalog;
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+
 import javafx.beans.binding.Bindings;
 import javafx.scene.Node;
 import javafx.scene.control.Skin;
@@ -25,7 +28,6 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.harness.DshPreset;
 import com.mcxcc303.hdsl.harness.DshPresetCatalog;
@@ -203,7 +205,7 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
     ///
     /// @param preset the preset
     /// @return the catalogue entry
-    private static DshPluginCatalog.Plugin catalogueEntry(DshPreset preset) {
+    private static Catalog.Plugin catalogueEntry(DshPreset preset) {
         String spec = preset.spec();
         int at = spec.lastIndexOf('@');
         String name = at > 0 ? spec.substring(0, at) : spec;
@@ -212,13 +214,13 @@ public final class InstanceInstallersPage extends ListPageBase<InstallerListItem
         // The package's own page is the link that always exists for a plugin, and
         // it is where its versions and its repository are named. The catalogue is
         // asked first, because a plugin it knows has a page of its own.
-        DshPluginCatalog.Plugin known = DshPluginCatalog.find(name).orElse(null);
+        Catalog.Plugin known = CatalogClient.find(name).orElse(null);
         if (known != null) {
             return known;
         }
         // The record's fields in order: name, owner, address, category, description,
         // localised description, package, version, stars, downloads, tarball, source.
-        return new DshPluginCatalog.Plugin(preset.name(), "",
+        return new Catalog.Plugin(preset.name(), "",
                 "https://www.npmjs.com/package/" + name, "market", preset.description(),
                 preset.description(), name, version, 0, 0, null, null);
     }

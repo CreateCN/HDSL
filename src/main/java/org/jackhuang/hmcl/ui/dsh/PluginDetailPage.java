@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.plugin.Catalog;
+
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXListView;
 import com.google.gson.JsonObject;
@@ -38,7 +40,6 @@ import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.launch.DshLauncher;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import com.mcxcc303.hdsl.harness.DshPackageRegistry;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginRequirements;
 import com.mcxcc303.hdsl.plugin.DshPluginVersions;
@@ -91,7 +92,7 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 @NotNullByDefault
 public final class PluginDetailPage extends DecoratorAnimatedPage implements DecoratorPage, Refreshable {
     /// The plugin being described.
-    private final DshPluginCatalog.Plugin plugin;
+    private final Catalog.Plugin plugin;
 
     /// The instance this page installs into, or `null` to use the selected one.
     ///
@@ -152,7 +153,7 @@ public final class PluginDetailPage extends DecoratorAnimatedPage implements Dec
     /// Creates the page.
     ///
     /// @param plugin the plugin to describe
-    public PluginDetailPage(DshPluginCatalog.Plugin plugin) {
+    public PluginDetailPage(Catalog.Plugin plugin) {
         this(plugin, null);
     }
 
@@ -160,7 +161,7 @@ public final class PluginDetailPage extends DecoratorAnimatedPage implements Dec
     ///
     /// @param plugin the plugin to describe
     /// @param target the instance to install into, or `null` for the selected one
-    public PluginDetailPage(DshPluginCatalog.Plugin plugin, @Nullable DshInstance target) {
+    public PluginDetailPage(Catalog.Plugin plugin, @Nullable DshInstance target) {
         this.plugin = plugin;
         this.target = target;
         this.state = new javafx.beans.property.ReadOnlyObjectWrapper<>(State.fromTitle(plugin.name()));

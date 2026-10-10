@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.plugin.CatalogSources;
+
 import com.mcxcc303.hdsl.launch.DshAcpClient;
 import com.mcxcc303.hdsl.plugin.DshBuildScripts;
 import com.mcxcc303.hdsl.harness.DshDoctor;
@@ -29,7 +31,6 @@ import com.mcxcc303.hdsl.launch.DshLauncher;
 import com.mcxcc303.hdsl.plugin.DshLocalPlugins;
 import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.pack.DshPackForge;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.harness.DshPreset;
 import com.mcxcc303.hdsl.launch.DshProcess;
@@ -895,15 +896,15 @@ public final class DshCli {
     /// @param out the stream for normal output
     /// @return the process exit code
     private static int listPluginSources(PrintStream out) {
-        List<String> configured = DshPluginCatalog.configuredSources();
-        List<String> resolved = DshPluginCatalog.sources();
+        List<String> configured = CatalogSources.configuredSources();
+        List<String> resolved = CatalogSources.sources();
         for (String source : resolved) {
             boolean builtIn = !configured.contains(source);
             out.println((builtIn ? "  " : "* ") + source
                     + (builtIn ? "  [built in]" : "")
-                    + (DshPluginCatalog.isPackageSource(source) ? "  [npm package]" : ""));
+                    + (CatalogSources.isPackageSource(source) ? "  [npm package]" : ""));
         }
-        out.println("  " + DshPluginCatalog.fallbackSource()
+        out.println("  " + CatalogSources.fallbackSource()
                 + "  [npm package, read only when none of the above answers]");
         if (configured.isEmpty()) {
             out.println("(nothing configured; the address above is what the launcher publishes with)");
@@ -924,7 +925,7 @@ public final class DshCli {
         }
         String source = invocation.arguments().get(0);
         try {
-            DshPluginCatalog.addSource(source);
+            CatalogSources.addSource(source);
             out.println("Added " + source);
             return listPluginSources(out);
         } catch (DshException e) {
@@ -949,9 +950,9 @@ public final class DshCli {
         }
         String source = invocation.arguments().get(0);
         try {
-            DshPluginCatalog.removeSource(source);
+            CatalogSources.removeSource(source);
             out.println("Removed " + source);
-            if (DshPluginCatalog.configuredSources().isEmpty()) {
+            if (CatalogSources.configuredSources().isEmpty()) {
                 out.println("That was the last one, so the launcher is back to the published pair");
             }
             return listPluginSources(out);

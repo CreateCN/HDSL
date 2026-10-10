@@ -67,7 +67,7 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 @NotNullByDefault
 public final class DshPluginSources {
     /// The shape of a GitHub `owner/name`.
-    private static final Pattern REPOSITORY = Pattern.compile("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$");
+    static final Pattern REPOSITORY = Pattern.compile("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$");
 
     /// The shorthands pnpm resolves through a host of its own.
     private static final Pattern SHORTHAND = Pattern.compile("^(?:github|gitlab|bitbucket|gist):",
@@ -180,14 +180,14 @@ public final class DshPluginSources {
         }
 
         if (isGitHubLink(text)) {
-            String subpath = DshPluginCatalog.subpathSuffix(text);
+            String subpath = DshPluginSources.subpathSuffix(text);
             if (!subpath.isEmpty()) {
                 // A link to a directory inside a repository is not a repository, and taking the
                 // repository root instead would install something other than what the link names.
                 throw new DshException("That address points inside a repository ("
                         + subpath.substring("#path:/".length()) + "); give the repository's own address");
             }
-            return githubSpec(DshPluginCatalog.repoOf(text));
+            return githubSpec(DshPluginSources.repoOf(text));
         }
         if (text.toLowerCase(Locale.ROOT).startsWith("github:")) {
             return githubSpec(text.substring("github:".length()));
@@ -393,4 +393,96 @@ public final class DshPluginSources {
             return false;
         }
     }
+
+    /// Returns the `owner/name` a repository URL names.
+    ///
+    /// @param url the URL
+    /// @return the repository, or the URL unchanged when it names no repository
+    static String repoOf(String url) {
+        String trimmed = url.trim();
+        int index = trimmed.indexOf("github.com/");
+        if (index < 0) {
+            return trimmed;
+        }
+        String rest = trimmed.substring(index + "github.com/".length());
+        while (rest.endsWith("/")) {
+            rest = rest.substring(0, rest.length() - 1);
+        }
+        if (rest.endsWith(".git")) {
+            rest = rest.substring(0, rest.length() - ".git".length());
+        }
+        String[] parts = rest.split("/");
+        return parts.length < 2 ? rest : parts[0] + "/" + parts[1];
+    }
+
+    /// Returns the subpath a repository URL names, as a pnpm suffix.
+    ///
+    /// A monorepo can hold several plugins, and the catalogue points at the one it
+    /// means with a path: `…/owner/repo/tree/<branch>/packages/plugin`, which pnpm
+    /// takes as `#path:/packages/plugin`. Some four hundred of the four thousand
+    /// entries are named that way, so getting this wrong would install the wrong
+    /// package for a tenth of the catalogue.
+    ///
+    /// @param url the entry's URL
+    /// @return the suffix, or an empty string when the URL names the repository root
+    static String subpathSuffix(String url) {
+        String rest = pathAfterRepository(url);
+        if (rest.isEmpty()) {
+            return "";
+        }
+        String[] parts = rest.split("/");
+        // `tree`/`blob` name a branch before the path; a plain path is taken as is,
+        // because a URL that already points into the repository means that path.
+        String subpath = switch (parts[0]) {
+            case "tree", "blob" -> parts.length > 2 ? String.join("/", java.util.Arrays.copyOfRange(parts, 2, parts.length)) : "";
+            case "packages", "plugins", "src" -> rest;
+            default -> rest;
+        };
+        return subpath.isEmpty() ? "" : "#path:/" + subpath;
+    }
+
+    /// Returns the path a repository URL carries after `owner/name`.
+    ///
+    /// @param url the URL
+    /// @return the path, or an empty string
+    private static String pathAfterRepository(String url) {
+        String trimmed = url.trim();
+        int index = trimmed.indexOf("github.com/");
+        if (index < 0) {
+            return "";
+        }
+        String rest = trimmed.substring(index + "github.com/".length());
+        if (rest.endsWith(".git")) {
+            rest = rest.substring(0, rest.length() - ".git".length());
+        }
+        while (rest.endsWith("/")) {
+            rest = rest.substring(0, rest.length() - 1);
+        }
+        int hash = rest.indexOf("#path:/");
+        if (hash >= 0) {
+            return rest.substring(hash + "#path:/".length());
+        }
+        String[] parts = rest.split("/");
+        return parts.length <= 2 ? "" : String.join("/", java.util.Arrays.copyOfRange(parts, 2, parts.length));
+    }
+
+    /// Reports whether a prebuilt archive belongs to the repository it is
+    /// attached to.
+    ///
+    /// The check is the point of the rule rather than a formality: without it an
+    /// entry could name a trusted repository and hand out an archive built
+    /// somewhere else. The original refuses exactly this, and so does this.
+    ///
+    /// @param tarball the archive URL
+    /// @param repo    the entry's repository
+    /// @return whether the archive is the repository's own
+    static boolean tarballBelongsTo(String tarball, String repo) {
+        if (!REPOSITORY.matcher(repo).matches()) {
+            return false;
+        }
+        String lower = tarball.toLowerCase(Locale.ROOT);
+        return lower.contains("github.com/" + repo.toLowerCase(Locale.ROOT) + "/")
+                || lower.contains("githubusercontent.com/" + repo.toLowerCase(Locale.ROOT) + "/");
+    }
+
 }

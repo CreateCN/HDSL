@@ -17,12 +17,13 @@
  */
 package com.mcxcc303.hdsl.pack;
 
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.launch.DshLauncher;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.launch.DshProcess;
 import com.mcxcc303.hdsl.account.DshProfilePatch;
@@ -141,7 +142,7 @@ public final class DshPackInstaller {
     ///
     /// @return the directory
     public static Path cacheDirectory() {
-        return DshPluginCatalog.cacheDirectory().resolve("packs");
+        return CatalogClient.cacheDirectory().resolve("packs");
     }
 
     /// Returns the file a pack's archive is kept in.

@@ -17,7 +17,6 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// repository root. Which specification an entry turns into is therefore the part
 /// worth pinning — an entry resolved the wrong way installs the wrong plugin, or
 /// installs nothing at all and says nothing about why.
-class DshPluginCatalogTest {
+class CatalogParserTest {
     /// A catalogue with one entry of every shape the real document holds.
     private static final String CATALOGUE = """
             {
@@ -62,7 +61,7 @@ class DshPluginCatalogTest {
 
     @Test
     void aPublishedPackageIsPreferredAndPinnedToTheCataloguedVersion() {
-        DshPluginCatalog.Plugin plugin = plugin("dsh-j-space");
+        Catalog.Plugin plugin = plugin("dsh-j-space");
 
         assertEquals("@anonyjcy/dsh-j-space@1.1.1", plugin.installSpec(),
                 "a registry install is the one that can be verified and updated by version");
@@ -71,7 +70,7 @@ class DshPluginCatalogTest {
 
     @Test
     void anEntryWithoutAPackageInstallsFromItsRepository() {
-        DshPluginCatalog.Plugin plugin = plugin("repo-only");
+        Catalog.Plugin plugin = plugin("repo-only");
 
         assertEquals("github:someone/repo-only", plugin.installSpec());
         assertEquals("github", plugin.sourceKind());
@@ -86,7 +85,7 @@ class DshPluginCatalogTest {
         // The same entry naming somebody else's archive falls back to the
         // repository: without the check, an entry could name a trusted repository
         // and hand out an archive built elsewhere.
-        DshPluginCatalog.Plugin borrowed = new DshPluginCatalog.Plugin(
+        Catalog.Plugin borrowed = new Catalog.Plugin(
                 "borrowed", "someone", "https://github.com/someone/borrowed", "tools", null, null, null, null,
                 0, 0, "https://github.com/elsewhere/other/releases/download/v1/other.tgz", null);
         assertEquals("github:someone/borrowed", borrowed.installSpec());
@@ -102,14 +101,14 @@ class DshPluginCatalogTest {
 
     @Test
     void theCatalogueIsReadWithItsCategoriesAndLocalisedDescriptions() {
-        DshPluginCatalog.Catalog catalog = DshPluginCatalog.parse(CATALOGUE);
+        Catalog catalog = CatalogParser.parse(CATALOGUE);
 
         assertEquals(4, catalog.plugins().size());
         assertEquals(List.of("agi", "tools"), catalog.categories());
         assertEquals(3, catalog.inCategory("tools").size());
         assertEquals(4, catalog.inCategory("").size(), "the empty category is every category");
 
-        DshPluginCatalog.Plugin plugin = plugin("dsh-j-space");
+        Catalog.Plugin plugin = plugin("dsh-j-space");
         assertEquals(0, plugin.installSpec().indexOf('@'), "the package name keeps its scope");
 
         // Which description is shown depends on the machine's language, so the rule
@@ -128,8 +127,8 @@ class DshPluginCatalogTest {
 
     @Test
     void sortingPutsTheMostDownloadedFirst() {
-        List<DshPluginCatalog.Plugin> sorted = DshPluginCatalog.sorted(
-                DshPluginCatalog.parse(CATALOGUE).plugins(), "downloads");
+        List<Catalog.Plugin> sorted = CatalogParser.sorted(
+                CatalogParser.parse(CATALOGUE).plugins(), "downloads");
 
         assertEquals("dsh-j-space", sorted.get(0).name());
         assertTrue(sorted.get(0).downloads() >= sorted.get(1).downloads());
@@ -137,7 +136,7 @@ class DshPluginCatalogTest {
 
     @Test
     void anEntryWithNothingInstallableResolvesToNothing() {
-        DshPluginCatalog.Plugin broken = new DshPluginCatalog.Plugin(
+        Catalog.Plugin broken = new Catalog.Plugin(
                 "broken", "", "not a repository", "", null, null, "Not A Package Name", null, 0, 0, null, null);
 
         assertNull(broken.installSpec(), "an entry that names nothing installable installs nothing");
@@ -147,8 +146,8 @@ class DshPluginCatalogTest {
     ///
     /// @param name the entry's name
     /// @return the plugin
-    private static DshPluginCatalog.Plugin plugin(String name) {
-        return DshPluginCatalog.parse(CATALOGUE).plugins().stream()
+    private static Catalog.Plugin plugin(String name) {
+        return CatalogParser.parse(CATALOGUE).plugins().stream()
                 .filter(plugin -> plugin.name().equals(name))
                 .findFirst()
                 .orElseThrow();

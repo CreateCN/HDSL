@@ -17,8 +17,10 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+import com.mcxcc303.hdsl.plugin.CatalogSources;
+
 import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 import com.mcxcc303.hdsl.launch.DshProxyMode;
 import javafx.geometry.Pos;
 import javafx.scene.control.ScrollPane;
@@ -137,10 +139,10 @@ public final class DownloadSettingsPage extends ScrollPane {
         rebuild[0] = () -> {
             box.getChildren().setAll(caption, hint);
             java.util.List<String> configured =
-                    DshPluginCatalog.configuredSources();
+                    CatalogSources.configuredSources();
             if (configured.isEmpty()) {
                 javafx.scene.control.Label builtIn = new javafx.scene.control.Label(
-                        i18n("dsh.settings.catalog.builtin", DshPluginCatalog.CATALOG_URL));
+                        i18n("dsh.settings.catalog.builtin", CatalogSources.CATALOG_URL));
                 builtIn.setWrapText(true);
                 builtIn.getStyleClass().add("subtitle-label");
                 box.getChildren().add(builtIn);
@@ -170,7 +172,7 @@ public final class DownloadSettingsPage extends ScrollPane {
         remove.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         remove.setOnAction(event -> {
             try {
-                DshPluginCatalog.removeSource(source);
+                CatalogSources.removeSource(source);
             } catch (DshException e) {
                 org.jackhuang.hmcl.ui.Controllers.dialog(e.getMessage(),
                         i18n("dsh.settings.catalog.source_failed"),
@@ -204,12 +206,12 @@ public final class DownloadSettingsPage extends ScrollPane {
                 i18n("dsh.settings.catalog.add"),
                 (value, handler) -> {
                     String source = value == null ? "" : value.trim();
-                    if (!DshPluginCatalog.isUsableSource(source)) {
+                    if (!CatalogSources.isUsableSource(source)) {
                         handler.reject(i18n("dsh.settings.catalog.add.invalid"));
                         return;
                     }
                     try {
-                        DshPluginCatalog.addSource(source);
+                        CatalogSources.addSource(source);
                     } catch (DshException refused) {
                         handler.reject(refused.getMessage());
                         return;
@@ -249,7 +251,7 @@ public final class DownloadSettingsPage extends ScrollPane {
         cache.setTitle(i18n("dsh.settings.download.cache"));
         cache.setHasSubtitle(true);
         cache.descriptionProperty().bind(javafx.beans.binding.Bindings.createStringBinding(
-                () -> DshPluginCatalog.cacheDirectory().toString(),
+                () -> CatalogClient.cacheDirectory().toString(),
                 settings().cacheDirectoryCustomProperty(), settings().cacheDirectoryProperty()));
 
         com.jfoenix.controls.JFXButton clear = new com.jfoenix.controls.JFXButton(
@@ -258,7 +260,7 @@ public final class DownloadSettingsPage extends ScrollPane {
         clear.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
         clear.setOnAction(event -> {
             // Says what it did, because a button that quietly removes nothing looks broken.
-            int removed = DshPluginCatalog.clearCache();
+            int removed = CatalogClient.clearCache();
             clear.setText(i18n("dsh.settings.download.cache.cleared", removed));
         });
         cache.setHeaderRight(clear);

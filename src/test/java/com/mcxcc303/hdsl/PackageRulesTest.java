@@ -221,10 +221,31 @@ class PackageRulesTest {
         assertTrue(missing.isEmpty(), "these packages do not say what they are about: " + missing);
     }
 
+    /// Returns the packages this tree actually has, longest name first.
+    ///
+    /// The longest match is what tells a package apart from a nested type: an import of
+    /// `...plugin.Catalog.Plugin` names the package `...plugin` and a type inside `Catalog`, and
+    /// taking the text before the last dot for a package would invent one that does not exist.
+    ///
+    /// @return the package names, longest first
+    /// @throws IOException when the tree cannot be walked
+    private static List<String> knownPackages() throws IOException {
+        List<String> packages = new ArrayList<>();
+        for (Path file : sources()) {
+            String name = declaredPackage(file);
+            if (!name.isEmpty() && !packages.contains(name)) {
+                packages.add(name);
+            }
+        }
+        packages.sort((left, right) -> Integer.compare(right.length(), left.length()));
+        return packages;
+    }
+
     @Test
     void thePackagesOnlyDependOnTheOnesTheyAreAllowedTo() throws IOException {
-        Pattern imported = Pattern.compile("^import (?:static )?com\\.mcxcc303\\.hdsl\\.([\\w.]+)\\.\\w+;",
+        Pattern imported = Pattern.compile("^import (?:static )?com\\.mcxcc303\\.hdsl\\.([\\w.]+);",
                 Pattern.MULTILINE);
+        List<String> packages = knownPackages();
         List<String> offenders = new ArrayList<>();
         for (Path file : sources()) {
             String mine = declaredPackage(file);
@@ -233,12 +254,19 @@ class PackageRulesTest {
                 if (!matcher.find()) {
                     continue;
                 }
-                String target = "com.mcxcc303.hdsl." + matcher.group(1);
-                if (target.equals(mine)) {
+                String named = "com.mcxcc303.hdsl." + matcher.group(1);
+                String target = null;
+                for (String candidate : packages) {
+                    if (named.equals(candidate) || named.startsWith(candidate + ".")) {
+                        target = candidate;
+                        break;
+                    }
+                }
+                if (target == null || target.equals(mine)) {
                     continue;
                 }
                 String edge = mine.replace("com.mcxcc303.hdsl.", "") + "->"
-                        + matcher.group(1);
+                        + target.replace("com.mcxcc303.hdsl.", "");
                 if (!ALLOWED.contains(edge)) {
                     offenders.add(ROOT.relativize(file) + " adds the edge " + edge);
                 }

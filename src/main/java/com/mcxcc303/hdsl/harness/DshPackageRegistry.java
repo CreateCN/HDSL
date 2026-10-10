@@ -17,10 +17,11 @@
  */
 package com.mcxcc303.hdsl.harness;
 
+import com.mcxcc303.hdsl.plugin.CatalogClient;
+
 import com.mcxcc303.hdsl.core.DshCommand;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
-import com.mcxcc303.hdsl.plugin.DshPluginCatalog;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -217,8 +218,8 @@ public final class DshPackageRegistry {
             }
         }
 
-        String address = DshPluginCatalog.npmRegistry() + "/" + packageName.replace("/", "%2f");
-        Path kept = DshPluginCatalog.cachedFile(address);
+        String address = CatalogClient.npmRegistry() + "/" + packageName.replace("/", "%2f");
+        Path kept = CatalogClient.cachedFile(address);
         String body = null;
         try {
             body = org.jackhuang.hmcl.util.io.NetworkUtils.doGet(java.net.URI.create(address));
