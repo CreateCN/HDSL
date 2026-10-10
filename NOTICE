@@ -22,7 +22,8 @@ this program.  If not, see <https://www.gnu.org/licenses/>.
 
 STATEMENT OF CHANGES  (GNU GPL v3, section 5(a) and section 7)
 
-The original work has been modified as follows:
+The original work has been modified as follows.  This statement was last
+revised on 2026-10-10.
 
 1.  Renamed.  The software is distributed under the name "HDSL", not
     "HMCL" or "Hello Minecraft! Launcher", as required by the additional
@@ -35,9 +36,13 @@ The original work has been modified as follows:
     pages.
 
 3.  Purpose.  The application now launches and manages DeepSeek Harness
-    (`dsh`) profiles and versions, which is implemented in the new
-    `org.jackhuang.hmcl.dsh` package and the new user-interface pages under
-    `org.jackhuang.hmcl.ui.dsh`.
+    (`dsh`) profiles and versions.  That work is this project's own, and it
+    lives in the `com.mcxcc303.hdsl` package, which is where it was moved to
+    from `org.jackhuang.hmcl.dsh`; the user-interface pages that present it
+    are under `org.jackhuang.hmcl.ui.dsh`.  The namespace is what tells the
+    two kinds of code apart: `com.mcxcc303.hdsl` is HDSL's, while the
+    transplanted HMCL code of item 4 keeps the `org.jackhuang.hmcl` names it
+    arrived with.
 
 4.  Retained.  The presentation layer -- the JavaFX window decorator, the
     component library, the animation helpers, the theme engine, the image
@@ -58,6 +63,14 @@ The original work has been modified as follows:
     plugin from `net.sf.launch4j:launch4j` (BSD-style licence, unchanged and
     unmodified); the macOS artifacts are the `.dmg` and `.zip` packages built
     by `packaging/mac-packages.sh`.
+
+7.  Derived.  The skin handling under `com.mcxcc303.hdsl.skin` is ported from
+    HMCL's texture handling: what was kept is the model and the drawing of the
+    bundled default pictures, and what was removed is the half that uploaded a
+    skin to Mojang and fetched one back for a signed-in account, which this
+    launcher has none of.  The files that arrived with HMCL's copyright headers
+    keep them, the rest are this project's own, and all of them were carried to
+    the package named in item 3 by the same change.
 
 The full source code of this modified version is available from the project
 repository in which this notice is distributed.
@@ -84,3 +97,7 @@ OpenJFX, Gson, JNA, kala-compress, commonmark, jsoup, NanoHTTPD, MonetFX,
 weburl, webp, uuid-tools, pci-ids, simple-png-javafx and fxsvgimage.  The
 licenses and attributions of those components are listed in
 `src/main/resources/assets/about/deps.json` and in `assets/about/thanks.json`.
+
+The Windows executable carries launch4j's own head, whose notice is given in
+item 6.  It is a build-time tool rather than a library this program links
+against, which is why it is named there and not among the components above.
