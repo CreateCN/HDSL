@@ -443,115 +443,43 @@ public final class Cli {
                     return DshDoctor.report(out);
                 }
                 case LIST_INSTALLED -> {
-                    // A runtime belongs to the instance that runs it, so what
-                    // there is to list is the instances and their runtimes.
-                    List<DshInstance> instances = InstanceListing.list();
-                    if (instances.isEmpty()) {
-                        out.println("(no instances)");
-                    }
-                    for (DshInstance instance : instances) {
-                        out.println(instance.id() + "\t" + instance.version()
-                                + "\t" + instance.dshDirectory()
-                                + (HarnessInstaller.isInstalled(instance) ? "" : "\t[INCOMPLETE]"));
-                    }
-                    return 0;
+                    return PluginCommands.listInstalled(invocation, out, err);
                 }
                 case LIST_REMOTE -> {
-                    for (DshRelease release : ReleaseQueries.fetchReleases()) {
-                        String tag = release.primaryTag();
-                        out.println(release.version()
-                                + "\t" + release.type().id()
-                                + "\t" + (release.publishedAt() == null ? "-" : release.publishedAt())
-                                + (tag == null ? "" : "\t" + tag));
-                    }
-                    return 0;
+                    return PluginCommands.listRemote(invocation, out, err);
                 }
                 case INSTALL, UNINSTALL -> {
-                    // A runtime is not installed on its own any more: it is
-                    // installed into the instance that runs it, when that
-                    // instance is made.
-                    err.println("error: DeepSeek Harness is installed into an instance; "
-                            + "use --create-instance with --dsh-version");
-                    return 2;
+                    return PluginCommands.installOrUninstall(invocation, out, err);
                 }
                 case LIST_INSTANCES -> {
-                    List<DshInstance> instances = InstanceListing.list();
-                    if (instances.isEmpty()) {
-                        out.println("(no instances)");
-                    }
-                    for (DshInstance instance : instances) {
-                        // The resolved values are printed, not the stored ones:
-                        // an instance that follows the launcher stores "global"
-                        // or nothing, and the answer a reader wants is what it
-                        // will actually run with.
-                        out.println(instance.id()
-                                + "\tdsh " + instance.version()
-                                + "\tprofile " + instance.profile()
-                                + "\tnode " + instance.nodeRuntimeOrDefault()
-                                + "\t" + instance.homeMode()
-                                + "\thome " + instance.homeDirectory()
-                                + "\tworkspace " + instance.workspacePath());
-                    }
-                    return 0;
+                    return InstanceCommands.listInstances(invocation, out, err);
                 }
                 case CREATE_INSTANCE -> {
                     return InstanceCommands.createInstance(invocation, out, err);
                 }
                 case DELETE_INSTANCE -> {
-                    DshInstanceManager.delete(invocation.subject());
-                    out.println("Removed instance " + invocation.subject());
-                    return 0;
+                    return InstanceCommands.deleteInstance(invocation, out, err);
                 }
                 case LAUNCH -> {
                     return InstanceCommands.launchInstance(invocation, out, err);
                 }
                 case LIST_RUNNING -> {
-                    List<DshProcess> running = DshProcessManager.running();
-                    if (running.isEmpty()) {
-                        out.println("(nothing running)");
-                    }
-                    for (DshProcess process : running) {
-                        out.println(process.instance().id()
-                                + "\t" + process.state()
-                                + "\t" + process.plan().surface()
-                                + "\t" + process.webUrl().map(Object::toString).orElse("-")
-                                + "\tup " + process.uptime().toSeconds() + "s");
-                    }
-                    return 0;
+                    return InstanceCommands.listRunning(invocation, out, err);
                 }
                 case PRINT_LAUNCH_ARGS -> {
                     return InstanceCommands.printLaunchArguments(invocation, out, err);
                 }
                 case LIST_RUNTIMES -> {
-                    List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
-                    if (runtimes.isEmpty()) {
-                        out.println("(no managed Node runtimes)");
-                    }
-                    for (NodeRuntime runtime : runtimes) {
-                        out.println(runtime.version() + "\t" + runtime.directory());
-                    }
-                    return 0;
+                    return NodeCommands.listRuntimes(invocation, out, err);
                 }
                 case LIST_NODE_VERSIONS -> {
-                    for (NodeRelease release : NodeRuntimeManager.fetchReleases(
-                            NodeSource.of(invocation.options().get("node-source")))) {
-                        out.println(release.version()
-                                + (release.isLts() ? "\t" + release.label() : "")
-                                + (release.isSupported() ? "" : "\tunsupported"));
-                    }
-                    return 0;
+                    return NodeCommands.listNodeVersions(invocation, out, err);
                 }
                 case INSTALL_NODE -> {
-                    out.println("Installing Node.js " + invocation.subject() + " ...");
-                    NodeRuntime runtime = NodeRuntimeManager.install(invocation.subject(),
-                            NodeSource.of(invocation.options().get("node-source")), out::println);
-                    out.println("Installed Node.js " + runtime.version() + " into " + runtime.directory());
-                    return 0;
+                    return NodeCommands.installNode(invocation, out, err);
                 }
                 case UNINSTALL_NODE -> {
-                    NodeRuntimeManager.uninstall(invocation.subject());
-                    out.println("Removed Node.js " + invocation.subject());
-                    return 0;
+                    return NodeCommands.uninstallNode(invocation, out, err);
                 }
                 case LIST_DIRECTORIES -> {
                     return DirectoryCommands.listDirectories(out);
@@ -584,258 +512,40 @@ public final class Cli {
                     return SessionCommands.acpPrompt(invocation, out, err);
                 }
                 case INSTALL_PLUGIN -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --install-plugin needs an instance and a package spec");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    String spec = invocation.arguments().get(1);
-                    out.println("Installing " + spec + " into " + instance.id() + " ...");
-                    DshPluginInstaller.install(instance,
-                            List.of(new DshPreset(spec, spec, spec, "", false, true)),
-                            out::println);
-                    out.println("Installed " + spec);
-                    for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {
-                        out.println("  bundle: " + bundle);
-                    }
-                    return 0;
+                    return PluginCommands.installPlugin(invocation, out, err);
                 }
                 case BUILD_SCRIPTS -> {
-                    if (invocation.arguments().isEmpty()) {
-                        err.println("error: --build-scripts needs an instance");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-
-                    List<String> flags = invocation.arguments().stream()
-                            .filter(value -> value.equals("--allow") || value.equals("--deny")).toList();
-                    List<String> names = invocation.arguments().stream()
-                            .filter(value -> !value.equals(instance.id()) && !value.startsWith("--")).toList();
-
-                    if (flags.isEmpty()) {
-                        for (DshBuildScripts.Pending entry : DshBuildScripts.pending(instance)) {
-                            out.println(entry.name() + ": " + (entry.allowed() == null
-                                    ? "waiting for an answer" : entry.allowed()));
-                        }
-                        return 0;
-                    }
-
-                    boolean allow = flags.contains("--allow");
-                    List<String> targets = names.isEmpty() ? DshBuildScripts.unanswered(instance) : names;
-                    int written = DshBuildScripts.answer(instance, targets, allow);
-                    out.println((allow ? "Allowed" : "Refused") + " install scripts for " + written
-                            + " package(s) in " + instance.id());
-                    return 0;
+                    return PluginCommands.buildScripts(invocation, out, err);
                 }
                 case UPGRADE_INSTANCE -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --upgrade-instance needs an instance and a version");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    String version = invocation.arguments().get(1);
-
-                    // What the profile holds, read before the install rewrites the
-                    // manifest it is read from.
-                    Map<String, String> dependencies =
-                            DshPluginInstaller.readDependencies(instance.homeDirectory(), instance.profile());
-                    List<String> specs = new ArrayList<>();
-                    for (Map.Entry<String, String> entry : dependencies.entrySet()) {
-                        String declared = entry.getValue() == null ? "" : entry.getValue();
-                        boolean local = declared.startsWith("file:") || declared.startsWith("link:");
-                        specs.add(local || declared.isBlank()
-                                ? entry.getKey() : entry.getKey() + "@" + declared);
-                    }
-
-                    out.println("Moving " + instance.id() + " from " + instance.version() + " to " + version);
-                    HarnessInstaller.install(instance, version, out::println);
-                    // Rebuilt from the instance rather than from the fields the
-                    // command happens to care about: everything the upgrade does
-                    // not change — the folder it lives in, its icon, its port —
-                    // has to survive being recorded again.
-                    DshInstanceManager.update(instance.withVersion(version));
-
-                    if (!specs.isEmpty()) {
-                        out.println("Reinstalling " + specs.size() + " plugin(s)");
-                        DshInstance moved = InstanceStore.find(instance.id());
-                        DshPluginInstaller.installSpecs(moved, specs, out::println);
-                    }
-                    out.println("Instance " + instance.id() + " now records " + version);
-                    return 0;
+                    return InstanceCommands.upgradeInstance(invocation, out, err);
                 }
                 case INSTALL_PLUGIN_FILE -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --install-plugin-file needs an instance and a plugin file");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path file = java.nio.file.Path.of(invocation.arguments().get(1));
-                    DshLocalPlugins.Result result = DshLocalPlugins.install(instance, file, out::println);
-                    out.println("Installed " + result.pkg().name() + " " + result.pkg().version()
-                            + " from the instance's own copy at " + result.installed());
-                    out.println("  bundle patch: " + (result.pkg().isBundle() ? result.pkg().bundlePatch() : "(none)"));
-                    for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {
-                        out.println("  bundle: " + bundle);
-                    }
-                    return 0;
+                    return PluginCommands.installPluginFile(invocation, out, err);
                 }
                 case EXPORT_PACKFORGE -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --export-packforge needs an instance and a file to write");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
-                    DshPackForge.Options options = new DshPackForge.Options(
-                            DshPackForge.Options.kebab(instance.id()), "1.0.0", instance.id(), "", "");
-                    DshPackForge.Result exported = DshPackForge.export(instance, target, options, out::println);
-                    out.println("Wrote " + exported.files() + " file(s), left out " + exported.excluded()
-                            + ", sha256 " + exported.sha256());
-                    return 0;
+                    return PackCommands.exportPackforge(invocation, out, err);
                 }
                 case EXPORT_MODPACK -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --export-modpack needs an instance and a file to write");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
-                    boolean withSessions = invocation.arguments().contains("--with-sessions");
-                    // Everything a pack carries by default is what a person asked for by not being
-                    // asked: the plugins' own settings travel, because a pack that named a sidebar but
-                    // not the stylesheet somebody configured it with is the difference nobody notices
-                    // until they open it. The conversations are the one thing that is opt-in, because
-                    // they are the one thing that is somebody's own.
-                    PackManifest.Options defaults = PackManifest.Options.of(instance);
-                    PackManifest.Options options = new PackManifest.Options(instance.id(), "1.0", "", "", "", "",
-                            withSessions, java.util.Set.of(), defaults.settings(), defaults.skills());
-                    PackExporter.ExportResult exported = PackExporter.export(instance, target, options, out::println);
-                    out.println("Wrote " + exported.plugins() + " plugin(s), " + exported.bytes() + " byte(s)");
-                    return 0;
+                    return PackCommands.exportModpack(invocation, out, err);
                 }
                 case INSTALL_MODPACK -> {
-                    if (invocation.arguments().isEmpty()) {
-                        err.println("error: --install-modpack needs a pack to read and an instance id");
-                        return 1;
-                    }
-                    java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(0));
-                    String id = invocation.arguments().size() > 1
-                            ? invocation.arguments().get(1)
-                            : PackManifest.readManifest(pack).instanceId();
-                    ModpackInstaller.InstallResult result = ModpackInstaller.install(pack, id,
-                            java.nio.file.Path.of(System.getProperty("user.home")), out::println);
-                    out.println("Instance " + result.instance().id() + " is ready: "
-                            + (result.installed() ? "harness installed, " : "harness already present, ")
-                            + result.plugins() + " plugin(s), " + result.bundles() + " bundle(s)");
-                    return 0;
+                    return PackCommands.installModpack(invocation, out, err);
                 }
                 case RESTORE_PROFILE -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --restore-profile needs an instance and a pack");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(1));
-                    PackManifest.Manifest manifest = PackManifest.readManifest(pack);
-                    int plugins = ModpackInstaller.restoreProfile(instance, manifest, pack, out::println);
-                    out.println("Restored " + plugins + " plugin(s) and " + manifest.bundles().size()
-                            + " bundle(s) into " + instance.id());
-                    for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {
-                        out.println("  bundle: " + bundle);
-                    }
-                    return 0;
+                    return PackCommands.restoreProfile(invocation, out, err);
                 }
                 case EXPORT_SESSIONS -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --export-sessions needs an instance and a file to write");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
-                    List<DshSession> sessions = DshSessions.list(instance.homeDirectory());
-                    out.println("Writing " + sessions.size() + " session(s) to " + target + " ...");
-                    DshSessionPacks.ExportResult exported = DshSessionPacks.export(instance, sessions, target, out::println);
-                    out.println("Wrote " + exported.sessions() + " session(s), "
-                            + exported.attachments() + " attachment(s), " + exported.bytes() + " byte(s)");
-                    return 0;
+                    return SessionCommands.exportSessions(invocation, out, err);
                 }
                 case IMPORT_PACK -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --import-pack needs an instance and a pack to read");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(1));
-                    DshSessionPacks.ImportResult imported =
-                            DshSessionPacks.importFrom(instance.homeDirectory(), pack, out::println);
-                    out.println("Imported " + imported.imported() + ", skipped " + imported.skipped()
-                            + ", attachments " + imported.attachments());
-                    for (DshSession session : DshSessions.list(instance.homeDirectory())) {
-                        out.println("  " + session.id() + "  " + session.workspaceSlug()
-                                + "  " + (session.title() == null ? "(no title)" : session.title()));
-                    }
-                    return 0;
+                    return PackCommands.importPack(invocation, out, err);
                 }
                 case REMOVE_PLUGIN -> {
-                    if (invocation.arguments().size() < 2) {
-                        err.println("error: --remove-plugin needs an instance and at least one package spec");
-                        return 1;
-                    }
-                    DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-                    if (instance == null) {
-                        err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-                        return 1;
-                    }
-                    List<String> specs = List.copyOf(invocation.arguments().subList(1, invocation.arguments().size()));
-                    out.println("Removing " + String.join(", ", specs) + " from " + instance.id() + " ...");
-                    DshPluginInstaller.removeSpecs(instance, specs, out::println);
-                    out.println("Removed " + specs.size() + " package(s)");
-                    for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {
-                        out.println("  bundle: " + bundle);
-                    }
-                    return 0;
+                    return PluginCommands.removePlugin(invocation, out, err);
                 }
                 case STOP -> {
-                    out.println(DshProcessManager.stop(invocation.subject())
-                            ? "Stopped " + invocation.subject()
-                            : "Instance " + invocation.subject() + " is not running");
-                    return 0;
+                    return InstanceCommands.stop(invocation, out, err);
                 }
                 default -> {
                     err.println("Unhandled command: " + invocation.command());

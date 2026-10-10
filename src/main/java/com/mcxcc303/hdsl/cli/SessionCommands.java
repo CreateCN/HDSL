@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.pack.DshSessionPacks;
+
 import com.mcxcc303.hdsl.cli.Cli.Invocation;
 
 import com.mcxcc303.hdsl.instance.InstanceStore;
@@ -220,6 +222,27 @@ public final class SessionCommands {
         }
     }
 
+
+
+    /// Runs the `EXPORT_SESSIONS` command.
+    static int exportSessions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --export-sessions needs an instance and a file to write");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
+        List<DshSession> sessions = DshSessions.list(instance.homeDirectory());
+        out.println("Writing " + sessions.size() + " session(s) to " + target + " ...");
+        DshSessionPacks.ExportResult exported = DshSessionPacks.export(instance, sessions, target, out::println);
+        out.println("Wrote " + exported.sessions() + " session(s), "
+                + exported.attachments() + " attachment(s), " + exported.bytes() + " byte(s)");
+        return 0;
+    }
 
     private SessionCommands() {
     }

@@ -1,0 +1,153 @@
+/*
+ * HDSL
+ * Copyright (C) 2026  HDSL contributors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+package com.mcxcc303.hdsl.cli;
+
+import com.mcxcc303.hdsl.cli.Cli.Invocation;
+
+import com.mcxcc303.hdsl.pack.ModpackInstaller;
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+import com.mcxcc303.hdsl.instance.InstanceStore;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.pack.DshPackForge;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import com.mcxcc303.hdsl.launch.DshSession;
+import com.mcxcc303.hdsl.pack.DshSessionPacks;
+import com.mcxcc303.hdsl.launch.DshSessions;
+import org.jetbrains.annotations.NotNullByDefault;
+import java.io.PrintStream;
+import java.nio.file.Path;
+
+/// The commands that move whole instances and their sessions: exporting one as a pack, installing
+/// one that somebody else made, restoring a profile, and importing an older format.
+@NotNullByDefault
+public final class PackCommands {
+
+    /// Runs the `EXPORT_PACKFORGE` command.
+    static int exportPackforge(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --export-packforge needs an instance and a file to write");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
+        DshPackForge.Options options = new DshPackForge.Options(
+                DshPackForge.Options.kebab(instance.id()), "1.0.0", instance.id(), "", "");
+        DshPackForge.Result exported = DshPackForge.export(instance, target, options, out::println);
+        out.println("Wrote " + exported.files() + " file(s), left out " + exported.excluded()
+                + ", sha256 " + exported.sha256());
+        return 0;
+    }
+
+    /// Runs the `EXPORT_MODPACK` command.
+    static int exportModpack(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --export-modpack needs an instance and a file to write");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        java.nio.file.Path target = java.nio.file.Path.of(invocation.arguments().get(1));
+        boolean withSessions = invocation.arguments().contains("--with-sessions");
+        // Everything a pack carries by default is what a person asked for by not being
+        // asked: the plugins' own settings travel, because a pack that named a sidebar but
+        // not the stylesheet somebody configured it with is the difference nobody notices
+        // until they open it. The conversations are the one thing that is opt-in, because
+        // they are the one thing that is somebody's own.
+        PackManifest.Options defaults = PackManifest.Options.of(instance);
+        PackManifest.Options options = new PackManifest.Options(instance.id(), "1.0", "", "", "", "",
+                withSessions, java.util.Set.of(), defaults.settings(), defaults.skills());
+        PackExporter.ExportResult exported = PackExporter.export(instance, target, options, out::println);
+        out.println("Wrote " + exported.plugins() + " plugin(s), " + exported.bytes() + " byte(s)");
+        return 0;
+    }
+
+    /// Runs the `INSTALL_MODPACK` command.
+    static int installModpack(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().isEmpty()) {
+            err.println("error: --install-modpack needs a pack to read and an instance id");
+            return 1;
+        }
+        java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(0));
+        String id = invocation.arguments().size() > 1
+                ? invocation.arguments().get(1)
+                : PackManifest.readManifest(pack).instanceId();
+        ModpackInstaller.InstallResult result = ModpackInstaller.install(pack, id,
+                java.nio.file.Path.of(System.getProperty("user.home")), out::println);
+        out.println("Instance " + result.instance().id() + " is ready: "
+                + (result.installed() ? "harness installed, " : "harness already present, ")
+                + result.plugins() + " plugin(s), " + result.bundles() + " bundle(s)");
+        return 0;
+    }
+
+    /// Runs the `RESTORE_PROFILE` command.
+    static int restoreProfile(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --restore-profile needs an instance and a pack");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(1));
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
+        int plugins = ModpackInstaller.restoreProfile(instance, manifest, pack, out::println);
+        out.println("Restored " + plugins + " plugin(s) and " + manifest.bundles().size()
+                + " bundle(s) into " + instance.id());
+        for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {
+            out.println("  bundle: " + bundle);
+        }
+        return 0;
+    }
+
+    /// Runs the `IMPORT_PACK` command.
+    static int importPack(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --import-pack needs an instance and a pack to read");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(1));
+        DshSessionPacks.ImportResult imported =
+                DshSessionPacks.importFrom(instance.homeDirectory(), pack, out::println);
+        out.println("Imported " + imported.imported() + ", skipped " + imported.skipped()
+                + ", attachments " + imported.attachments());
+        for (DshSession session : DshSessions.list(instance.homeDirectory())) {
+            out.println("  " + session.id() + "  " + session.workspaceSlug()
+                    + "  " + (session.title() == null ? "(no title)" : session.title()));
+        }
+        return 0;
+    }
+
+    private PackCommands() {
+    }
+}

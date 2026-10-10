@@ -17,7 +17,13 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import com.mcxcc303.hdsl.harness.HarnessInstaller;
+import com.mcxcc303.hdsl.instance.InstanceListing;
+
 import com.mcxcc303.hdsl.cli.Cli.Invocation;
+
+import java.util.ArrayList;
 
 import com.mcxcc303.hdsl.instance.InstanceStore;
 import com.mcxcc303.hdsl.core.DshException;
@@ -229,6 +235,102 @@ public final class InstanceCommands {
             Thread.currentThread().interrupt();
             return 1;
         }
+    }
+
+
+    /// Runs the `LIST_INSTANCES` command.
+    static int listInstances(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        List<DshInstance> instances = InstanceListing.list();
+        if (instances.isEmpty()) {
+            out.println("(no instances)");
+        }
+        for (DshInstance instance : instances) {
+            // The resolved values are printed, not the stored ones:
+            // an instance that follows the launcher stores "global"
+            // or nothing, and the answer a reader wants is what it
+            // will actually run with.
+            out.println(instance.id()
+                    + "\tdsh " + instance.version()
+                    + "\tprofile " + instance.profile()
+                    + "\tnode " + instance.nodeRuntimeOrDefault()
+                    + "\t" + instance.homeMode()
+                    + "\thome " + instance.homeDirectory()
+                    + "\tworkspace " + instance.workspacePath());
+        }
+        return 0;
+    }
+
+    /// Runs the `DELETE_INSTANCE` command.
+    static int deleteInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        DshInstanceManager.delete(invocation.subject());
+        out.println("Removed instance " + invocation.subject());
+        return 0;
+    }
+
+    /// Runs the `LIST_RUNNING` command.
+    static int listRunning(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        List<DshProcess> running = DshProcessManager.running();
+        if (running.isEmpty()) {
+            out.println("(nothing running)");
+        }
+        for (DshProcess process : running) {
+            out.println(process.instance().id()
+                    + "\t" + process.state()
+                    + "\t" + process.plan().surface()
+                    + "\t" + process.webUrl().map(Object::toString).orElse("-")
+                    + "\tup " + process.uptime().toSeconds() + "s");
+        }
+        return 0;
+    }
+
+    /// Runs the `UPGRADE_INSTANCE` command.
+    static int upgradeInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        if (invocation.arguments().size() < 2) {
+            err.println("error: --upgrade-instance needs an instance and a version");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+        if (instance == null) {
+            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+            return 1;
+        }
+        String version = invocation.arguments().get(1);
+
+        // What the profile holds, read before the install rewrites the
+        // manifest it is read from.
+        Map<String, String> dependencies =
+                DshPluginInstaller.readDependencies(instance.homeDirectory(), instance.profile());
+        List<String> specs = new ArrayList<>();
+        for (Map.Entry<String, String> entry : dependencies.entrySet()) {
+            String declared = entry.getValue() == null ? "" : entry.getValue();
+            boolean local = declared.startsWith("file:") || declared.startsWith("link:");
+            specs.add(local || declared.isBlank()
+                    ? entry.getKey() : entry.getKey() + "@" + declared);
+        }
+
+        out.println("Moving " + instance.id() + " from " + instance.version() + " to " + version);
+        HarnessInstaller.install(instance, version, out::println);
+        // Rebuilt from the instance rather than from the fields the
+        // command happens to care about: everything the upgrade does
+        // not change — the folder it lives in, its icon, its port —
+        // has to survive being recorded again.
+        DshInstanceManager.update(instance.withVersion(version));
+
+        if (!specs.isEmpty()) {
+            out.println("Reinstalling " + specs.size() + " plugin(s)");
+            DshInstance moved = InstanceStore.find(instance.id());
+            DshPluginInstaller.installSpecs(moved, specs, out::println);
+        }
+        out.println("Instance " + instance.id() + " now records " + version);
+        return 0;
+    }
+
+    /// Runs the `STOP` command.
+    static int stop(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+        out.println(DshProcessManager.stop(invocation.subject())
+                ? "Stopped " + invocation.subject()
+                : "Instance " + invocation.subject() + " is not running");
+        return 0;
     }
 
     private InstanceCommands() {
