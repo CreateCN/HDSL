@@ -23,7 +23,6 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.skill.DshSkills;
 
 import com.google.gson.JsonObject;
@@ -97,11 +96,11 @@ class DshModpacksTest {
         Files.writeString(profileDirectory(instance).resolve("cordis.patch.yml"), "- id: title\n");
 
         Path pack = Files.createTempFile("modpack", ".zip");
-        DshModpacks.ExportResult exported = DshModpacks.export(instance, pack, null);
+        PackExporter.ExportResult exported = PackExporter.export(instance, pack, null);
 
         assertEquals(2, exported.plugins());
-        DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
-        assertEquals(DshModpacks.FORMAT, manifest.format());
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
+        assertEquals(PackManifest.FORMAT, manifest.format());
         assertEquals("0.1.6-alpha.2", manifest.dshVersion());
         assertEquals(DshInstance.DEFAULT_PROFILE, manifest.profile());
         assertTrue(manifest.hasPatch(), "the profile's patch layer is composition, so it travels");
@@ -109,7 +108,7 @@ class DshModpacksTest {
                 manifest.bundles().stream().filter(bundle -> !bundle.startsWith("@deepseek-ai/")).toList(),
                 "the bundle order is recorded as it is, not sorted");
         assertEquals(List.of("dshmarket", "dsh-context"),
-                manifest.plugins().stream().map(DshModpacks.Plugin::name).toList(),
+                manifest.plugins().stream().map(PackManifest.Plugin::name).toList(),
                 "the dependencies keep the manifest's own order");
         assertEquals(List.of("dshmarket@1.52.0", "dsh-context@0.54.2"), manifest.installSpecs(),
                 "versions are pinned to what the instance had");
@@ -136,7 +135,7 @@ class DshModpacksTest {
                 }
                 """);
         Path pack = Files.createTempFile("modpack", ".zip");
-        DshModpacks.export(source, pack, null);
+        PackExporter.export(source, pack, null);
 
         DshInstance target = makeInstance(TARGET_ID);
         writeProfile(target, """
@@ -149,7 +148,7 @@ class DshModpacksTest {
                 }
                 """);
 
-        DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
         // Only the two fields a pack has something to say about are written; the
         // resolve that follows is the harness's own and is exercised by the
         // command line, so it is not run here.
@@ -188,13 +187,13 @@ class DshModpacksTest {
                 """);
 
         Path pack = Files.createTempFile("modpack", ".zip");
-        DshModpacks.export(instance, pack, null);
-        DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
+        PackExporter.export(instance, pack, null);
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
 
         assertEquals(List.of("dshmarket@1.52.0"), manifest.installSpecs(),
                 "only what can be fetched is asked for");
         assertEquals(List.of("dsh-hello-local"),
-                manifest.localPlugins().stream().map(DshModpacks.Plugin::name).toList(),
+                manifest.localPlugins().stream().map(PackManifest.Plugin::name).toList(),
                 "the local plugin is recorded, so the loader can say it cannot be restored");
         Files.deleteIfExists(pack);
     }
@@ -208,7 +207,7 @@ class DshModpacksTest {
             zip.closeEntry();
         }
 
-        assertThrows(DshException.class, () -> DshModpacks.readManifest(notAPack));
+        assertThrows(DshException.class, () -> PackManifest.readManifest(notAPack));
         Files.deleteIfExists(notAPack);
     }
 
@@ -216,7 +215,7 @@ class DshModpacksTest {
     void aPackThatNamesNoHarnessVersionIsRefused() throws Exception {
         Path pack = Files.createTempFile("modpack", ".zip");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(pack))) {
-            zip.putNextEntry(new ZipEntry(DshModpacks.MANIFEST));
+            zip.putNextEntry(new ZipEntry(PackManifest.MANIFEST));
             zip.write("""
                     {"format":"hdsl-modpack","version":1,"createdAt":"now","instanceId":"x",
                      "dshVersion":"","profile":"web","plugins":[],"bundles":[]}
@@ -225,7 +224,7 @@ class DshModpacksTest {
         }
 
         assertThrows(DshException.class,
-                () -> DshModpacks.install(pack, "no-version-pack", Path.of(System.getProperty("user.home")), null));
+                () -> ModpackInstaller.install(pack, "no-version-pack", Path.of(System.getProperty("user.home")), null));
         Files.deleteIfExists(pack);
     }
 
@@ -243,9 +242,9 @@ class DshModpacksTest {
         Files.writeString(shipped.resolve("SKILL.md"), "---\nname: shipped\ndescription: x\n---\n");
 
         Path pack = Files.createTempFile("modpack", ".zip");
-        DshModpacks.export(instance, pack, null);
+        PackExporter.export(instance, pack, null);
 
-        DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
         assertEquals(3, manifest.version(), "skills are what the third version of the format added");
         assertEquals(List.of("alpha"), manifest.skills(),
                 "the manifest names what travels, and only what a person could have chosen");
@@ -275,11 +274,11 @@ class DshModpacksTest {
         }
 
         Path pack = Files.createTempFile("modpack", ".zip");
-        DshModpacks.Options options = new DshModpacks.Options("chosen", "1.0", "", "", "", "", false,
+        PackManifest.Options options = new PackManifest.Options("chosen", "1.0", "", "", "", "", false,
                 java.util.Set.of(), java.util.Set.of(), java.util.Set.of("kept"));
-        DshModpacks.export(instance, pack, options, null);
+        PackExporter.export(instance, pack, options, null);
 
-        assertEquals(List.of("kept"), DshModpacks.readManifest(pack).skills());
+        assertEquals(List.of("kept"), PackManifest.readManifest(pack).skills());
         try (ZipFile zip = new ZipFile(pack.toFile())) {
             assertTrue(zip.getEntry("skills/kept/SKILL.md") != null);
             assertTrue(zip.getEntry("skills/dropped/SKILL.md") == null,
@@ -292,7 +291,7 @@ class DshModpacksTest {
     void aPackFromANewerLauncherIsRefused() throws Exception {
         Path pack = Files.createTempFile("modpack", ".zip");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(pack))) {
-            zip.putNextEntry(new ZipEntry(DshModpacks.MANIFEST));
+            zip.putNextEntry(new ZipEntry(PackManifest.MANIFEST));
             zip.write("""
                     {"format":"hdsl-modpack","version":4,"createdAt":"now","instanceId":"x",
                      "dshVersion":"0.1.6-alpha.2","profile":"web","plugins":[],"bundles":[]}
@@ -300,7 +299,7 @@ class DshModpacksTest {
             zip.closeEntry();
         }
 
-        assertThrows(DshException.class, () -> DshModpacks.install(pack, "newer-pack",
+        assertThrows(DshException.class, () -> ModpackInstaller.install(pack, "newer-pack",
                 Path.of(System.getProperty("user.home")), null));
         Files.deleteIfExists(pack);
     }
@@ -309,12 +308,10 @@ class DshModpacksTest {
     ///
     /// @param instance the instance
     /// @param manifest the pack's manifest
-    private static void writeProfileManifestForTest(DshInstance instance, DshModpacks.Manifest manifest)
+    private static void writeProfileManifestForTest(DshInstance instance, PackManifest.Manifest manifest)
             throws Exception {
-        java.lang.reflect.Method method = DshModpacks.class.getDeclaredMethod(
-                "writeProfileManifest", Path.class, DshModpacks.Manifest.class, java.util.Map.class);
-        method.setAccessible(true);
-        method.invoke(null, profileDirectory(instance).resolve("package.json"), manifest, java.util.Map.of());
+        ModpackInstaller.writeProfileManifest(
+                profileDirectory(instance).resolve("package.json"), manifest, java.util.Map.of());
     }
 
     /// Returns an instance's profile directory.

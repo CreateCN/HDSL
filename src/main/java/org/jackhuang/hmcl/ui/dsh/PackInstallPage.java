@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.pack.ModpackInstaller;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.instance.InstanceStore;
 
 import com.mcxcc303.hdsl.harness.HarnessInstaller;
@@ -25,7 +28,6 @@ import com.jfoenix.controls.JFXButton;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import javafx.beans.property.ReadOnlyObjectWrapper;
 import javafx.geometry.Insets;
@@ -293,7 +295,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         // instance the question was about, and an id computed again would be a second instance.
         String id;
         try {
-            id = uniqueId(DshModpacks.readManifest(archive).name());
+            id = uniqueId(PackManifest.readManifest(archive).name());
         } catch (DshException e) {
             Controllers.dialog(e.getMessage(), title, MessageDialogPane.MessageType.ERROR);
             return;
@@ -306,7 +308,7 @@ public final class PackInstallPage extends DecoratorAnimatedPage implements Deco
         PluginInstalls.runCreating(title, () -> InstanceStore.find(id), report -> {
             try {
                 report.accept("Installing " + id + " from the older pack format");
-                DshModpacks.install(archive, id,
+                ModpackInstaller.install(archive, id,
                         Path.of(System.getProperty("user.home")), report::accept);
             } catch (DshException | RuntimeException failed) {
                 if (failed instanceof DshPluginInstaller

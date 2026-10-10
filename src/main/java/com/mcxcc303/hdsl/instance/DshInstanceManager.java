@@ -17,11 +17,14 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.mcxcc303.hdsl.pack.ModpackInstaller;
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.harness.HarnessInstaller;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.DshFiles;
 import com.mcxcc303.hdsl.plugin.DshLocalPluginPaths;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import com.mcxcc303.hdsl.core.DshPaths;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
@@ -427,8 +430,8 @@ public final class DshInstanceManager {
         Path pack = null;
         try {
             pack = temporaryPack();
-            DshModpacks.export(source, pack, report);
-            DshModpacks.install(pack, normalized, source.workspacePath(), source.instanceDirectory().getParent(), report);
+            PackExporter.export(source, pack, report);
+            ModpackInstaller.install(pack, normalized, source.workspacePath(), source.instanceDirectory().getParent(), report);
             copyOwnLauncherSettings(source, copy);
             DshInstance filled = InstanceStore.find(normalized);
             return filled == null ? copy : filled;
@@ -461,7 +464,7 @@ public final class DshInstanceManager {
     /// @throws DshException when the system cannot make one
     private static Path temporaryPack() throws DshException {
         try {
-            return Files.createTempFile("hdsl-duplicate-", DshModpacks.FILE_EXTENSION);
+            return Files.createTempFile("hdsl-duplicate-", PackManifest.FILE_EXTENSION);
         } catch (IOException e) {
             throw new DshException("Could not create a file for the copy", e);
         }

@@ -17,6 +17,8 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 import com.mcxcc303.hdsl.core.DshException;
@@ -24,7 +26,6 @@ import com.mcxcc303.hdsl.pack.DshPackForge;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
 import javafx.scene.Node;
 import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardProvider;
 import org.jetbrains.annotations.NotNullByDefault;
@@ -141,13 +142,13 @@ public final class ModpackExportWizardProvider implements WizardProvider {
         chooser.setTitle(i18n("modpack.wizard.step.initialization.save"));
         chooser.getExtensionFilters().add(new javafx.stage.FileChooser.ExtensionFilter(
                 packforge ? i18n("dsh.packforge.filter") : i18n("dsh.modpack.filter"),
-                packforge ? "*.dspack" : "*" + DshModpacks.FILE_EXTENSION));
+                packforge ? "*.dspack" : "*" + PackManifest.FILE_EXTENSION));
 
         String name = string(settings, NAME, instance.id());
         chooser.setInitialFileName(packforge
                 ? DshPackForge.Options.kebab(name) + "-"
                         + string(settings, VERSION, "1.0.0") + ".dspack"
-                : name + DshModpacks.FILE_EXTENSION);
+                : name + PackManifest.FILE_EXTENSION);
 
         java.io.File chosen = chooser.showSaveDialog(org.jackhuang.hmcl.ui.Controllers.getStage());
         if (chosen == null) {
@@ -179,7 +180,7 @@ public final class ModpackExportWizardProvider implements WizardProvider {
             return org.jackhuang.hmcl.task.Task.runAsync(i18n("modpack.export"),
                     () -> ModpackFilesPage.writePackForge(instance, target, options, report));
         }
-        DshModpacks.Options options = optionsOf(settings);
+        PackManifest.Options options = optionsOf(settings);
         return org.jackhuang.hmcl.task.Task.runAsync(i18n("modpack.export"),
                 () -> ModpackFilesPage.write(instance, target, options, report));
     }
@@ -227,9 +228,9 @@ public final class ModpackExportWizardProvider implements WizardProvider {
     ///
     /// @param settings the wizard's settings
     /// @return the options a pack is written with
-    public static DshModpacks.Options optionsOf(
+    public static PackManifest.Options optionsOf(
             org.jackhuang.hmcl.util.SettingsMap settings) {
-        return new DshModpacks.Options(
+        return new PackManifest.Options(
                 string(settings, NAME, ""),
                 string(settings, VERSION, "1.0"),
                 string(settings, AUTHOR, ""),

@@ -17,10 +17,12 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 
 import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -67,9 +69,9 @@ class DshPackContentsTest {
                     """);
 
             Path target = temp.resolve("pack.zip");
-            DshModpacks.Options options = new DshModpacks.Options("test", "1.0", "", "", "", "", false,
+            PackManifest.Options options = new PackManifest.Options("test", "1.0", "", "", "", "", false,
                     Set.of("dsh-cost-meter"), Set.of(), Set.of());
-            DshModpacks.export(instance, target, options, null);
+            PackExporter.export(instance, target, options, null);
 
             JsonObject manifest;
             try (ZipFile zip = new ZipFile(target.toFile())) {

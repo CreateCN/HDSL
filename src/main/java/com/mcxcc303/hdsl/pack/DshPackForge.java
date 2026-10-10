@@ -372,7 +372,7 @@ public final class DshPackForge {
         for (Map.Entry<String, String> entry
                 : DshPluginInstaller.readDependencies(instance.homeDirectory(), instance.profile())
                         .entrySet()) {
-            if (DshModpacks.isLocalSpec(entry.getValue())) {
+            if (PackManifest.isLocalSpec(entry.getValue())) {
                 // A specification this instance installed from a file. This format names sources, and
                 // a file on this machine is not one — unless the registry publishes the same version,
                 // in which case the source it names is the one the file was built from and the pack

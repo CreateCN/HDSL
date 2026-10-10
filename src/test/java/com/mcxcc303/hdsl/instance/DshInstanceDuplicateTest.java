@@ -17,11 +17,13 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.launch.DshSessions;
 import com.mcxcc303.hdsl.skill.DshSkills;
 
@@ -95,11 +97,11 @@ class DshInstanceDuplicateTest {
         assertFalse(DshSessions.list(source.homeDirectory()).isEmpty(),
                 "the source has something to leave behind");
 
-        Path pack = Files.createTempFile("duplicate", DshModpacks.FILE_EXTENSION);
+        Path pack = Files.createTempFile("duplicate", PackManifest.FILE_EXTENSION);
         try {
             // Exactly what a duplicate writes: `export(instance, target, report)` is `Options.of(instance)`.
-            DshModpacks.export(source, pack, null);
-            DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
+            PackExporter.export(source, pack, null);
+            PackManifest.Manifest manifest = PackManifest.readManifest(pack);
 
             assertEquals(List.of("dsh-context", "dshmarket"), manifest.bundles(),
                     "the load order the original boots in is the order the copy boots in");

@@ -17,6 +17,9 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -30,7 +33,6 @@ import com.jfoenix.controls.JFXTreeView;
 
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.pack.DshPackForge;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
@@ -380,9 +382,9 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
     /// @param options  what it should say about itself
     /// @param report   receives progress lines
     /// @throws DshException when the pack cannot be written
-    static void write(DshInstance instance, java.nio.file.Path target, DshModpacks.Options options,
+    static void write(DshInstance instance, java.nio.file.Path target, PackManifest.Options options,
                       Consumer<String> report) throws DshException {
-        DshModpacks.export(instance, target, options, report);
+        PackExporter.export(instance, target, options, report);
     }
 
     /// Writes a pack the community's tooling reads, and the digest beside it.

@@ -17,6 +17,10 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.pack.ModpackInstaller;
+import com.mcxcc303.hdsl.pack.PackExporter;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.instance.InstanceListing;
 import com.mcxcc303.hdsl.instance.InstanceStore;
 
@@ -35,7 +39,6 @@ import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.launch.DshLaunchArguments;
 import com.mcxcc303.hdsl.launch.DshLauncher;
 import com.mcxcc303.hdsl.plugin.DshLocalPlugins;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.pack.DshPackForge;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.harness.DshPreset;
@@ -727,10 +730,10 @@ public final class DshCli {
                     // not the stylesheet somebody configured it with is the difference nobody notices
                     // until they open it. The conversations are the one thing that is opt-in, because
                     // they are the one thing that is somebody's own.
-                    DshModpacks.Options defaults = DshModpacks.Options.of(instance);
-                    DshModpacks.Options options = new DshModpacks.Options(instance.id(), "1.0", "", "", "", "",
+                    PackManifest.Options defaults = PackManifest.Options.of(instance);
+                    PackManifest.Options options = new PackManifest.Options(instance.id(), "1.0", "", "", "", "",
                             withSessions, java.util.Set.of(), defaults.settings(), defaults.skills());
-                    DshModpacks.ExportResult exported = DshModpacks.export(instance, target, options, out::println);
+                    PackExporter.ExportResult exported = PackExporter.export(instance, target, options, out::println);
                     out.println("Wrote " + exported.plugins() + " plugin(s), " + exported.bytes() + " byte(s)");
                     return 0;
                 }
@@ -742,8 +745,8 @@ public final class DshCli {
                     java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(0));
                     String id = invocation.arguments().size() > 1
                             ? invocation.arguments().get(1)
-                            : DshModpacks.readManifest(pack).instanceId();
-                    DshModpacks.InstallResult result = DshModpacks.install(pack, id,
+                            : PackManifest.readManifest(pack).instanceId();
+                    ModpackInstaller.InstallResult result = ModpackInstaller.install(pack, id,
                             java.nio.file.Path.of(System.getProperty("user.home")), out::println);
                     out.println("Instance " + result.instance().id() + " is ready: "
                             + (result.installed() ? "harness installed, " : "harness already present, ")
@@ -761,8 +764,8 @@ public final class DshCli {
                         return 1;
                     }
                     java.nio.file.Path pack = java.nio.file.Path.of(invocation.arguments().get(1));
-                    DshModpacks.Manifest manifest = DshModpacks.readManifest(pack);
-                    int plugins = DshModpacks.restoreProfile(instance, manifest, pack, out::println);
+                    PackManifest.Manifest manifest = PackManifest.readManifest(pack);
+                    int plugins = ModpackInstaller.restoreProfile(instance, manifest, pack, out::println);
                     out.println("Restored " + plugins + " plugin(s) and " + manifest.bundles().size()
                             + " bundle(s) into " + instance.id());
                     for (String bundle : DshPluginInstaller.readBundles(instance.homeDirectory(), instance.profile())) {

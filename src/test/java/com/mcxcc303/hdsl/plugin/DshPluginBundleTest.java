@@ -1,7 +1,9 @@
 package com.mcxcc303.hdsl.plugin;
 
+import com.mcxcc303.hdsl.pack.ModpackInstaller;
+import com.mcxcc303.hdsl.pack.PackManifest;
+
 import com.mcxcc303.hdsl.plugin.DshLocalPlugins;
-import com.mcxcc303.hdsl.pack.DshModpacks;
 import com.mcxcc303.hdsl.plugin.DshPluginBundle;
 
 import org.junit.jupiter.api.Test;
@@ -149,27 +151,27 @@ class DshPluginBundleTest {
     @Test
     void aCarriedPluginIsDeclaredByThePathItWasPutBackAt(@TempDir Path directory) {
         Path released = directory.resolve("instance/plugins/dsh-secret-1.0.0.tgz");
-        DshModpacks.Manifest pack = manifest(new DshModpacks.Plugin("dsh-secret", "file:/made/elsewhere.tgz",
+        PackManifest.Manifest pack = manifest(new PackManifest.Plugin("dsh-secret", "file:/made/elsewhere.tgz",
                 true, true, true));
 
-        Map<String, String> dependencies = DshModpacks.dependenciesOf(pack, Map.of("dsh-secret", released));
+        Map<String, String> dependencies = ModpackInstaller.dependenciesOf(pack, Map.of("dsh-secret", released));
 
         assertEquals(released.toString(), dependencies.get("dsh-secret"),
                 "the path from the machine the pack was made on is what this replaces");
-        assertEquals(List.of("dsh-secret"), DshModpacks.listsBootable(pack, json(dependencies)),
+        assertEquals(List.of("dsh-secret"), ModpackInstaller.listsBootable(pack, json(dependencies)),
                 "the bundle boots, because the profile now declares the package");
     }
 
     @Test
     void aLocalPluginThePackDoesNotCarryIsLeftOutOfBothLists(@TempDir Path directory) {
-        DshModpacks.Manifest pack = manifest(new DshModpacks.Plugin("dsh-secret", "file:/their/path.tgz",
+        PackManifest.Manifest pack = manifest(new PackManifest.Plugin("dsh-secret", "file:/their/path.tgz",
                 true, true, false));
 
-        Map<String, String> dependencies = DshModpacks.dependenciesOf(pack, Map.of());
+        Map<String, String> dependencies = ModpackInstaller.dependenciesOf(pack, Map.of());
 
         assertTrue(dependencies.isEmpty(),
                 "a path from another machine would make every later operation on the profile fail");
-        assertTrue(DshModpacks.listsBootable(pack, json(dependencies)).isEmpty(),
+        assertTrue(ModpackInstaller.listsBootable(pack, json(dependencies)).isEmpty(),
                 "and a bundle the profile does not have stops the instance from starting");
     }
 
@@ -228,16 +230,16 @@ class DshPluginBundleTest {
 
     @Test
     void aBundleThePackDoesNotNameAsAPluginIsKept(@TempDir Path directory) {
-        DshModpacks.Manifest pack = new DshModpacks.Manifest(DshModpacks.FORMAT, DshModpacks.FORMAT_VERSION,
+        PackManifest.Manifest pack = new PackManifest.Manifest(PackManifest.FORMAT, PackManifest.FORMAT_VERSION,
                 "", "x", "v0.1.7", null, "web", List.of(), List.of("@deepseek-ai/dsh-base"), false,
                 "", "1.0", "", "", "", "", 0, List.of(), List.of(), List.of());
 
-        assertEquals(List.of("@deepseek-ai/dsh-base"), DshModpacks.listsBootable(pack, json(Map.of())),
+        assertEquals(List.of("@deepseek-ai/dsh-base"), ModpackInstaller.listsBootable(pack, json(Map.of())),
                 "the harness's own bundles are not dependencies of the profile");
     }
 
-    private static DshModpacks.Manifest manifest(DshModpacks.Plugin plugin) {
-        return new DshModpacks.Manifest(DshModpacks.FORMAT, DshModpacks.FORMAT_VERSION, "", "x", "v0.1.7",
+    private static PackManifest.Manifest manifest(PackManifest.Plugin plugin) {
+        return new PackManifest.Manifest(PackManifest.FORMAT, PackManifest.FORMAT_VERSION, "", "x", "v0.1.7",
                 null, "web", List.of(plugin), List.of(plugin.name()), true,
                 "", "1.0", "", "", "", "", 0, List.of(), List.of(), List.of());
     }
