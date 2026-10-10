@@ -17,7 +17,7 @@
  */
 package org.jackhuang.hmcl;
 
-import com.mcxcc303.hdsl.cli.DshCli;
+import com.mcxcc303.hdsl.cli.Cli;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.Arrays;
@@ -31,7 +31,7 @@ import java.util.List;
 /// class avoids that check and keeps the classpath-based build working.
 ///
 /// Command-line arguments are handled here so that version management never
-/// needs a display: see [DshCli] for the supported commands. Anything the CLI
+/// needs a display: see [Cli] for the supported commands. Anything the CLI
 /// does not recognise starts the interface.
 @NotNullByDefault
 public final class Main {
@@ -51,9 +51,9 @@ public final class Main {
         // line reads them exactly as the interface does.
         org.jackhuang.hmcl.setting.EnvironmentDefaults.install();
 
-        DshCli.Invocation invocation = DshCli.parse(arguments);
+        Cli.Invocation invocation = Cli.parse(arguments);
         if (invocation != null) {
-            System.exit(DshCli.run(invocation, System.out, System.err));
+            System.exit(Cli.run(invocation, System.out, System.err));
         }
 
         if (arguments.contains("--version")) {

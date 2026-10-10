@@ -70,8 +70,8 @@ import java.util.Map;
 /// without a display. The GUI is a second consumer of exactly the same
 /// [HarnessInstaller] and [DshInstanceManager] calls.
 @NotNullByDefault
-public final class DshCli {
-    private DshCli() {
+public final class Cli {
+    private Cli() {
     }
 
     /// The commands understood by the launcher.
@@ -495,7 +495,7 @@ public final class DshCli {
                     return 0;
                 }
                 case CREATE_INSTANCE -> {
-                    return createInstance(invocation, out, err);
+                    return InstanceCommands.createInstance(invocation, out, err);
                 }
                 case DELETE_INSTANCE -> {
                     DshInstanceManager.delete(invocation.subject());
@@ -503,7 +503,7 @@ public final class DshCli {
                     return 0;
                 }
                 case LAUNCH -> {
-                    return launchInstance(invocation, out, err);
+                    return InstanceCommands.launchInstance(invocation, out, err);
                 }
                 case LIST_RUNNING -> {
                     List<DshProcess> running = DshProcessManager.running();
@@ -520,7 +520,7 @@ public final class DshCli {
                     return 0;
                 }
                 case PRINT_LAUNCH_ARGS -> {
-                    return printLaunchArguments(invocation, out, err);
+                    return InstanceCommands.printLaunchArguments(invocation, out, err);
                 }
                 case LIST_RUNTIMES -> {
                     List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
@@ -554,34 +554,34 @@ public final class DshCli {
                     return 0;
                 }
                 case LIST_DIRECTORIES -> {
-                    return listDirectories(out);
+                    return DirectoryCommands.listDirectories(out);
                 }
                 case ADD_DIRECTORY -> {
-                    return addDirectory(invocation, out, err);
+                    return DirectoryCommands.addDirectory(invocation, out, err);
                 }
                 case LIST_PLUGIN_SOURCES -> {
-                    return listPluginSources(out);
+                    return PluginSourceCommands.listPluginSources(out);
                 }
                 case ADD_PLUGIN_SOURCE -> {
-                    return addPluginSource(invocation, out, err);
+                    return PluginSourceCommands.addPluginSource(invocation, out, err);
                 }
                 case REMOVE_PLUGIN_SOURCE -> {
-                    return removePluginSource(invocation, out, err);
+                    return PluginSourceCommands.removePluginSource(invocation, out, err);
                 }
                 case IMPORT_SESSIONS -> {
-                    return importSessions(invocation, out, err);
+                    return SessionCommands.importSessions(invocation, out, err);
                 }
                 case TEST_LAUNCH -> {
-                    return testLaunch(invocation, out, err);
+                    return InstanceCommands.testLaunch(invocation, out, err);
                 }
                 case LIST_SESSIONS -> {
-                    return listSessions(invocation, out, err);
+                    return SessionCommands.listSessions(invocation, out, err);
                 }
                 case MIGRATE_SESSION -> {
-                    return migrateSession(invocation, out, err);
+                    return SessionCommands.migrateSession(invocation, out, err);
                 }
                 case ACP_PROMPT -> {
-                    return acpPrompt(invocation, out, err);
+                    return SessionCommands.acpPrompt(invocation, out, err);
                 }
                 case INSTALL_PLUGIN -> {
                     if (invocation.arguments().size() < 2) {
@@ -846,504 +846,6 @@ public final class DshCli {
             err.println("error: " + e.getMessage());
             return 1;
         }
-    }
-
-    /// Prints the folders the launcher looks for instances in.
-    ///
-    /// @param out the stream for normal output
-    /// @return the process exit code
-    private static int listDirectories(PrintStream out) {
-        var selected = org.jackhuang.hmcl.setting.GameDirectoryManager.selected();
-        for (var directory : org.jackhuang.hmcl.setting.GameDirectoryManager.directories()) {
-            out.println((directory.id().equals(selected.id()) ? "* " : "  ")
-                    + directory.displayName()
-                    + (directory.isDefault() ? "  [default]" : "")
-                    + "  " + directory.path()
-                    + "  " + org.jackhuang.hmcl.setting.GameDirectoryManager.countInstances(directory)
-                    + " instance(s)");
-        }
-        return 0;
-    }
-
-    /// Adds a folder to the list and reports what it holds.
-    ///
-    /// The folder is selected as well as added, which is what the page that adds
-    /// one does and what a person means by it: from here on the instances in
-    /// this folder are the ones being worked on, and — with no instance named on
-    /// the command line — this is where a new one is made.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int addDirectory(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --add-directory needs a path");
-            return 1;
-        }
-        try {
-            var added = org.jackhuang.hmcl.setting.GameDirectoryManager.add(
-                    Path.of(invocation.arguments().get(0)));
-            int count = org.jackhuang.hmcl.setting.GameDirectoryManager.countInstances(added);
-            org.jackhuang.hmcl.setting.GameDirectoryManager.select(added.id());
-            out.println("Added " + added.displayName() + " (" + added.path() + ")");
-            out.println("Found " + count + " instance(s); nothing was copied or moved");
-            return 0;
-        } catch (IllegalArgumentException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-
-    /// Prints the places the plugin catalogue is read from.
-    ///
-    /// Every source that answers contributes plugins, so what this prints is the
-    /// order of authority as well as the list: the first source that lists a
-    /// plugin is where its description, version and download count come from.
-    ///
-    /// @param out the stream for normal output
-    /// @return the process exit code
-    private static int listPluginSources(PrintStream out) {
-        List<String> configured = CatalogSources.configuredSources();
-        List<String> resolved = CatalogSources.sources();
-        for (String source : resolved) {
-            boolean builtIn = !configured.contains(source);
-            out.println((builtIn ? "  " : "* ") + source
-                    + (builtIn ? "  [built in]" : "")
-                    + (CatalogSources.isPackageSource(source) ? "  [npm package]" : ""));
-        }
-        out.println("  " + CatalogSources.fallbackSource()
-                + "  [npm package, read only when none of the above answers]");
-        if (configured.isEmpty()) {
-            out.println("(nothing configured; the address above is what the launcher publishes with)");
-        }
-        return 0;
-    }
-
-    /// Adds a place for the plugin catalogue to be read from.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int addPluginSource(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --add-plugin-source needs an address or an npm package name");
-            return 1;
-        }
-        String source = invocation.arguments().get(0);
-        try {
-            CatalogSources.addSource(source);
-            out.println("Added " + source);
-            return listPluginSources(out);
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-
-    /// Removes a place the plugin catalogue was read from.
-    ///
-    /// Removing the last one puts the published pair back, which is said out loud
-    /// rather than left to be discovered.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int removePluginSource(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --remove-plugin-source needs an address or an npm package name");
-            return 1;
-        }
-        String source = invocation.arguments().get(0);
-        try {
-            CatalogSources.removeSource(source);
-            out.println("Removed " + source);
-            if (CatalogSources.configuredSources().isEmpty()) {
-                out.println("That was the last one, so the launcher is back to the published pair");
-            }
-            return listPluginSources(out);
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-
-    /// Copies another home's sessions into an instance.
-    ///
-    /// The source is read and never written: the point of importing is to take
-    /// what an existing installation has without becoming its manager.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int importSessions(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --import-sessions needs a target instance");
-            return 1;
-        }
-        DshInstance target = InstanceStore.find(invocation.arguments().get(0));
-        if (target == null) {
-            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-            return 1;
-        }
-
-        String from = invocation.options().get("from");
-        Path sourceHome = from == null || from.isBlank()
-                ? Path.of(System.getProperty("user.home"), ".dsh")
-                : Path.of(from);
-        if (!Files.isDirectory(sourceHome)) {
-            err.println("error: " + sourceHome + " is not a directory");
-            return 1;
-        }
-
-        try {
-            List<DshSession> sessions = DshSessions.readForeignHome(sourceHome);
-            int imported = 0;
-            int skipped = 0;
-            int refused = 0;
-            for (DshSession session : sessions) {
-                try {
-                    DshSessions.importFrom(sourceHome, session, target);
-                    imported++;
-                    out.println("  imported " + session.id() + "  " + session.label());
-                } catch (DshException e) {
-                    if (e.getMessage() != null && e.getMessage().contains("already has a session")) {
-                        skipped++;
-                    } else {
-                        refused++;
-                        out.println("  skipped  " + session.id() + "  " + e.getMessage());
-                    }
-                }
-            }
-            DshSessions.regroup(target.homeDirectory());
-            out.println("Imported " + imported + ", already present " + skipped
-                    + ", refused " + refused + " of " + sessions.size()
-                    + " session(s) from " + sourceHome + " into " + target.id());
-            return 0;
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-    /// Launches an instance and prints the output it produces.
-    ///
-    /// This is the headless half of test launch: it runs the same path the
-    /// interface does and drains the same buffer the log window is given, so the
-    /// capture can be checked without a display.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    /// Prints what a typed argument line comes to, without launching anything.
-    ///
-    /// The split between the launcher's flags and the app's, the profile a line names, and the
-    /// arguments that are refused are all decided by reading the line, so they can be shown without
-    /// starting a process. That makes the rules checkable, which matters because a wrong split
-    /// produces a command that either fails to start or starts the wrong thing.
-    ///
-    /// @param invocation the parsed command line
-    /// @param out        where the report goes
-    /// @param err        where an error goes
-    /// @return the exit code
-    private static int printLaunchArguments(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --print-launch-args needs an instance");
-            return 1;
-        }
-        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-        if (instance == null) {
-            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-            return 1;
-        }
-        DshLaunchArguments.Parsed parsed =
-                DshLaunchArguments.parseArguments(instance.extraArguments());
-        out.println("instance   : " + instance.id() + " (profile " + instance.profile() + ")");
-        out.println("typed      : " + instance.extraArguments());
-        out.println("launcher   : " + parsed.launcherArguments());
-        out.println("app        : " + parsed.appArguments());
-        out.println("profile    : " + (parsed.profile() != null ? parsed.profile() : instance.profile()));
-        out.println("no-open    : " + parsed.asksNoOpen());
-        for (String refusal : parsed.refusals()) {
-            out.println("refused    : " + refusal);
-        }
-        return 0;
-    }
-
-    private static int testLaunch(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --test-launch needs an instance");
-            return 1;
-        }
-        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-        if (instance == null) {
-            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-            return 1;
-        }
-        try {
-            // What is about to run, before it runs: the argument list is assembled from the
-            // version's own help, the instance's settings and the launcher's defaults, and when a
-            // launch goes wrong the first question is which of those decided the flags. Reading it
-            // off the process table afterwards is not always possible — the child exits, or the
-            // tooling cannot see another process's arguments.
-            // Built once and handed on. Building it is what writes the account's overlay, so building
-            // a second one — which is what printing and then launching used to do — leaves the first
-            // one behind for good.
-            DshLauncher.LaunchPlan plan = DshLauncher.plan(instance);
-            out.println("command: " + plan.commandLine());
-
-            DshProcess process = DshProcessManager.launch(instance, null, plan);
-            for (int i = 0; i < 120 && process.state() == DshProcess.State.STARTING; i++) {
-                Thread.sleep(500);
-                if (!process.isRunning()) {
-                    break;
-                }
-            }
-            out.println("state: " + process.state());
-            out.println("captured " + process.windowLogs().size() + " log line(s)");
-            for (var line : process.windowLogs()) {
-                out.println("  [" + line.getLevel() + "] " + line.getLog());
-            }
-            DshProcessManager.stop(instance.id());
-            return 0;
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return 1;
-        }
-    }
-    /// Prints the sessions stored in an instance's home.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int listSessions(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().isEmpty()) {
-            err.println("error: --list-sessions needs an instance");
-            return 1;
-        }
-        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-        if (instance == null) {
-            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-            return 1;
-        }
-        try {
-            List<DshSession> sessions = DshSessions.list(instance.homeDirectory());
-            out.println(sessions.size() + " session(s) in " + instance.id());
-            for (DshSession session : sessions) {
-                out.println("  " + session.id()
-                        + "  v" + session.formatVersion()
-                        + "  " + DshSessions.formatSize(session.sizeBytes())
-                        + (session.locked() ? "  [locked]" : "")
-                        + "  " + session.label());
-            }
-            return 0;
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-
-    /// Moves one session to another instance.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int migrateSession(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().size() < 3) {
-            err.println("error: --migrate-session needs a source instance, a session id and a target instance");
-            return 1;
-        }
-        DshInstance source = InstanceStore.find(invocation.arguments().get(0));
-        DshInstance target = InstanceStore.find(invocation.arguments().get(2));
-        if (source == null || target == null) {
-            err.println("error: the source or target instance does not exist");
-            return 1;
-        }
-        String sessionId = invocation.arguments().get(1);
-
-        try {
-            DshSession session = DshSessions.list(source.homeDirectory()).stream()
-                    .filter(candidate -> candidate.id().equals(sessionId))
-                    .findFirst()
-                    .orElse(null);
-            if (session == null) {
-                err.println("error: " + sessionId + " is not a session of " + source.id());
-                return 1;
-            }
-            DshSessions.migrate(source, session, target, true);
-            DshSessions.regroup(target.homeDirectory());
-            out.println("Migrated " + sessionId + " from " + source.id() + " to " + target.id());
-            return 0;
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-    /// Sends one prompt over the Agent Client Protocol and prints the reply.
-    ///
-    /// The protocol reserves stdout for JSON-RPC frames, so this is the only way
-    /// to exercise the session path without a display.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int acpPrompt(Invocation invocation, PrintStream out, PrintStream err) {
-        if (invocation.arguments().size() < 2) {
-            err.println("error: --acp-prompt needs an instance and a prompt");
-            return 1;
-        }
-        DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
-        if (instance == null) {
-            err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
-            return 1;
-        }
-
-        DshAcpClient.Listener listener = new DshAcpClient.Listener() {
-            @Override
-            public void onText(String text) {
-                out.print(text);
-                out.flush();
-            }
-
-            @Override
-            public void onToolCall(String title, String status) {
-                out.println();
-                out.println("[tool] " + title + " (" + status + ")");
-            }
-
-            @Override
-            public void onPromptFinished(String stopReason) {
-                out.println();
-                out.println("[stop] " + stopReason);
-            }
-
-            @Override
-            public void onFailure(String message) {
-                err.println("[acp] " + message);
-            }
-        };
-
-        try (DshAcpClient client = DshAcpClient.connect(instance, listener)) {
-            String sessionId = client.newSession();
-            out.println("[session] " + sessionId);
-            client.prompt(sessionId, invocation.arguments().get(1));
-            return 0;
-        } catch (DshException e) {
-            err.println("error: " + e.getMessage());
-            return 1;
-        }
-    }
-
-    /// Launches an instance and blocks until it exits.
-    ///
-    /// The launcher keeps child processes in its own process group: the JVM
-    /// shutdown hook stops them, so reattaching or interrupting this command
-    /// never leaves an orphaned `dsh` behind.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int launchInstance(Invocation invocation, PrintStream out, PrintStream err)
-            throws DshException {
-        DshInstance instance = InstanceStore.find(invocation.subject());
-        if (instance == null) {
-            err.println("error: instance " + invocation.subject() + " does not exist");
-            return 1;
-        }
-
-        // What is about to run, before it runs: the argument list is assembled from the version's
-        // own help, the instance's settings and the launcher's defaults, and when a launch goes
-        // wrong the first question is which of those decided the flags. Reading it off the process
-        // table afterwards is not always possible.
-        DshLauncher.LaunchPlan plan = DshLauncher.plan(instance);
-        out.println("command: " + plan.commandLine());
-
-        DshProcess process = DshProcessManager.launch(instance, null, plan);
-        process.setLogSink(line -> System.out.println("[" + instance.id() + "] " + line));
-
-        long deadline = System.currentTimeMillis() + java.time.Duration.ofSeconds(90).toMillis();
-        while (process.state() == DshProcess.State.STARTING
-                && process.isRunning()
-                && System.currentTimeMillis() < deadline) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-
-        if (process.webUrl().isPresent()) {
-            out.println("ready: " + process.webUrl().get());
-        } else {
-            out.println("state: " + process.state() + " (exit " + process.exitCode().orElse(-1) + ")");
-        }
-        out.println("Press Ctrl-C to stop.");
-
-        while (process.isRunning()) {
-            try {
-                Thread.sleep(300);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
-        }
-        process.stop();
-        return process.exitCode().orElse(0);
-    }
-
-    /// Creates an instance from the command line.
-    ///
-    /// @param invocation the parsed invocation
-    /// @param out        the stream for normal output
-    /// @param err        the stream for error output
-    /// @return the process exit code
-    private static int createInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-        String id = invocation.subject();
-        String version = invocation.option("dsh-version");
-        if (version == null) {
-            // There is nothing installed to fall back on: the runtime is fetched
-            // when the instance that runs it is made, so the version has to be
-            // named here.
-            err.println("error: --dsh-version is required; "
-                    + "a DeepSeek Harness version belongs to the instance that runs it");
-            return 1;
-        }
-
-        String profile = invocation.option("profile");
-        if (profile == null) {
-            profile = DshInstance.DEFAULT_PROFILE;
-        }
-
-        String workspaceOption = invocation.option("workspace");
-        Path workspace = Path.of(workspaceOption != null ? workspaceOption : System.getProperty("user.home"))
-                .toAbsolutePath().normalize();
-
-        DshHomeMode mode = DshHomeMode.ISOLATED;
-        String modeOption = invocation.option("home-mode");
-        if (modeOption != null) {
-            mode = DshHomeMode.valueOf(modeOption.toUpperCase(java.util.Locale.ROOT));
-        }
-        String nodeRuntime = invocation.option("runtime");
-        Path customHome = invocation.option("home") == null
-                ? null
-                : Path.of(invocation.option("home")).toAbsolutePath().normalize();
-
-        DshInstance instance = DshInstanceManager.create(id, version, profile, workspace,
-                nodeRuntime, mode, customHome, List.of(), Map.of());
-        out.println("Created instance " + instance.id() + " (dsh " + instance.version()
-                + ", profile " + instance.profile() + ", home " + instance.homeDirectory() + ")");
-        return 0;
     }
 
     /// Prints the command list.
