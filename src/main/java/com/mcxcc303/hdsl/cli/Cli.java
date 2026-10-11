@@ -64,6 +64,11 @@ public final class Cli {
 			return null;
 		}
 
+		// The command line these arguments name under the spelling that replaces this one. Nothing
+		// here reads it: the command is run from what the flag-style parse below makes of them, and
+		// the line is only what the command says it was written as, once it has run.
+		List<String> deprecated = FlagStyleCommands.commandLine(args);
+
 		Command command = Command.DOCTOR;
 		List<String> positional = new ArrayList<>();
 		Map<String, String> options = new LinkedHashMap<>();
@@ -222,7 +227,7 @@ public final class Cli {
 			}
 		}
 
-		return new Invocation(command, List.copyOf(positional), Map.copyOf(options), help);
+		return new Invocation(command, List.copyOf(positional), Map.copyOf(options), help, deprecated);
 	}
 
 	/// Runs a parsed command.
@@ -232,6 +237,22 @@ public final class Cli {
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	public static int run(Invocation invocation, PrintStream out, PrintStream err) {
+		int code = runCommand(invocation, out, err);
+		// Last, so that what a command said is what a reader sees first: the warning is about how
+		// the command was written rather than about what it did.
+		if (invocation.deprecated() != null) {
+			FlagStyleCommands.warn(out, invocation.deprecated());
+		}
+		return code;
+	}
+
+	/// Runs the command an invocation names.
+	///
+	/// @param invocation the command to run
+	/// @param out        the stream for normal output
+	/// @param err        the stream for error output
+	/// @return the process exit code
+	private static int runCommand(Invocation invocation, PrintStream out, PrintStream err) {
 		// Whether a command needs an argument is a property of the command, not
 		// a list kept here: the list was a growing whitelist that silently
 		// rejected every new command added without it.
@@ -543,7 +564,10 @@ public final class Cli {
 	/// @param arguments positional arguments, the first being the subject
 	/// @param options   the `--key value` options
 	/// @param showHelp  whether help was requested
-	public record Invocation(Command command, List<String> arguments, Map<String, String> options, boolean showHelp) {
+	/// @param deprecated the command line these arguments name under the spelling that replaces
+	///                   this one, or `null` when this is that spelling already
+	public record Invocation(Command command, List<String> arguments, Map<String, String> options, boolean showHelp,
+	                         @Nullable List<String> deprecated) {
 		/// Returns the first positional argument.
 		///
 		/// @return the subject, or `null` when none was given
