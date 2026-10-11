@@ -614,11 +614,7 @@ jobs:
         # the last tag on the branch, which is the same thing read the other way round. A changelog
         # nobody can generate is worse than none, so a failure here is not made fatal: the note still
         # carries the files and their digests.
-        if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
-          python3 scripts/changelog.py --from "$(git describe --tags --abbrev=0 "${TAG}^")" --to "${TAG}" >> "${note}" || true
-        else
-          python3 scripts/changelog.py >> "${note}" || true
-        fi
+        python3 scripts/changelog.py --tag "${TAG}" >> "${note}" || true
         echo "" >> "${note}"
         echo "| File | For | SHA-256 |" >> "${note}"
         echo "| --- | --- | --- |" >> "${note}"
