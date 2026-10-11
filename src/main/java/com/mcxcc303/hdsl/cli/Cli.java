@@ -159,13 +159,9 @@ public final class Cli {
         ADD_DIRECTORY(false),
 
         /// Prints the places the plugin catalogue is read from.
-        LIST_PLUGIN_SOURCES(true),
+        LIST_PLUGIN_SOURCES(true)
 
-        /// Adds a place for the plugin catalogue to be read from.
-        ADD_PLUGIN_SOURCE(false),
 
-        /// Removes one, and puts the published pair back when the last is gone.
-        REMOVE_PLUGIN_SOURCE(false)
         ;
 
         /// Whether this command reports on the launcher itself rather than on something named.
@@ -247,8 +243,6 @@ public final class Cli {
                 && !args.contains("--list-directories")
                 && !args.contains("--add-directory")
                 && !args.contains("--list-plugin-sources")
-                && !args.contains("--add-plugin-source")
-                && !args.contains("--remove-plugin-source")
                 && !args.contains("--help")
                 && !args.contains("-h")) {
             return null;
@@ -305,14 +299,6 @@ public final class Cli {
                     if (i + 1 < args.size()) positional.add(args.get(++i));
                 }
                 case "--list-plugin-sources" -> command = Command.LIST_PLUGIN_SOURCES;
-                case "--add-plugin-source" -> {
-                    command = Command.ADD_PLUGIN_SOURCE;
-                    if (i + 1 < args.size()) positional.add(args.get(++i));
-                }
-                case "--remove-plugin-source" -> {
-                    command = Command.REMOVE_PLUGIN_SOURCE;
-                    if (i + 1 < args.size()) positional.add(args.get(++i));
-                }
                 case "--import-sessions" -> {
                     command = Command.IMPORT_SESSIONS;
                     if (i + 1 < args.size()) positional.add(args.get(++i));
@@ -490,12 +476,6 @@ public final class Cli {
                 case LIST_PLUGIN_SOURCES -> {
                     return PluginSourceCommands.listPluginSources(out);
                 }
-                case ADD_PLUGIN_SOURCE -> {
-                    return PluginSourceCommands.addPluginSource(invocation, out, err);
-                }
-                case REMOVE_PLUGIN_SOURCE -> {
-                    return PluginSourceCommands.removePluginSource(invocation, out, err);
-                }
                 case IMPORT_SESSIONS -> {
                     return SessionCommands.importSessions(invocation, out, err);
                 }
@@ -595,8 +575,6 @@ public final class Cli {
 
                 plugins:
                   --list-plugin-sources           the places the plugin catalogue is read from
-                  --add-plugin-source <address>   add one: an address or an npm package name
-                  --remove-plugin-source <address>  remove one
                   --install-plugin <id> <spec>     install a plugin into an instance profile
                   --remove-plugin <id> <spec>...   remove one or more plugins from an instance profile
                   --export-sessions <id> <file>    write the instance's sessions into a pack

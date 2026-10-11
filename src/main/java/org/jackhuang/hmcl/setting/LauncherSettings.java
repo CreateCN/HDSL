@@ -135,41 +135,25 @@ public final class LauncherSettings {
         return debugLog;
     }
 
-    /// Where the plugin catalogue is read from, or empty for the built-in address.
-    private final javafx.beans.property.StringProperty pluginCatalogUrl =
-            new javafx.beans.property.SimpleStringProperty("");
 
     /// Returns the address the plugin catalogue is read from.
     ///
-    /// @return the property, empty for the built-in address
-    public javafx.beans.property.StringProperty pluginCatalogUrlProperty() {
-        return pluginCatalogUrl;
-    }
 
-    /// Every place the plugin catalogue is read from, in the order they are tried.
+    /// The plugin market plugins are read from, named by [MarketSource#id].
     ///
-    /// A list rather than one address, because one host serving one JSON document
-    /// is one point of failure and one list of plugins: a mirror is what a network
-    /// that cannot reach the community host needs, and a second community
-    /// catalogue is what somebody who wants more plugins than one list holds
-    /// needs. An entry is an address or the name of an npm package that publishes
-    /// the same document.
+    /// A market rather than a list of addresses: what a market is asked for, and what it answers,
+    /// is that market's own business — one serves a document, the next may serve something else —
+    /// so choosing one is choosing a market, not a place to look.
     ///
-    /// The order is the order of authority: the first source that lists a plugin
-    /// is the one the plugin's description, version and download count come from,
-    /// so putting a mirror first is how a person says "prefer this one".
-    private final javafx.collections.ObservableList<String> pluginCatalogSources =
-            javafx.collections.FXCollections.observableArrayList();
+    /// Empty for a launcher that has never been asked, which reads the community's.
+    private final javafx.beans.property.StringProperty marketSource =
+            new javafx.beans.property.SimpleStringProperty("");
 
-    /// Returns the catalogue sources.
-    ///
-    /// Empty means the built-in pair — the community address and the npm package
-    /// that publishes the same document — which is what a launcher that has never
-    /// been asked keeps using.
+    /// Returns the plugin market, chosen by id.
     ///
     /// @return the property
-    public javafx.collections.ObservableList<String> pluginCatalogSourcesProperty() {
-        return pluginCatalogSources;
+    public javafx.beans.property.StringProperty marketSourceProperty() {
+        return marketSource;
     }
 
     /// Where the modpack market's index is read from, or empty for the one the ecosystem publishes.

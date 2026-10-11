@@ -104,136 +104,34 @@ public final class DownloadSettingsPage extends ScrollPane {
             }
         });
         list.getContent().add(source);
-        list.getContent().add(buildCatalogRow());
+        list.getContent().add(buildMarketRow());
 
         return list;
     }
 
-    /// Builds the row that says where the plugin catalogue is read from.
+    /// Builds the row that chooses the plugin market.
     ///
-    /// One catalogue is one document on one host, and a host is a single point of
-    /// failure — so what is configured is a *list* of places to read it from, and
-    /// every one of them that answers contributes plugins. That is what the rows
-    /// below are: the sources that were added, each with a way to take it out
-    /// again, and a row that adds one.
-    ///
-    /// The published pair is shown when nothing has been added, greyed into the
-    /// list as text rather than as rows: they cannot be removed, and a row whose
-    /// remove button refuses is worse than no row at all.
+    /// A market rather than a list of addresses: what a market is asked for, and what it answers, is
+    /// that market's own business — one serves a document, the next may serve something else — so
+    /// choosing one is choosing a market rather than a place to look. The items are the markets this
+    /// launcher knows, and it knows one today.
     ///
     /// @return the row
-    private javafx.scene.Node buildCatalogRow() {
-        javafx.scene.layout.VBox box = new javafx.scene.layout.VBox();
-        box.setSpacing(6);
-
-        javafx.scene.control.Label caption =
-                new javafx.scene.control.Label(i18n("dsh.settings.catalog.url"));
-        caption.setPadding(new javafx.geometry.Insets(4, 0, 0, 0));
-        javafx.scene.control.Label hint =
-                new javafx.scene.control.Label(i18n("dsh.settings.catalog.url.hint"));
-        hint.setWrapText(true);
-        hint.getStyleClass().add("subtitle-label");
-        box.getChildren().addAll(caption, hint);
-
-        // The rows redraw themselves after a source is added or removed, so the
-        // rebuild has to be reachable from inside itself; a one-element array is
-        // how the rest of this interface refers to something it is still building.
-        Runnable[] rebuild = new Runnable[1];
-        rebuild[0] = () -> {
-            box.getChildren().setAll(caption, hint);
-            java.util.List<String> configured =
-                    CatalogSources.configuredSources();
-            if (configured.isEmpty()) {
-                javafx.scene.control.Label builtIn = new javafx.scene.control.Label(
-                        i18n("dsh.settings.catalog.builtin", CatalogSources.CATALOG_URL));
-                builtIn.setWrapText(true);
-                builtIn.getStyleClass().add("subtitle-label");
-                box.getChildren().add(builtIn);
+    private javafx.scene.Node buildMarketRow() {
+        LineSelectButton<com.mcxcc303.hdsl.plugin.MarketSource> source = new LineSelectButton<>();
+        source.setTitle(i18n("dsh.settings.market_source"));
+        source.setNullSafeConverter(com.mcxcc303.hdsl.plugin.MarketSource::label);
+        source.setDescriptionConverter(market -> market == null ? "" : market.id());
+        source.setItems(java.util.List.of(com.mcxcc303.hdsl.plugin.MarketSource.values()));
+        source.setValue(CatalogSources.marketSource());
+        source.valueProperty().addListener((observable, was, value) -> {
+            if (value != null && value != was) {
+                CatalogSources.setMarketSource(value);
             }
-            for (String source : configured) {
-                box.getChildren().add(catalogSourceRow(source, rebuild[0]));
-            }
-            box.getChildren().add(addSourceRow(rebuild[0]));
-        };
-        rebuild[0].run();
-        return box;
-    }
-
-    /// Builds one source, with a button that takes it out of the list.
-    ///
-    /// @param source  the source
-    /// @param refresh what to run once it is gone
-    /// @return the row
-    private javafx.scene.Node catalogSourceRow(String source, Runnable refresh) {
-        com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField(source);
-        field.setMinWidth(320);
-        field.setEditable(false);
-
-        com.jfoenix.controls.JFXButton remove = new com.jfoenix.controls.JFXButton(
-                i18n("dsh.settings.catalog.remove"));
-        remove.getStyleClass().add("jfx-button-border");
-        remove.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-        remove.setOnAction(event -> {
-            try {
-                CatalogSources.removeSource(source);
-            } catch (DshException e) {
-                org.jackhuang.hmcl.ui.Controllers.dialog(e.getMessage(),
-                        i18n("dsh.settings.catalog.source_failed"),
-                        org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.ERROR);
-            }
-            refresh.run();
         });
-
-        javafx.scene.layout.BorderPane row = new javafx.scene.layout.BorderPane();
-        row.setLeft(field);
-        row.setRight(remove);
-        javafx.scene.layout.BorderPane.setAlignment(remove, javafx.geometry.Pos.CENTER_RIGHT);
-        return row;
+        return source;
     }
 
-    /// Builds the row that adds a source.
-    ///
-    /// A prompt rather than a field in the row: a source is an address or the name
-    /// of a package, and one that is neither is worth refusing while the person is
-    /// still looking at what they typed. The prompt refuses it in place, which is
-    /// what the shared dialog is for.
-    ///
-    /// @param refresh what to run once one is added
-    /// @return the row
-    private javafx.scene.Node addSourceRow(Runnable refresh) {
-        com.jfoenix.controls.JFXButton add = new com.jfoenix.controls.JFXButton(
-                i18n("dsh.settings.catalog.add"));
-        add.getStyleClass().add("jfx-button-border");
-        add.setMinWidth(javafx.scene.layout.Region.USE_PREF_SIZE);
-        add.setOnAction(event -> org.jackhuang.hmcl.ui.Controllers.prompt(
-                i18n("dsh.settings.catalog.add"),
-                (value, handler) -> {
-                    String source = value == null ? "" : value.trim();
-                    if (!CatalogSources.isUsableSource(source)) {
-                        handler.reject(i18n("dsh.settings.catalog.add.invalid"));
-                        return;
-                    }
-                    try {
-                        CatalogSources.addSource(source);
-                    } catch (DshException refused) {
-                        handler.reject(refused.getMessage());
-                        return;
-                    }
-                    refresh.run();
-                    handler.resolve();
-                },
-                ""));
-
-        javafx.scene.layout.BorderPane row = new javafx.scene.layout.BorderPane();
-        row.setRight(add);
-        javafx.scene.layout.BorderPane.setAlignment(add, javafx.geometry.Pos.CENTER_RIGHT);
-        return row;
-    }
-
-    /// Builds the rows about downloading itself: where what was fetched is kept, and how many
-    /// downloads happen at once.
-    ///
-    /// @return the list
     private ComponentList buildDownloadList() {
         // The original's rows for the same job: where the cache lives — shown, with a button that
         // empties it and a way to choose another place — and how many downloads happen at once,

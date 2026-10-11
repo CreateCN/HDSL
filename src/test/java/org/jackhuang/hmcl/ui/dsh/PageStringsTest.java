@@ -175,8 +175,6 @@ class PageStringsTest {
             "dsh.settings.proxy.concurrency",
             "dsh.settings.proxy.concurrency.hint",
             "dsh.settings.catalog",
-            "dsh.settings.catalog.url",
-            "dsh.settings.catalog.url.hint",
             "dsh.settings.launcher",
             "dsh.settings.launcher.visibility",
             "dsh.settings.launcher.visibility.keep",
