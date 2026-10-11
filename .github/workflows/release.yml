@@ -2,6 +2,12 @@ name: Release
 
 # A tag is the release: pushing one builds the Windows, Linux and macOS packages and publishes them.
 #
+# It is created as a draft before anything is built, so that the three platforms build beside each
+# other instead of one behind another: `gh release upload` needs a release to upload into, and that
+# is the only thing that ever made the order matter. The note job at the end writes the note and
+# turns the draft into a release, so a run that fails on the way leaves a draft behind rather than a
+# release missing half its packages.
+#
 # A manual run (`workflow_dispatch`) is a dry run of the same pipeline: everything is built,
 # packaged, summed and turned into a release note, and the note is printed — but no release is
 # created, nothing is uploaded and nothing is published. What decides that is the event, not an
@@ -24,20 +30,88 @@ permissions:
 
 jobs:
 
+  # The release is created before anything is built, and as a draft. That is what lets the three
+  # platforms build beside each other: `gh release upload` fails on a tag with no release behind it,
+  # so while this job's work was done by the Linux job, every other platform had to wait for that job
+  # to finish before it could even start — which is the only thing the order was ever for. A draft is
+  # not public, so what waits for the platforms now is the note job that publishes it.
+  #
+  # This job runs on a manual run too, and does nothing there: a job that is skipped takes the jobs
+  # that `needs` it down with it, and the three platform jobs would never start.
+  release-draft:
+
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 10
+
+    steps:
+    - name: Work out the version
+      shell: bash
+      env:
+        DISPATCHED_VERSION: ${{ inputs.version }}
+      run: |
+        # The version the run is for: the tag it was pushed as, or — for a manual run — the one it
+        # was given. A manual run is a dry run, and what keeps it from publishing is the event
+        # rather than an input, so this step is the only place the two differ before the build.
+        if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+          VERSION="${DISPATCHED_VERSION}"
+          echo "Dry run: building ${VERSION}, publishing nothing"
+        else
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "Releasing ${VERSION}"
+        fi
+        # The version ends up in file names, in the `.deb`'s control file and in `-PreleaseVersion`,
+        # so its shape is checked here rather than discovered by a build that writes `hdsl-.exe`.
+        printf '%s' "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.+-]+)?$' \
+          || { echo "error: '${VERSION}' is not a version this workflow can build" >&2; exit 1; }
+        # A pre-release part — anything after the first `-`, which is semver's own spelling for one —
+        # makes this a pre-release rather than a release. GitHub keeps those out of `releases/latest`,
+        # so the download page and anything reading that endpoint stay on the stable release while the
+        # snapshot's assets remain reachable by tag for whoever is testing it.
+        case "${VERSION}" in
+          *-*) PRERELEASE=--prerelease ;;
+          *)   PRERELEASE= ;;
+        esac
+        {
+          echo "VERSION=${VERSION}"
+          echo "TAG=v${VERSION}"
+          echo "PRERELEASE=${PRERELEASE}"
+        } >> "${GITHUB_ENV}"
+
+    - name: Create the release as a draft
+      if: github.event_name == 'push'
+      run: |
+        # A re-run of a release reaches this step with the draft already there, and `gh release
+        # create` fails on a release that exists — which would fail the run before it built anything.
+        # What is there is left as it is; every upload replaces what it carries anyway.
+        if gh release view "${TAG}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+          echo "The release ${TAG} is already there; leaving it as it is."
+          exit 0
+        fi
+        # The draft is what the platforms upload into. The note it carries is the one a release goes
+        # public with only if the note job never gets to write the real one, and a draft is readable
+        # by nobody but the repository, so the placeholder costs nothing while it waits.
+        gh release create "${TAG}" \
+          --target "${{ github.sha }}" \
+          ${PRERELEASE} \
+          --draft \
+          --title "HDSL ${VERSION}" \
+          --notes "The packages are being uploaded; the table with every checksum is written once they are all in place."
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   # The Windows artifacts are built by a Windows runner, because the executable
   # has to be built with the platform's own JavaFX natives inside it, and this job
   # uploads them into the release itself rather than handing them to another job as
   # an artifact.
   #
-  # `needs: release` is what makes that upload safe: `gh release upload` fails on a
-  # tag with no release behind it, and a Windows build is not reliably slower than
-  # the Linux one, so there is no ordering to fall back on. The dependency is not
-  # the other way round — a Windows runner that wedges must not cost the Linux and
-  # macOS packages their release, which is the reason the macOS job below waits
-  # for nothing either.
+  # `needs: release-draft` is what makes that upload safe: `gh release upload` fails on a tag with
+  # no release behind it. It is the draft and not another platform's job, so this build starts as
+  # soon as the release exists and runs beside the Linux and macOS ones instead of behind them.
   release-windows:
 
-    needs: release
+    needs: release-draft
+
     runs-on: windows-latest
 
     # A bound on the job, the way `build.yml` bounds each of its steps: a runner
@@ -177,7 +251,12 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  release:
+  # The Linux packages — the tar.zst, the AppImage, the `.deb`, the `.sh` and the Arch package — are
+  # built here, under xvfb, because JavaFX needs a display even to run the tests. This job created the
+  # release once; creating it is the draft job's work now, so this is one of three that upload into it.
+  release-linux:
+
+    needs: release-draft
 
     runs-on: ubuntu-latest
 
@@ -283,7 +362,7 @@ jobs:
         cp "build/libs/hdsl-${{ env.VERSION }}.sh" "build/libs/hdsl-${{ env.VERSION }}.deb" dist/
 
     # The note a release goes public with is written by the `release-note` job below, once every
-    # asset — and every `.sha256` beside it — is in the release. Nothing is written here because
+    # asset — and every `.sha256` beside it — is in the draft. Nothing is written here because
     # nothing here can see the whole release: Gradle's two artifacts are summed a step after this
     # point, and the macOS and Windows packages arrive from jobs that run beside this one.
 
@@ -303,9 +382,9 @@ jobs:
     - name: Verify the Linux packages (dry run)
       if: github.event_name == 'workflow_dispatch'
       run: |
-        # The exact list `gh release create` below names, checked before it is needed: that command
-        # fails the whole release over one path that does not exist, and the failure arrives with no
-        # release to fix it in.
+        # The list `gh release upload` below names, checked before it is needed: every package is
+        # there and every `.sha256` matches the file beside it, so a build that came up short stops
+        # here, naming the file, rather than inside an upload that names ten of them.
         for file in \
           "dist/hdsl-${VERSION}-linux-x64.tar.zst" "dist/hdsl-${VERSION}-linux-x64.tar.zst.sha256" \
           "dist/${ARCH_PKG}" "dist/${ARCH_PKG}.sha256" \
@@ -336,15 +415,16 @@ jobs:
         retention-days: 7
 
     # Only a tag publishes. A manual run is a dry run that stops at the verification above.
-    - name: Create the release
+    - name: Upload the Linux packages
       if: github.event_name == 'push'
       run: |
-        # `gh release create` fails the whole release over one path that does not exist, so the list is
+        # `gh release upload` fails the whole step over one path that does not exist, so the list is
         # exactly what this job built and nothing more: the Arch package's name is read back and checked
         # a step above, and an AppImage that was not built fails the fetch it depends on rather than
-        # this. The Windows and macOS assets are added by the jobs that build them, which is why none
-        # of them is named here.
-        gh release create "${TAG}" \
+        # this. The Windows and macOS assets are uploaded by the jobs that build them, which is why none
+        # of them is named here. `--clobber` so that a re-run replaces what the previous attempt
+        # uploaded, the way those jobs do.
+        gh release upload "${TAG}" \
           dist/hdsl-${VERSION}-linux-x64.tar.zst \
           dist/hdsl-${VERSION}-linux-x64.tar.zst.sha256 \
           "dist/${ARCH_PKG}" \
@@ -355,10 +435,7 @@ jobs:
           dist/hdsl-${VERSION}.deb.sha256 \
           dist/hdsl-${VERSION}.sh \
           dist/hdsl-${VERSION}.sh.sha256 \
-          --target "${{ github.sha }}" \
-          ${PRERELEASE} \
-          --title "HDSL ${VERSION}" \
-          --notes "The packages are being uploaded; the table with every checksum is written once they are all in place."
+          --clobber
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -366,13 +443,13 @@ jobs:
   # it runs rather than beside the Linux packages — once per Mac arch, with
   # macos-latest covering Apple Silicon and macos-26-intel covering Intel.
   #
-  # Deliberately no `needs: release`. A release is created by one job and added
-  # to by the others, and `gh release upload` is incremental, so nothing here
-  # depends on the Linux job having run first. Waiting for it would only mean
-  # that a Mac failure leaves a published release missing half its assets —
-  # the release goes public the moment the Linux job creates it, whether or not
-  # this job succeeds afterwards.
+  # `needs: release-draft` and nothing else. The draft the uploads go into exists before this job
+  # starts, so it waits for no platform in front of it — which is what it did with no `needs` at all,
+  # and what made that a race: a Mac that finished before the release had been created had nothing to
+  # upload into, and the release would have gone out without its macOS packages.
   release-mac:
+
+    needs: release-draft
 
     strategy:
       matrix:
@@ -497,13 +574,15 @@ jobs:
   # The note a release goes public with cannot be written while the release is being built: Gradle's
   # two artifacts are summed one step after the Linux job would write it, and the macOS and Windows
   # packages are built and uploaded by jobs of their own. So it is written here, once every asset —
-  # and every `.sha256` beside it — is in the release, and put in place with `gh release edit`.
+  # and every `.sha256` beside it — is in the draft, and this job is what publishes the draft: the
+  # note and the release go public together, or the release stays a draft for whoever looks next.
   #
   # A row with no checksum to read is an artifact the runner did not build, which is the only thing
   # `pending` means here; `needs` and `always()` are what make that true for a Mac or a Windows runner
   # that failed without costing the Linux packages their table. Every uploading job is named in
   # `needs` for that reason — a job left out of it would have its assets arrive after the table was
-  # written, and a checksum that was correct when it was read is not one that is correct now.
+  # written, and a checksum that was correct when it was read is not one that is correct now. The
+  # draft job is named with them, since the release read here is the one that job created.
   #
   # The checksums are read out of a release rather than out of a tree, so every `gh` call names the
   # repository instead of leaving `gh` to look for `.git` to work out which one is meant.
@@ -516,8 +595,8 @@ jobs:
   # instead, and the note is printed rather than edited into a release.
   release-note:
 
-    needs: [release, release-mac, release-windows]
-    if: always() && needs.release.result == 'success'
+    needs: [release-draft, release-linux, release-mac, release-windows]
+    if: always() && needs.release-linux.result == 'success'
 
     runs-on: ubuntu-latest
 
@@ -639,9 +718,11 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Only a tag publishes: a dry run has already printed the note it would have written.
-    - name: Replace the note the release went public with
+    # Only a tag publishes: a dry run has already printed the note it would have written. Publishing
+    # is the last thing a release gets — the note goes in and the draft stops being one in a single
+    # command, so a release is never public with a note that is still being written.
+    - name: Publish the draft with the note that was written
       if: github.event_name == 'push'
-      run: gh release edit "${TAG}" --repo "${{ github.repository }}" --notes-file RELEASE_NOTE
+      run: gh release edit "${TAG}" --repo "${{ github.repository }}" --notes-file RELEASE_NOTE --draft=false
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
