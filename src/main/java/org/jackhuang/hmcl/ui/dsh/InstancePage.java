@@ -65,6 +65,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javafx.util.Duration;
 
@@ -525,31 +526,39 @@ public final class InstancePage extends DecoratorAnimatedPage implements Decorat
 
     /// Deletes this instance after confirmation, leaving the page afterwards.
     ///
-    /// The removal runs off the interface thread, because of what it waits for rather than
-    /// because of how long it usually takes: an instance that is running is stopped first and
-    /// the stop waits for the child to drain — up to the harness's own bounded shutdown — and
-    /// the instance's tree is then removed with retries, because a handle that is closing takes
-    /// a moment to close. Done here, on the interface thread, that is a window that stops
-    /// repainting for as long as it takes the child to die: Windows paints it white and offers
-    /// to end it, and what the person reported is a launcher that has crashed. Nothing about the
-    /// removal needs the interface to stand still, so it does not.
+    /// The question is the launcher's own, and so is what follows it: the progress dialog every
+    /// other operation of this size is shown in, which runs the removal and stays until it has
+    /// finished. The removal waits twice — an instance that is running is stopped first and the
+    /// stop waits for the child to drain, and the tree is then taken away with retries because a
+    /// handle that is closing takes a moment to close — so it is work with a beginning and an end,
+    /// and what is shown for it is a progress dialog rather than a question. Run on the interface
+    /// thread instead, the window stops repainting for as long as the child takes to die: Windows
+    /// paints it white and offers to end it, and what the person reports is a launcher that has
+    /// crashed.
     ///
-    /// The question outlives the answer for the same reason it is asked at all: the seconds this
-    /// takes are seconds in which the instance is still on the screen, and a dialog that has already
-    /// closed makes pressing again the obvious thing to do.
+    /// The page is left only once the instance is gone. A failure keeps it where it is, beside the
+    /// error, because there is still an instance there to try again on.
     private void removeInstance() {
         String id = instance.id();
-        Controllers.confirmAsync(i18n("dsh.instance.remove.confirm", id),
-                i18n("dsh.instance.remove"),
-                i18n("dsh.instance.removing", id),
-                () -> CompletableFuture.runAsync(() -> {
-                    try {
-                        DshInstanceManager.delete(id);
-                    } catch (DshException e) {
-                        throw new CompletionException(e);
-                    }
-                }, Schedulers.io()),
-                i18n("dsh.instance.remove_failed"));
+        Controllers.confirm(i18n("dsh.instance.remove.confirm", id), i18n("dsh.instance.remove"),
+                () -> {
+                    AtomicBoolean failed = new AtomicBoolean();
+                    ProgressDialog.run(i18n("dsh.instance.remove"),
+                            progress -> {
+                                progress.accept(i18n("dsh.instance.removing", id));
+                                DshInstanceManager.delete(id);
+                            },
+                            () -> {
+                                if (!failed.get()) {
+                                    Controllers.navigate(Controllers.getInstancesPage());
+                                }
+                            },
+                            failure -> {
+                                failed.set(true);
+                                return false;
+                            });
+                },
+                null);
     }
 
     /// Rebuilds the plugin list from the profile manifest on disk.
