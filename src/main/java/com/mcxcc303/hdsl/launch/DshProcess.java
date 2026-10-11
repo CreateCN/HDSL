@@ -143,6 +143,11 @@ public final class DshProcess {
 		this.process.pumpInputStream(line -> onOutput(line, false));
 		this.process.pumpErrorStream(line -> onOutput(line, true));
 
+		// What another launcher needs in order to see this instance the way this one does, written
+		// down before the harness has said a word: the pid is the fact, and the address joins it as
+		// soon as the harness reports one.
+		recordRunning(null);
+
 		Lang.thread(this::awaitExit, "DSH process waiter", true);
 
 		if (!plan.surface().isWeb()) {
@@ -253,6 +258,25 @@ public final class DshProcess {
 	/// @return the state
 	public State state() {
 		return state;
+	}
+
+	/// Returns the child's process id.
+	///
+	/// @return the pid of the harness
+	public long pid() {
+		return process.getProcess().pid();
+	}
+
+	/// Writes down that this process is running, and what it is serving.
+	///
+	/// @param url the address the harness reported, or `null` while there is none
+	private void recordRunning(@Nullable URI url) {
+		DshRunningRecord.write(plan.instance(),
+		                       pid(),
+		                       plan.port(),
+		                       url,
+		                       plan.surface(),
+		                       startedAt.toEpochMilli());
 	}
 
 	/// Returns the readiness URL, once the browser surface has reported one.
@@ -407,6 +431,7 @@ public final class DshProcess {
 			return;
 		}
 		webUrl = parsed.get();
+		recordRunning(webUrl);
 		transitionTo(State.READY);
 	}
 
@@ -428,6 +453,10 @@ public final class DshProcess {
 			int code = process.getProcess().waitFor();
 			exitCode = code;
 			process.destroyRelatedThreads();
+			// The instance is not running any more, and this is the one path every ending takes —
+			// whatever the exit code, and whether or not anybody attached a state listener. The
+			// record describes a process that is gone from here on.
+			DshRunningRecord.delete(plan.instance());
 			appendLog("Process exited with code " + code);
 			transitionTo(state == State.READY ? State.STOPPED : (code == 0 ? State.STOPPED : State.FAILED));
 		} catch (InterruptedException e) {

@@ -262,7 +262,8 @@ public final class InstancePage extends DecoratorAnimatedPage implements Decorat
 	/// @param instance the instance
 	/// @return the key, or empty when the instance is not running or its harness printed none
 	private static Optional<String> launchToken(DshInstance instance) {
-		return DshProcessManager.find(instance.id()).flatMap(DshProcess::webUrl).flatMap(DshPorts::launchToken);
+		return DshProcessManager.findRunning(instance).flatMap(DshProcessManager.Running::webUrl)
+		                         .flatMap(DshPorts::launchToken);
 	}
 
 	/// Draws the sidebar entry from the instance's state.

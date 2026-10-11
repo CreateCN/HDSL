@@ -21,12 +21,17 @@ import com.mcxcc303.hdsl.account.DshAccount;
 import com.mcxcc303.hdsl.account.DshInjectedSettings;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.InstanceListing;
+import com.mcxcc303.hdsl.instance.InstanceStore;
 import javafx.application.Platform;
 import org.jackhuang.hmcl.ui.dsh.DshCrashDialog;
 import org.jackhuang.hmcl.util.logging.Logger;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.URI;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -45,6 +50,12 @@ public final class DshProcessManager {
 	/// The instances the launcher has asked to stop and which have not finished
 	/// stopping.
 	///
+	/// How long a stop waits for a process another launcher started to exit.
+	///
+	/// The in-process stop waits on the child itself; this one has only a pid to watch, and a
+	/// caller that removes the instance next must not remove its home from under a live server.
+	private static final Duration EXIT_GRACE = Duration.ofSeconds(10);
+
 	/// An instance is not startable again until it is out of this set: DeepSeek
 	/// Harness holds its port and its home until it has exited, so starting a
 	/// second one in the meantime is what let a stopped instance come back on a
@@ -176,10 +187,53 @@ public final class DshProcessManager {
 			return LaunchState.STOPPING;
 		}
 		DshProcess process = RUNNING.get(instanceId);
-		if (process == null || !process.isRunning()) {
+		if (process != null && process.isRunning()) {
+			return process.state() == DshProcess.State.STARTING ? LaunchState.STARTING : LaunchState.RUNNING;
+		}
+		// Not one of ours — and an instance another launcher is running is not stopped, which is
+		// what this answered before there was a record to ask. What it cannot say is whether such
+		// an instance is still coming up: that is the other launcher's to know, and it is up by the
+		// time anybody can read about it from here.
+		DshInstance instance = InstanceStore.find(instanceId);
+		if (instance == null) {
 			return LaunchState.STOPPED;
 		}
-		return process.state() == DshProcess.State.STARTING ? LaunchState.STARTING : LaunchState.RUNNING;
+		return DshRunningRecord.read(instance) == null ? LaunchState.STOPPED : LaunchState.RUNNING;
+	}
+
+	/// Returns a running instance, whether this launcher started it or another one did.
+	///
+	/// The handle this JVM holds comes first, because it is the process itself, with its output and
+	/// its state. What this falls back to is the record the launcher that started it left on disk —
+	/// which is the difference between "nothing is running" and "I did not start it".
+	///
+	/// @param instance the instance
+	/// @return the running instance, or empty when nothing is running
+	public static Optional<Running> findRunning(DshInstance instance) {
+		Optional<DshProcess> process = find(instance.id());
+		if (process.isPresent()) {
+			return Optional.of(of(process.get()));
+		}
+		DshRunningRecord record = DshRunningRecord.read(instance);
+		return record == null ? Optional.empty() : Optional.of(of(instance.id(), record));
+	}
+
+	/// Returns how an instance is running, for a caller that has the record and not the process.
+	private static Running of(String instanceId, DshRunningRecord record) {
+		return new Running(instanceId,
+		                   record.pid(),
+		                   record.webUrl(),
+		                   record.surface() == null ? "" : record.surface(),
+		                   record.uptime());
+	}
+
+	/// Returns how an instance is running, for a caller that has the process in hand.
+	private static Running of(DshProcess process) {
+		return new Running(process.instance().id(),
+		                   process.pid(),
+		                   process.webUrl(),
+		                   process.plan().surface().name(),
+		                   process.uptime());
 	}
 
 	/// Returns the running process for an instance.
@@ -191,18 +245,32 @@ public final class DshProcessManager {
 		return process == null || !process.isRunning() ? Optional.empty() : Optional.of(process);
 	}
 
-	/// Lists every instance that is currently running.
+	/// Lists every instance that is running, whoever started it.
 	///
-	/// @return the running handles, newest first
-	public static List<DshProcess> running() {
-		List<DshProcess> processes = new ArrayList<>();
+	/// @return the running instances, newest first
+	public static List<Running> running() {
+		List<Running> instances = new ArrayList<>();
+		Set<String> ours = new HashSet<>();
 		for (DshProcess process : RUNNING.values()) {
 			if (process.isRunning()) {
-				processes.add(process);
+				instances.add(of(process));
+				ours.add(process.instance().id());
 			}
 		}
-		processes.sort((a, b) -> b.uptime().compareTo(a.uptime()));
-		return processes;
+		// The map above holds only what this JVM started, and that is the whole of what it ever
+		// will: the records on disk are how the rest of them are found, and the ids already in the
+		// map are what keeps one instance from being listed twice.
+		for (DshInstance instance : InstanceListing.list()) {
+			if (ours.contains(instance.id())) {
+				continue;
+			}
+			DshRunningRecord record = DshRunningRecord.read(instance);
+			if (record != null) {
+				instances.add(of(instance.id(), record));
+			}
+		}
+		instances.sort((a, b) -> b.uptime().compareTo(a.uptime()));
+		return instances;
 	}
 
 	/// Stops the process for an instance, if any.
@@ -218,7 +286,7 @@ public final class DshProcessManager {
 	public static boolean stop(String instanceId) {
 		DshProcess process = RUNNING.get(instanceId);
 		if (process == null) {
-			return false;
+			return stopWhatAnotherLauncherRuns(instanceId);
 		}
 		STOPPING.add(instanceId);
 		try {
@@ -227,6 +295,43 @@ public final class DshProcessManager {
 			STOPPING.remove(instanceId);
 			RUNNING.remove(instanceId, process);
 		}
+		return true;
+	}
+
+	/// Stops an instance another launcher is running, which is all that can be done about it here.
+	///
+	/// What this has to go on is the record: the pid is the process, and signalling it is what the
+	/// other launcher's own stop would have done. The record is deleted once the process is gone, so
+	/// that the next reader does not have to work out for itself that it is stale.
+	///
+	/// @param instanceId the instance id
+	/// @return whether a running process was stopped
+	private static boolean stopWhatAnotherLauncherRuns(String instanceId) {
+		DshInstance instance = InstanceStore.find(instanceId);
+		if (instance == null) {
+			return false;
+		}
+		DshRunningRecord record = DshRunningRecord.read(instance);
+		if (record == null) {
+			return false;
+		}
+		ProcessHandle handle = ProcessHandle.of(record.pid()).orElse(null);
+		if (handle == null || !handle.isAlive()) {
+			DshRunningRecord.delete(instance);
+			return false;
+		}
+		LOG.info("Stopping instance " + instanceId + " (pid " + record.pid() + "), started by another launcher");
+		handle.destroy();
+		Instant deadline = Instant.now().plus(EXIT_GRACE);
+		while (handle.isAlive() && Instant.now().isBefore(deadline)) {
+			try {
+				Thread.sleep(50);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		DshRunningRecord.delete(instance);
 		return true;
 	}
 
@@ -258,6 +363,16 @@ public final class DshProcessManager {
 	/// @return the handle, or `null`
 	static @Nullable DshProcess raw(String instanceId) {
 		return RUNNING.get(instanceId);
+	}
+
+	/// A running instance, as any process can see it.
+	///
+	/// @param instanceId the instance
+	/// @param pid        the harness process
+	/// @param webUrl     the address it serves, while it has reported one
+	/// @param surface    the surface it was booted into
+	/// @param uptime     how long it has been running
+	public record Running(String instanceId, long pid, Optional<URI> webUrl, String surface, Duration uptime) {
 	}
 
 	/// What an instance is doing, as far as starting and stopping it goes.

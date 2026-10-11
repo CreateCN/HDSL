@@ -95,10 +95,14 @@ public final class InstanceCommands {
 
 	/// Returns the address the instance's harness printed, or empty when it has printed none.
 	///
+	/// The address is read from wherever it is known: the handle this launcher holds, or — when the
+	/// instance was started by another launcher, which is the case a command line run from a
+	/// terminal is in — the record that launcher left.
+	///
 	/// @param instance the instance
 	/// @return the address
 	private static Optional<URI> servedAddress(DshInstance instance) {
-		return DshProcessManager.find(instance.id()).flatMap(DshProcess::webUrl);
+		return DshProcessManager.findRunning(instance).flatMap(DshProcessManager.Running::webUrl);
 	}
 
 	/// Runs the `instance create` command.
@@ -331,15 +335,18 @@ public final class InstanceCommands {
 	}
 
 	/// Lists the instances that are up, which is what `instance list --running` asks for.
-	private static int listRunning(PrintStream out) throws DshException {
-		List<DshProcess> running = DshProcessManager.running();
+	///
+	/// Whoever started them: an instance another launcher is running is up as surely as one of ours,
+	/// and the pid is printed with it because that is the thing a reader can act on from here.
+	private static int listRunning(PrintStream out) {
+		List<DshProcessManager.Running> running = DshProcessManager.running();
 		if (running.isEmpty()) {
 			out.println("(nothing running)");
 		}
-		for (DshProcess process : running) {
-			out.println(process.instance().id() + "\t" + process.state() + "\t" + process.plan().surface() + "\t" +
-			            process.webUrl().map(Object::toString).orElse("-") + "\tup " + process.uptime().toSeconds() +
-			            "s");
+		for (DshProcessManager.Running instance : running) {
+			out.println(instance.instanceId() + "\t" + DshProcessManager.LaunchState.RUNNING + "\t" +
+			            instance.surface() + "\t" + instance.webUrl().map(Object::toString).orElse("-") +
+			            "\tup " + instance.uptime().toSeconds() + "s\tpid " + instance.pid());
 		}
 		return 0;
 	}
