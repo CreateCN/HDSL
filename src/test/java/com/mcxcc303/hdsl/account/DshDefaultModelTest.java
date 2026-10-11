@@ -121,12 +121,18 @@ class DshDefaultModelTest {
 
     @Test
     void theSectionsOwnIndentationIsKept() throws Exception {
-        Path home = homeWith("agent-default-model:\n    provider: old\n    model: old-model\n");
+        // The file belongs to the harness and to the person, so what the launcher writes back keeps
+        // the shape it found — four spaces or a tab, whichever this section was written with.
+        for (String indent : List.of("    ", "\t")) {
+            Path home = homeWith("agent-default-model:\n" + indent + "provider: old\n"
+                    + indent + "model: old-model\n");
 
-        assertTrue(DshDefaultModel.apply(home, "deepseek", "deepseek-chat"));
+            assertTrue(DshDefaultModel.apply(home, "deepseek", "deepseek-chat"));
 
-        assertEquals("agent-default-model:\n    provider: deepseek\n    model: deepseek-chat\n",
-                Files.readString(home.resolve("settings.yaml")));
+            assertEquals("agent-default-model:\n" + indent + "provider: deepseek\n"
+                            + indent + "model: deepseek-chat\n",
+                    Files.readString(home.resolve("settings.yaml")));
+        }
     }
 
     @Test
@@ -233,16 +239,6 @@ class DshDefaultModelTest {
 
         assertEquals("agent-default-model:\n  provider: deepseek\n  model: deepseek-chat\n"
                 + "other:\n  model: not-ours\n", Files.readString(home.resolve("settings.yaml")));
-    }
-
-    @Test
-    void aTabIndentedSectionKeepsItsTabs() throws Exception {
-        Path home = homeWith("agent-default-model:\n\tprovider: old\n\tmodel: old\n");
-
-        DshDefaultModel.apply(home, "deepseek", "deepseek-chat");
-
-        assertEquals("agent-default-model:\n\tprovider: deepseek\n\tmodel: deepseek-chat\n",
-                Files.readString(home.resolve("settings.yaml")));
     }
 
     @Test
