@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -74,57 +75,28 @@ class PackageRulesTest {
     /// patch's entry writer, and the two pack dependency helpers.  They are the price of the
     /// arrangement, and the list of what to give a better home next.
 
-    /// The dependencies between these packages that are in place today.
+    /// The packages that reach for each other, which is the thing the arrangement is meant to avoid.
     ///
-    /// A ratchet rather than a design: this is what the tree does now, and an edge that is not
-    /// here has to be a deliberate edit rather than an oversight.  The cycles inside it are the
-    /// next thing to untangle — each of them is a package reaching for something that should have
-    /// been handed to it.
-    private static final Set<String> ALLOWED = Set.of(
-            "account->core",
-            "account->instance",
-            "account->plugin",
-            "account->skin",
-            "cli->core",
-            "cli->harness",
-            "cli->instance",
-            "cli->launch",
-            "cli->pack",
-            "cli->plugin",
-            "cli->runtime",
-            "core->launch",
-            "harness->core",
-            "harness->instance",
-            "harness->plugin",
-            "harness->runtime",
-            "instance->core",
-            "instance->harness",
-            "instance->launch",
-            "instance->pack",
-            "instance->plugin",
-            "instance->runtime",
-            "launch->account",
-            "launch->core",
-            "launch->harness",
-            "launch->instance",
-            "launch->runtime",
-            "pack->account",
-            "pack->core",
-            "pack->harness",
-            "pack->instance",
-            "pack->launch",
-            "pack->plugin",
-            "pack->skill",
-            "plugin->account",
-            "plugin->core",
-            "plugin->harness",
-            "plugin->instance",
-            "plugin->launch",
-            "plugin->runtime",
-            "runtime->core",
-            "runtime->harness",
-            "skill->core",
-            "skin->core");
+    /// A circle is what turns a tree of subjects back into a heap: each pair below is two packages
+    /// that name each other, and every one of them is a package reaching for something that should
+    /// have been handed to it. **This list may only shrink.**
+    ///
+    /// It replaced a list of the forty-four edges the packages were allowed to have. That list could
+    /// say an edge was deliberate, and it could not say which of them were wrong: the wiring was
+    /// declared and the design was not checked, and every new package paid for it with an edit.
+    private static final Set<String> KNOWN_CIRCLES = Set.of(
+            "account<->plugin",
+            "core<->launch",
+            "harness<->instance",
+            "harness<->plugin",
+            "harness<->runtime",
+            "instance<->launch",
+            "instance<->pack",
+            "instance<->plugin");
+
+    /// What an import of this domain looks like, the name captured without the prefix.
+    private static final Pattern IMPORTED = Pattern.compile(
+            "^import (?:static )?com\\.mcxcc303\\.hdsl\\.([\\w.]+);", Pattern.MULTILINE);
 
     /// The files of the domain layer.
     ///
@@ -242,15 +214,40 @@ class PackageRulesTest {
     }
 
     @Test
-    void thePackagesOnlyDependOnTheOnesTheyAreAllowedTo() throws IOException {
-        Pattern imported = Pattern.compile("^import (?:static )?com\\.mcxcc303\\.hdsl\\.([\\w.]+);",
-                Pattern.MULTILINE);
+    void thePackagesDoNotReachForEachOtherInACircle() throws IOException {
+        assertEquals(KNOWN_CIRCLES, circles(),
+                "a new circle is two packages reaching for each other rather than one handing the"
+                        + " other what it needs: " + circles());
+    }
+
+    @Test
+    void theCommandLineIsOnTopAndTheLeavesAreLeaves() throws IOException {
+        // Two things the arrangement says that a circle cannot: the command line is what everything
+        // is arranged for and nothing may name it, and a leaf package is one that only names the
+        // bottom.
+        Set<String> edges = edges();
+        assertTrue(edges.stream().noneMatch(edge -> edge.endsWith("->cli")),
+                "the command line is on top of the tree, and nothing below it may name it: " + edges);
+        for (String leaf : List.of("skill", "skin")) {
+            List<String> out = edges.stream()
+                    .filter(edge -> edge.startsWith(leaf + "->"))
+                    .filter(edge -> !edge.equals(leaf + "->core"))
+                    .toList();
+            assertTrue(out.isEmpty(), leaf + " is a leaf, so it names only core: " + out);
+        }
+    }
+
+    /// Returns every dependency between these packages, as \`a->b\`.
+    ///
+    /// @return the edges
+    /// @throws IOException when the tree cannot be walked
+    private static Set<String> edges() throws IOException {
         List<String> packages = knownPackages();
-        List<String> offenders = new ArrayList<>();
+        Set<String> edges = new TreeSet<>();
         for (Path file : sources()) {
             String mine = declaredPackage(file);
             for (String line : read(file).split("\\R")) {
-                Matcher matcher = imported.matcher(line);
+                Matcher matcher = IMPORTED.matcher(line);
                 if (!matcher.find()) {
                     continue;
                 }
@@ -262,18 +259,36 @@ class PackageRulesTest {
                         break;
                     }
                 }
-                if (target == null || target.equals(mine)) {
-                    continue;
-                }
-                String edge = mine.replace("com.mcxcc303.hdsl.", "") + "->"
-                        + target.replace("com.mcxcc303.hdsl.", "");
-                if (!ALLOWED.contains(edge)) {
-                    offenders.add(ROOT.relativize(file) + " adds the edge " + edge);
+                if (target != null && !target.equals(mine)) {
+                    edges.add(withoutPrefix(mine) + "->" + withoutPrefix(target));
                 }
             }
         }
-        assertFalse(!offenders.isEmpty(),
-                "a new dependency between packages has to be deliberate — add it to ALLOWED if it "
-                        + "belongs: " + offenders);
+        return edges;
+    }
+
+    /// Returns the pairs that name each other, as \`a<->b\`.
+    ///
+    /// @return the pairs
+    /// @throws IOException when the tree cannot be walked
+    private static Set<String> circles() throws IOException {
+        Set<String> edges = edges();
+        Set<String> circles = new TreeSet<>();
+        for (String edge : edges) {
+            String[] halves = edge.split("->");
+            if (edges.contains(halves[1] + "->" + halves[0])) {
+                circles.add(halves[0].compareTo(halves[1]) < 0
+                        ? halves[0] + "<->" + halves[1] : halves[1] + "<->" + halves[0]);
+            }
+        }
+        return circles;
+    }
+
+    /// Returns a package name without the prefix everything here shares.
+    ///
+    /// @param name the package
+    /// @return the short name
+    private static String withoutPrefix(String name) {
+        return name.replace("com.mcxcc303.hdsl.", "");
     }
 }
