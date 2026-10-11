@@ -23,6 +23,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.pack.DshPackForge;
+import com.mcxcc303.hdsl.pack.PackExporter;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
 import javafx.scene.Node;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -87,6 +88,17 @@ public final class ModpackExportWizardProvider implements WizardProvider {
     /// credentials never do.
     public static final String SETTINGS = "modpack.settings";
 
+    /// The key the plugins under development are held under.
+    ///
+    /// A plugin installed from a directory this instance does not own is a link to wherever
+    /// somebody is working, and a pack carries files: there are none of the instance's own to
+    /// carry. The names are read once when the wizard opens and asked about twice — as the wizard
+    /// starts, and again when the person writes the pack with one of them still ticked.
+    public static final String DEVELOPMENT_PLUGINS = "modpack.developmentPlugins";
+
+    /// The key that says the wizard has already said what a plugin under development means.
+    public static final String DEVELOPMENT_WARNED = "modpack.developmentWarned";
+
     /// The key the skill packs a pack carries are held under.
     ///
     /// A skill is content rather than configuration: it cannot be named and fetched the way a
@@ -119,6 +131,25 @@ public final class ModpackExportWizardProvider implements WizardProvider {
         } catch (DshException e) {
             settings.put(SETTINGS, new java.util.LinkedHashSet<String>());
         }
+        try {
+            settings.put(DEVELOPMENT_PLUGINS, PackExporter.developmentPlugins(instance));
+        } catch (DshException e) {
+            // The wizard still opens without the list: what an unreadable instance costs is the
+            // warning, and the export that follows says what it could not read in its own words.
+            settings.put(DEVELOPMENT_PLUGINS, java.util.List.of());
+        }
+    }
+
+    /// Reads the plugins under development the wizard found.
+    ///
+    /// @param settings the wizard's settings
+    /// @return the names, in the profile's order, empty when there are none
+    @SuppressWarnings("unchecked")
+    public static java.util.List<String> developmentPluginsOf(
+            org.jackhuang.hmcl.util.SettingsMap settings) {
+        Object value = settings.get(DEVELOPMENT_PLUGINS);
+        return value instanceof java.util.List<?> list
+                ? java.util.List.copyOf((java.util.List<String>) list) : java.util.List.of();
     }
 
     @Override

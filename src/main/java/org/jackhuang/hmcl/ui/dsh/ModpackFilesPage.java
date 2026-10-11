@@ -39,7 +39,9 @@ import com.mcxcc303.hdsl.plugin.DshPluginSettings;
 import com.mcxcc303.hdsl.launch.DshSession;
 import com.mcxcc303.hdsl.skill.DshSkills;
 import com.mcxcc303.hdsl.launch.DshSessions;
+import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
+import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.construct.NoneMultipleSelectionModel;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardPage;
@@ -137,7 +139,18 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
         write.setPrefSize(100, 40);
         write.setOnAction(event -> {
             cleanup(settings);
-            controller.onFinish();
+            List<String> development = selectedDevelopmentPlugins();
+            if (development.isEmpty()) {
+                controller.onFinish();
+                return;
+            }
+            // Told to their face rather than found in the pack afterwards: these boxes are ticked
+            // and the pack will not hold them. Asked rather than announced, because the answer can
+            // be to go back over the list and untick one — which is the only way to make the pack
+            // say what the boxes said.
+            Controllers.confirm(i18n("dsh.modpack.development.selected", String.join("\n", development)),
+                    i18n("dsh.modpack.development.title"), MessageType.WARNING,
+                    controller::onFinish, null);
         });
         buttons.getChildren().add(write);
         getChildren().add(buttons);
@@ -363,6 +376,19 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
             }
         }
         settings.put(ModpackExportWizardProvider.SKILLS, skills);
+    }
+
+    /// Returns the plugins somebody ticked that a pack does not carry.
+    ///
+    /// @return the names, in the tree's order, empty when none of them is under development
+    private List<String> selectedDevelopmentPlugins() {
+        Set<String> development = Set.copyOf(
+                ModpackExportWizardProvider.developmentPluginsOf(settings));
+        return bundleItems.stream()
+                .filter(CheckBoxTreeItem::isSelected)
+                .map(CheckBoxTreeItem::getValue)
+                .filter(development::contains)
+                .toList();
     }
 
     @Override

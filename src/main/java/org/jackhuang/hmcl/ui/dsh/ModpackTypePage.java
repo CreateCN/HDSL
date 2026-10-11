@@ -18,13 +18,16 @@
 package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
+import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.construct.TwoLineListItem;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardPage;
@@ -60,6 +63,25 @@ public final class ModpackTypePage extends VBox implements WizardPage {
         Label title = new Label(i18n("modpack.export.as"));
         VBox.setMargin(title, new Insets(8, 0, 8, 12));
         getChildren().setAll(title, createButton(true), createButton(false));
+
+        // Said once, as the wizard opens: part of what this instance holds is not something a pack
+        // can carry. Deferred to the next pulse because this page is built before it is on screen,
+        // and a dialog raised here would stand in front of the page it is about.
+        Platform.runLater(() -> warnAboutDevelopment(controller));
+    }
+
+    /// Says what a plugin under development means for the pack, once per wizard.
+    ///
+    /// @param controller the wizard controller
+    private static void warnAboutDevelopment(WizardController controller) {
+        SettingsMap settings = controller.getSettings();
+        if (Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.DEVELOPMENT_WARNED))
+                || ModpackExportWizardProvider.developmentPluginsOf(settings).isEmpty()) {
+            return;
+        }
+        settings.put(ModpackExportWizardProvider.DEVELOPMENT_WARNED, Boolean.TRUE);
+        Controllers.dialog(i18n("dsh.modpack.development.enter"),
+                i18n("dsh.modpack.development.title"), MessageType.WARNING);
     }
 
     /// Builds the one option there is.
