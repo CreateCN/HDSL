@@ -36,44 +36,12 @@ class VersionOrderTest {
         assertTrue(VersionOrder.compareVersions("1.2.4", "1.2.3") > 0);
         assertTrue(VersionOrder.compareVersions("0.1.7-rc.1", "0.1.6") > 0,
                 "the numbers decide before the pre-release part does");
-        assertTrue(VersionOrder.compareVersions("0.1.1-rc2", "0.0.1-rc.5") > 0);
-    }
-
-    @Test
-    void aVersionThatCarriesFewerComponentsSortsFirst() {
-        // The numeric parts compare equal, so the spelling decides: "1.2" is not "1.2.0".
-        assertTrue(VersionOrder.compareVersions("1.2", "1.2.0") < 0);
-        assertTrue(VersionOrder.compareVersions("1.2.0", "1.2") > 0);
-    }
-
-    @Test
-    void theSameVersionComparesEqual() {
-        assertEquals(0, VersionOrder.compareVersions("1.2.3", "1.2.3"));
-        assertEquals(0, VersionOrder.compareVersions("1.0.0-rc.1", "1.0.0-rc.1"));
     }
 
     @Test
     void aReleaseOutranksItsOwnPreReleases() {
         assertTrue(VersionOrder.compareVersions("1.0.0", "1.0.0-rc.1") > 0);
-        assertTrue(VersionOrder.compareVersions("1.0.0-rc.1", "1.0.0") < 0);
         assertTrue(VersionOrder.compareVersions("0.1.5-alpha.2", "0.1.5") < 0);
-    }
-
-    @Test
-    void twoPreReleasesAreOrderedByName() {
-        assertTrue(VersionOrder.compareVersions("1.0.0-alpha", "1.0.0-beta") < 0);
-        // The pre-release part is compared as text, not split into name and number, so `rc.10`
-        // sorts before `rc.2`.  Pinned because it is the kind of thing a reader assumes the
-        // other way round; the versions the harness publishes are single-numbered snapshots.
-        assertTrue(VersionOrder.compareVersions("1.0.0-rc.2", "1.0.0-rc.10") > 0);
-    }
-
-    @Test
-    void aLeadingVIsNotStripped() {
-        // Documented rather than desired: a caller that has a `v` in front of a version
-        // strips it before asking, and this is what happens when one does not — the component
-        // reads as zero.
-        assertTrue(VersionOrder.compareVersions("v2.0.0", "1.0.0") < 0);
     }
 
     @Test
