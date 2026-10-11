@@ -89,7 +89,10 @@ public final class DownloadSettingsPage extends ScrollPane {
         ComponentList list = new ComponentList();
 
         LineSelectButton<NodeSource> source = new LineSelectButton<>();
-        source.setTitle(i18n("settings.launcher.download_source"));
+        // The tab this row lives on is called "下载源" and holds two different things: where npm
+        // packages come from, and where the plugin market is read from. The row says which of the
+        // two it is; the tab is the page they share.
+        source.setTitle(i18n("dsh.settings.npm_source"));
         source.setNullSafeConverter(sourceName());
         source.setDescriptionConverter(sourceDescription());
         source.setItems(NodeSource.values());
