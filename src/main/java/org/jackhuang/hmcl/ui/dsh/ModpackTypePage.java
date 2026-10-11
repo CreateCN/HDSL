@@ -67,19 +67,19 @@ public final class ModpackTypePage extends VBox implements WizardPage {
         // Said once, as the wizard opens: part of what this instance holds is not something a pack
         // can carry. Deferred to the next pulse because this page is built before it is on screen,
         // and a dialog raised here would stand in front of the page it is about.
-        Platform.runLater(() -> warnAboutDevelopment(controller));
+        Platform.runLater(() -> warnAboutLocalPlugins(controller));
     }
 
-    /// Says what a plugin under development means for the pack, once per wizard.
+    /// Says what a plugin installed from this machine means for the pack, once per wizard.
     ///
     /// @param controller the wizard controller
-    private static void warnAboutDevelopment(WizardController controller) {
+    private static void warnAboutLocalPlugins(WizardController controller) {
         SettingsMap settings = controller.getSettings();
-        if (Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.DEVELOPMENT_WARNED))
-                || ModpackExportWizardProvider.developmentPluginsOf(settings).isEmpty()) {
+        if (Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.LOCAL_WARNED))
+                || ModpackExportWizardProvider.localPluginsOf(settings).isEmpty()) {
             return;
         }
-        settings.put(ModpackExportWizardProvider.DEVELOPMENT_WARNED, Boolean.TRUE);
+        settings.put(ModpackExportWizardProvider.LOCAL_WARNED, Boolean.TRUE);
         Controllers.dialog(i18n("dsh.modpack.development.enter"),
                 i18n("dsh.modpack.development.title"), MessageType.WARNING);
     }

@@ -88,16 +88,17 @@ public final class ModpackExportWizardProvider implements WizardProvider {
     /// credentials never do.
     public static final String SETTINGS = "modpack.settings";
 
-    /// The key the plugins under development are held under.
+    /// The key the plugins installed from this machine are held under.
     ///
-    /// A plugin installed from a directory this instance does not own is a link to wherever
-    /// somebody is working, and a pack carries files: there are none of the instance's own to
-    /// carry. The names are read once when the wizard opens and asked about twice — as the wizard
-    /// starts, and again when the person writes the pack with one of them still ticked.
-    public static final String DEVELOPMENT_PLUGINS = "modpack.developmentPlugins";
+    /// A `file:` or `link:` plugin names something that was on the machine the instance was made
+    /// on. What becomes of it depends on which: a packed plugin the launcher copied into the
+    /// instance travels as the file it is, while a directory the profile only links to is left out
+    /// of the pack. The list is read once, when the wizard opens, and asked about twice — as the
+    /// wizard starts, and again when the person writes the pack with one of them still ticked.
+    public static final String LOCAL_PLUGINS = "modpack.localPlugins";
 
-    /// The key that says the wizard has already said what a plugin under development means.
-    public static final String DEVELOPMENT_WARNED = "modpack.developmentWarned";
+    /// The key that says the wizard has already said what a local plugin means for a pack.
+    public static final String LOCAL_WARNED = "modpack.localWarned";
 
     /// The key the skill packs a pack carries are held under.
     ///
@@ -132,24 +133,25 @@ public final class ModpackExportWizardProvider implements WizardProvider {
             settings.put(SETTINGS, new java.util.LinkedHashSet<String>());
         }
         try {
-            settings.put(DEVELOPMENT_PLUGINS, PackExporter.developmentPlugins(instance));
+            settings.put(LOCAL_PLUGINS, PackExporter.localPlugins(instance));
         } catch (DshException e) {
             // The wizard still opens without the list: what an unreadable instance costs is the
             // warning, and the export that follows says what it could not read in its own words.
-            settings.put(DEVELOPMENT_PLUGINS, java.util.List.of());
+            settings.put(LOCAL_PLUGINS, java.util.List.of());
         }
     }
 
-    /// Reads the plugins under development the wizard found.
+    /// Reads the plugins installed from this machine that the wizard found.
     ///
     /// @param settings the wizard's settings
-    /// @return the names, in the profile's order, empty when there are none
+    /// @return the plugins, in the profile's order, empty when there are none
     @SuppressWarnings("unchecked")
-    public static java.util.List<String> developmentPluginsOf(
+    public static java.util.List<PackExporter.LocalPlugin> localPluginsOf(
             org.jackhuang.hmcl.util.SettingsMap settings) {
-        Object value = settings.get(DEVELOPMENT_PLUGINS);
+        Object value = settings.get(LOCAL_PLUGINS);
         return value instanceof java.util.List<?> list
-                ? java.util.List.copyOf((java.util.List<String>) list) : java.util.List.of();
+                ? java.util.List.copyOf((java.util.List<PackExporter.LocalPlugin>) list)
+                : java.util.List.of();
     }
 
     @Override

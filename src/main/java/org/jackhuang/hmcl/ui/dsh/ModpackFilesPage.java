@@ -380,10 +380,17 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
 
     /// Returns the plugins somebody ticked that a pack does not carry.
     ///
-    /// @return the names, in the tree's order, empty when none of them is under development
+    /// A plugin the profile only links to has no files of its own to carry, so a ticked box for one
+    /// is a promise the pack will not keep — and this is the list that says so.
+    ///
+    /// @return the names, in the tree's order, empty when none of them is a link
     private List<String> selectedDevelopmentPlugins() {
-        Set<String> development = Set.copyOf(
-                ModpackExportWizardProvider.developmentPluginsOf(settings));
+        Set<String> development = new LinkedHashSet<>();
+        for (PackExporter.LocalPlugin plugin : ModpackExportWizardProvider.localPluginsOf(settings)) {
+            if (plugin.linked()) {
+                development.add(plugin.name());
+            }
+        }
         return bundleItems.stream()
                 .filter(CheckBoxTreeItem::isSelected)
                 .map(CheckBoxTreeItem::getValue)
