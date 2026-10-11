@@ -18,6 +18,7 @@
 package com.mcxcc303.hdsl.pack;
 
 import com.mcxcc303.hdsl.instance.InstanceStore;
+import com.mcxcc303.hdsl.plugin.DshPluginBundle;
 
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
@@ -195,6 +196,59 @@ class DshModpacksTest {
         assertEquals(List.of("dsh-hello-local"),
                 manifest.localPlugins().stream().map(PackManifest.Plugin::name).toList(),
                 "the local plugin is recorded, so the loader can say it cannot be restored");
+        Files.deleteIfExists(pack);
+    }
+
+    @Test
+    void aPluginSomebodyIsWorkingOnIsNamedBeforeTheExportAndNotCarriedByIt() throws Exception {
+        // A `link:` install is a link in the profile's `node_modules`, and what is behind it is
+        // somebody's working tree rather than a copy the instance owns. The pack does not carry it,
+        // so the interface has to say which plugins those are while there is still time to do
+        // something about it — and the pack must not hold a package with no code in it, which is
+        // what reading through the link would produce.
+        DshInstance instance = makeInstance(SOURCE_ID);
+        Path working = Files.createTempDirectory("dsh-fork");
+        Files.createDirectories(working.resolve("lib"));
+        Files.writeString(working.resolve("package.json"), """
+                {"name":"dsh-fork","version":"2.1.0"}
+                """);
+        Files.writeString(working.resolve("lib/index.js"), "export const x = 1;\n");
+
+        writeProfile(instance, """
+                {
+                  "name": "dsh-profile-web",
+                  "private": true,
+                  "dependencies": {
+                    "dshmarket": "1.52.0",
+                    "dsh-fork": "link:%s"
+                  },
+                  "dsh": {"profile": {"bundles": ["dsh-fork", "dshmarket"]}}
+                }
+                """.formatted(working));
+
+        Path installed = profileDirectory(instance).resolve("node_modules/dsh-fork");
+        Files.createDirectories(installed.getParent());
+        try {
+            Files.createSymbolicLink(installed, working);
+        } catch (UnsupportedOperationException | java.io.IOException e) {
+            // A filesystem without links cannot test this part.
+            return;
+        }
+
+        assertEquals(List.of("dsh-fork"), PackExporter.developmentPlugins(instance),
+                "the names are read out of the profile, so the interface can say them");
+
+        Path pack = Files.createTempFile("modpack", ".zip");
+        PackExporter.export(instance, pack, null);
+        PackManifest.Manifest manifest = PackManifest.readManifest(pack);
+
+        assertEquals(List.of("dshmarket@1.52.0"), manifest.installSpecs(),
+                "only what can be fetched is asked for");
+        assertEquals(List.of("dsh-fork"),
+                manifest.localPlugins().stream().map(PackManifest.Plugin::name).toList(),
+                "the plugin is recorded, so the loader can say it cannot be restored");
+        assertFalse(DshPluginBundle.carried(pack).stream().anyMatch(name -> name.contains("dsh-fork")),
+                "and no part of somebody's working tree travels: " + DshPluginBundle.carried(pack));
         Files.deleteIfExists(pack);
     }
 
