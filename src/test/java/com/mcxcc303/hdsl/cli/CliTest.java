@@ -49,6 +49,10 @@ class CliTest {
 		assertNull(Cli.parse(List.of("--something-else")), "an argument this launcher does not know is not a command");
 		assertNull(Cli.parse(List.of("/tmp/some-pack.hdslp")),
 		           "what the interface was asked to open is its argument, not a command");
+
+		Cli.Invocation asked = Cli.parse(List.of("not-a-command", "--help"));
+		assertNotNull(asked, "a word this launcher does not know, asking for help, is answered as help");
+		assertTrue(asked.showHelp());
 	}
 
 	@Test

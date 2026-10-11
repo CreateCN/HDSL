@@ -69,21 +69,26 @@ public final class Cli {
 		if (args.isEmpty()) {
 			return null;
 		}
-		if (HELP.contains(args.get(0))) {
+
+		String first = args.get(0);
+		if (Commands.isGroup(first) || Commands.find(first) != null) {
+			return read(args, null);
+		}
+		String gone = FlagStyleCommands.removed(args);
+		if (gone != null) {
+			// A flag whose command was removed outright. It is answered rather than left to the
+			// interface, which would open a window over a word it does not know either.
+			return new Invocation("", Map.of(), false, null, gone);
+		}
+		if (asksHelp(args)) {
+			// Help anywhere in the line is help, which is what it was when every command was a flag.
+			// A reader who typed a word this launcher does not know and asked for help wants the list
+			// of what it does know.
 			return new Invocation("", Map.of(), true, null, null);
 		}
-		if (!Commands.isGroup(args.get(0)) && Commands.find(args.get(0)) == null) {
-			String gone = FlagStyleCommands.removed(args);
-			if (gone != null) {
-				// A flag whose command was removed outright. It is answered rather than left to the
-				// interface, which would open a window over a word it does not know either.
-				return new Invocation("", Map.of(), false, null, gone);
-			}
-			// A word this launcher does not answer to. What is left is the interface's, whose own
-			// arguments — a folder to open, a file to install — are read there.
-			return null;
-		}
-		return read(args, null);
+		// A word this launcher does not answer to, and nothing asking for help. What is left is the
+		// interface's, whose own arguments — a folder to open, a file to install — are read there.
+		return null;
 	}
 
 	/// Reads a command line into the command it names and the parameters it was given.
@@ -95,7 +100,9 @@ public final class Cli {
 		String first = args.get(0);
 		String spelling = first;
 		int from = 1;
-		if (Commands.find(first) == null && args.size() > 1 && !isHelp(args.get(1)) &&
+		// A second word that is neither help nor an option is the command's name; a group on its own
+		// is a line that was not finished, and says so below.
+		if (Commands.find(first) == null && args.size() > 1 && !HELP.contains(args.get(1)) &&
 		    !args.get(1).startsWith("-")) {
 			spelling = first + " " + args.get(1);
 			from = 2;
@@ -114,7 +121,7 @@ public final class Cli {
 
 		for (int i = from; i < args.size(); i++) {
 			String token = args.get(i);
-			if (isHelp(token)) {
+			if (HELP.contains(token)) {
 				help = true;
 				continue;
 			}
@@ -178,8 +185,9 @@ public final class Cli {
 		return new Invocation(spelling, Map.of(), false, deprecated, spelling + " " + message);
 	}
 
-	private static boolean isHelp(String token) {
-		return HELP.contains(token);
+	/// Reports whether any word of the line asks for help.
+	private static boolean asksHelp(List<String> args) {
+		return args.stream().anyMatch(HELP::contains);
 	}
 
 	/// Runs a parsed command.
