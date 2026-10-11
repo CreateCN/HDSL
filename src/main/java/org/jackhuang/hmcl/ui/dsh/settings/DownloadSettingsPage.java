@@ -121,7 +121,6 @@ public final class DownloadSettingsPage extends ScrollPane {
         LineSelectButton<com.mcxcc303.hdsl.plugin.MarketSource> source = new LineSelectButton<>();
         source.setTitle(i18n("dsh.settings.market_source"));
         source.setNullSafeConverter(com.mcxcc303.hdsl.plugin.MarketSource::label);
-        source.setDescriptionConverter(market -> market == null ? "" : market.id());
         source.setItems(java.util.List.of(com.mcxcc303.hdsl.plugin.MarketSource.values()));
         source.setValue(CatalogSources.marketSource());
         source.valueProperty().addListener((observable, was, value) -> {
