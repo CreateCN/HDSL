@@ -208,6 +208,10 @@ class DshModpacksTest {
         // what reading through the link would produce.
         DshInstance instance = makeInstance(SOURCE_ID);
         Path working = Files.createTempDirectory("dsh-fork");
+        // The path goes into a JSON string, and a Windows path is full of backslashes: written as
+        // they are, `C:\Users` is an escape JSON refuses, the whole profile reads as holding no
+        // dependencies, and the test then asks about a plugin that is not there.
+        String linked = working.toString().replace("\\", "\\\\");
         Files.createDirectories(working.resolve("lib"));
         Files.writeString(working.resolve("package.json"), """
                 {"name":"dsh-fork","version":"2.1.0"}
@@ -224,7 +228,7 @@ class DshModpacksTest {
                   },
                   "dsh": {"profile": {"bundles": ["dsh-fork", "dshmarket"]}}
                 }
-                """.formatted(working));
+                """.formatted(linked));
 
         Path installed = profileDirectory(instance).resolve("node_modules/dsh-fork");
         Files.createDirectories(installed.getParent());

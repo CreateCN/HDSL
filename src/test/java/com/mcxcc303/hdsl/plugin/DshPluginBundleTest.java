@@ -146,7 +146,9 @@ class DshPluginBundleTest {
                 "file:" + directory.resolve("dsh-fork-2.1.0.tgz"));
         assertNotNull(payload,
                 "the tarball the instance installed from is gone, so the profile's copy travels");
-        assertEquals(store, payload.directory());
+        assertEquals(store.toRealPath(), payload.directory(),
+                "the directory handed out is the one the files are really in: on macOS the temporary"
+                        + " directory is reached through /var, and only one of the two spellings is real");
     }
 
     /// A junction is what the package manager makes on Windows, where a symbolic link needs a
