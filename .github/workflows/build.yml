@@ -2,6 +2,16 @@ name: Java CI
 
 on:
   push:
+    # A tag is published by release.yml, which runs this same suite on the same four platforms.
+    # Building here as well would only put a second set of runners in the queue behind that one.
+    #
+    # `branches` is named for all it says every branch: a workflow that names only one of the two
+    # kinds of ref does not run for the other kind at all, so `tags-ignore` on its own would have
+    # stopped this running on any branch, which is most of what it is for.
+    branches:
+      - '**'
+    tags-ignore:
+      - 'v*'
   pull_request:
     paths-ignore:
       - '**.md'
