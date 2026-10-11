@@ -37,7 +37,7 @@ public final class NodeCommands {
 	private NodeCommands() {
 	}
 
-	/// Runs the `LIST_RUNTIMES` command.
+	/// Runs the `node list` command.
 	static int listRuntimes(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
 		if (runtimes.isEmpty()) {
@@ -49,30 +49,31 @@ public final class NodeCommands {
 		return 0;
 	}
 
-	/// Runs the `LIST_NODE_VERSIONS` command.
+	/// Runs the `node versions` command.
 	static int listNodeVersions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-		for (NodeRelease release : NodeRuntimeManager.fetchReleases(NodeSource.of(invocation.options()
-		                                                                                    .get("node-source")))) {
+		for (NodeRelease release : NodeRuntimeManager.fetchReleases(NodeSource.of(invocation.option("source")))) {
 			out.println(release.version() + (release.isLts() ? "\t" + release.label() : "") +
 			            (release.isSupported() ? "" : "\tunsupported"));
 		}
 		return 0;
 	}
 
-	/// Runs the `INSTALL_NODE` command.
+	/// Runs the `node install` command.
 	static int installNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-		out.println("Installing Node.js " + invocation.subject() + " ...");
-		NodeRuntime runtime = NodeRuntimeManager.install(invocation.subject(),
-		                                                 NodeSource.of(invocation.options().get("node-source")),
+		String version = invocation.option("version");
+		out.println("Installing Node.js " + version + " ...");
+		NodeRuntime runtime = NodeRuntimeManager.install(version,
+		                                                 NodeSource.of(invocation.option("source")),
 		                                                 out::println);
 		out.println("Installed Node.js " + runtime.version() + " into " + runtime.directory());
 		return 0;
 	}
 
-	/// Runs the `UNINSTALL_NODE` command.
+	/// Runs the `node uninstall` command.
 	static int uninstallNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-		NodeRuntimeManager.uninstall(invocation.subject());
-		out.println("Removed Node.js " + invocation.subject());
+		String version = invocation.option("version");
+		NodeRuntimeManager.uninstall(version);
+		out.println("Removed Node.js " + version);
 		return 0;
 	}
 }

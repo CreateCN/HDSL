@@ -40,7 +40,7 @@ public final class SessionCommands {
 	private SessionCommands() {
 	}
 
-	/// Copies another home's sessions into an instance.
+	/// Runs the `session import` command: another home's sessions, copied into an instance.
 	///
 	/// The source is read and never written: the point of importing is to take
 	/// what an existing installation has without becoming its manager.
@@ -50,17 +50,14 @@ public final class SessionCommands {
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int importSessions(Invocation invocation, PrintStream out, PrintStream err) {
-		if (invocation.arguments().isEmpty()) {
-			err.println("error: --import-sessions needs a target instance");
-			return 1;
-		}
-		DshInstance target = InstanceStore.find(invocation.arguments().get(0));
+		String id = invocation.option("id");
+		DshInstance target = InstanceStore.find(id);
 		if (target == null) {
-			err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
 
-		String from = invocation.options().get("from");
+		String from = invocation.option("from");
 		Path sourceHome =
 				from == null || from.isBlank() ? Path.of(System.getProperty("user.home"), ".dsh") : Path.of(from);
 		if (!Files.isDirectory(sourceHome)) {
@@ -97,20 +94,17 @@ public final class SessionCommands {
 		}
 	}
 
-	/// Prints the sessions stored in an instance's home.
+	/// Runs the `session list` command: the sessions stored in an instance's home.
 	///
 	/// @param invocation the parsed invocation
 	/// @param out        the stream for normal output
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int listSessions(Invocation invocation, PrintStream out, PrintStream err) {
-		if (invocation.arguments().isEmpty()) {
-			err.println("error: --list-sessions needs an instance");
-			return 1;
-		}
-		DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+		String id = invocation.option("id");
+		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
-			err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
 		try {
@@ -128,24 +122,20 @@ public final class SessionCommands {
 		}
 	}
 
-	/// Moves one session to another instance.
+	/// Runs the `session migrate` command: one session, moved to another instance.
 	///
 	/// @param invocation the parsed invocation
 	/// @param out        the stream for normal output
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int migrateSession(Invocation invocation, PrintStream out, PrintStream err) {
-		if (invocation.arguments().size() < 3) {
-			err.println("error: --migrate-session needs a source instance, a session id and a target instance");
-			return 1;
-		}
-		DshInstance source = InstanceStore.find(invocation.arguments().get(0));
-		DshInstance target = InstanceStore.find(invocation.arguments().get(2));
+		DshInstance source = InstanceStore.find(invocation.option("id"));
+		DshInstance target = InstanceStore.find(invocation.option("to"));
 		if (source == null || target == null) {
 			err.println("error: the source or target instance does not exist");
 			return 1;
 		}
-		String sessionId = invocation.arguments().get(1);
+		String sessionId = invocation.option("session");
 
 		try {
 			DshSession session = DshSessions.list(source.homeDirectory())
@@ -167,7 +157,8 @@ public final class SessionCommands {
 		}
 	}
 
-	/// Sends one prompt over the Agent Client Protocol and prints the reply.
+	/// Runs the `session acp-prompt` command: one prompt over the Agent Client Protocol, and the
+	/// reply it produces.
 	///
 	/// The protocol reserves stdout for JSON-RPC frames, so this is the only way
 	/// to exercise the session path without a display.
@@ -177,13 +168,10 @@ public final class SessionCommands {
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int acpPrompt(Invocation invocation, PrintStream out, PrintStream err) {
-		if (invocation.arguments().size() < 2) {
-			err.println("error: --acp-prompt needs an instance and a prompt");
-			return 1;
-		}
-		DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+		String id = invocation.option("id");
+		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
-			err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
 
@@ -215,7 +203,7 @@ public final class SessionCommands {
 		try (DshAcpClient client = DshAcpClient.connect(instance, listener)) {
 			String sessionId = client.newSession();
 			out.println("[session] " + sessionId);
-			client.prompt(sessionId, invocation.arguments().get(1));
+			client.prompt(sessionId, invocation.option("text"));
 			return 0;
 		} catch (DshException e) {
 			err.println("error: " + e.getMessage());
@@ -223,18 +211,15 @@ public final class SessionCommands {
 		}
 	}
 
-	/// Runs the `EXPORT_SESSIONS` command.
+	/// Runs the `session export` command.
 	static int exportSessions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-		if (invocation.arguments().size() < 2) {
-			err.println("error: --export-sessions needs an instance and a file to write");
-			return 1;
-		}
-		DshInstance instance = InstanceStore.find(invocation.arguments().get(0));
+		String id = invocation.option("id");
+		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
-			err.println("error: instance " + invocation.arguments().get(0) + " does not exist");
+			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
-		Path target = Path.of(invocation.arguments().get(1));
+		Path target = Path.of(invocation.option("file"));
 		List<DshSession> sessions = DshSessions.list(instance.homeDirectory());
 		out.println("Writing " + sessions.size() + " session(s) to " + target + " ...");
 		DshSessionPacks.ExportResult exported = DshSessionPacks.export(instance, sessions, target, out::println);

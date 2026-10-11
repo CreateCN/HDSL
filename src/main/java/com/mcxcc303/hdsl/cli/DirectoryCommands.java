@@ -34,7 +34,7 @@ public final class DirectoryCommands {
 	private DirectoryCommands() {
 	}
 
-	/// Prints the folders the launcher looks for instances in.
+	/// Runs the `directory list` command: the folders the launcher looks for instances in.
 	///
 	/// @param out the stream for normal output
 	/// @return the process exit code
@@ -48,7 +48,7 @@ public final class DirectoryCommands {
 		return 0;
 	}
 
-	/// Adds a folder to the list and reports what it holds.
+	/// Runs the `directory add` command: adds a folder to the list and reports what it holds.
 	///
 	/// The folder is selected as well as added, which is what the page that adds
 	/// one does and what a person means by it: from here on the instances in
@@ -60,12 +60,8 @@ public final class DirectoryCommands {
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int addDirectory(Invocation invocation, PrintStream out, PrintStream err) {
-		if (invocation.arguments().isEmpty()) {
-			err.println("error: --add-directory needs a path");
-			return 1;
-		}
 		try {
-			var added = GameDirectoryManager.add(Path.of(invocation.arguments().get(0)));
+			var added = GameDirectoryManager.add(Path.of(invocation.option("path")));
 			int count = GameDirectoryManager.countInstances(added);
 			GameDirectoryManager.select(added.id());
 			out.println("Added " + added.displayName() + " (" + added.path() + ")");

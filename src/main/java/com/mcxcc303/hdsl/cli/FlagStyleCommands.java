@@ -58,6 +58,18 @@ final class FlagStyleCommands {
 	/// The options that are spelled differently now, and what they are spelled as.
 	private static final Map<String, String> RENAMED = Map.of("--node-source", "--source");
 
+	/// The flags that named a command which is gone, and what to write instead.
+	///
+	/// They are not translated, because there is nothing to translate them into: a harness version is
+	/// not installed or removed on its own, and has not been since an instance began to be the thing
+	/// that runs one. What a reader gets is the reason and the command, rather than a word this
+	/// launcher does not answer to — which, with the interface behind it, would open a window.
+	private static final Map<String, String> REMOVED = Map.of(
+			"--install", "DeepSeek Harness is installed into the instance that runs it: " +
+			             "`hdsl instance create --id <id> --dsh-version <version>`",
+			"--uninstall", "a harness version is removed with the instance that runs it: " +
+			               "`hdsl instance delete --id <id>`");
+
 	private FlagStyleCommands() {
 	}
 
@@ -153,6 +165,19 @@ final class FlagStyleCommands {
 		List<String> line = new ArrayList<>(command);
 		line.addAll(modern);
 		return List.copyOf(line);
+	}
+
+	/// Returns what to write instead, when the arguments name a flag whose command is gone.
+	///
+	/// @param args the raw command-line arguments
+	/// @return the flags and what to write instead, or `null` when none of them is there
+	static @Nullable String removed(List<String> args) {
+		for (String flag : REMOVED.keySet()) {
+			if (args.contains(flag)) {
+				return flag + " is gone - " + REMOVED.get(flag);
+			}
+		}
+		return null;
 	}
 
 	/// Prints what the flag-style command is called now, after the command itself has spoken.
