@@ -57,31 +57,13 @@ class DshPluginBundleTest {
     }
 
     @Test
-    void aPluginInstalledFromADirectoryIsNotCarried(@TempDir Path directory) throws Exception {
-        // `link:` installs a plugin somebody is working on: the profile points at their directory
-        // rather than holding a copy of it, so a pack has none of the files and leaves the plugin
-        // out. That the entry in `node_modules` happens to be a real directory does not change it —
-        // the answer is read off the specification, which is the same whichever way the package
-        // manager arranged what is behind it.
-        Path profile = directory.resolve("profiles/web");
-        Path installed = profile.resolve("node_modules/dsh-fork");
-        Files.createDirectories(installed.resolve("lib"));
-        Files.writeString(installed.resolve("package.json"), """
-                {"name":"dsh-fork","version":"2.1.0"}
-                """);
-        Files.writeString(installed.resolve("lib/index.js"), "export const x = 1;\n");
-
-        assertNull(DshPluginBundle.locate(profile, "dsh-fork", "link:../dsh-fork"),
-                "a link names a directory, and a pack does not carry one");
-    }
-
-    @Test
-    void aPluginLinkedFromOutsideTheInstanceDoesNotTravel(@TempDir Path directory) throws Exception {
-        // What a `link:` install leaves in `node_modules` is a link rather than a copy — a symbolic
-        // link, or the junction Windows makes instead of one — so what is behind it belongs to
-        // whoever is working on the plugin and not to the instance. Walking a link finds the link
-        // itself and nothing below it, so a pack that read through one would carry a package with
-        // no code in it. The files are not the instance's to carry, and neither is the promise.
+    void aPluginWhoseEntryLeavesTheProfileIsNotRead(@TempDir Path directory) throws Exception {
+        // The specification names a packed plugin and that file is gone, so what is left is the
+        // fallback: the entry in the profile's own `node_modules`. That entry resolves outside the
+        // profile — a symbolic link, or the junction Windows makes instead of one — so what is
+        // behind it belongs to whoever put it there. The fallback is for a copy the profile holds,
+        // not for a link out of it, and reading through one would carry a package with no code in
+        // it: a walk does not descend into the path it starts at when that path is a link.
         Path working = directory.resolve("dsh-fork");
         Files.createDirectories(working.resolve("lib"));
         Files.writeString(working.resolve("package.json"), """
@@ -100,16 +82,19 @@ class DshPluginBundleTest {
         }
 
         assertTrue(DshPluginBundle.isLinked(profile, "dsh-fork"),
-                "the profile holds a link to somebody's directory");
-        assertNull(DshPluginBundle.locate(profile, "dsh-fork", "link:" + working),
-                "there are no files of the instance's own to carry");
+                "the entry resolves outside the profile");
+        assertNull(DshPluginBundle.locate(profile, "dsh-fork",
+                        "file:" + directory.resolve("dsh-fork-2.1.0.tgz")),
+                "so the fallback does not read it");
     }
 
     @Test
     void aDirectoryInstallIsAPluginUnderDevelopment(@TempDir Path directory) throws Exception {
         // `link:` and a directory `file:` are the same install: a plugin somebody is working on,
         // whose files stay in their directory. The profile points at it rather than holding a copy,
-        // so there is nothing of the instance's own to carry — and a pack leaves it out.
+        // so there is none of the instance's own to carry — and a pack leaves it out, whichever way
+        // the package manager arranged what is behind the entry: a real directory inside the
+        // profile is not a copy either, because the answer is read off the specification.
         Path working = directory.resolve("dsh-fork");
         Files.createDirectories(working.resolve("lib"));
         Files.writeString(working.resolve("package.json"), """
@@ -118,12 +103,18 @@ class DshPluginBundleTest {
         Files.writeString(working.resolve("lib/index.js"), "export const x = 1;\n");
 
         Path profile = directory.resolve("profiles/web");
-        Files.createDirectories(profile);
+        Path installed = profile.resolve("node_modules/dsh-fork");
+        Files.createDirectories(installed.resolve("lib"));
+        Files.writeString(installed.resolve("package.json"), """
+                {"name":"dsh-fork","version":"2.1.0"}
+                """);
 
         assertTrue(DshPluginBundle.namesADirectory("file:" + working, profile),
                 "a file: that names a directory is the same install as a link:");
-        assertNull(DshPluginBundle.locate(profile, "dsh-fork", "file:" + working),
-                "and the pack does not carry it");
+        for (String spec : java.util.List.of("file:" + working, "link:" + working, "link:../dsh-fork")) {
+            assertNull(DshPluginBundle.locate(profile, "dsh-fork", spec),
+                    "and the pack does not carry one: " + spec);
+        }
     }
 
     @Test
