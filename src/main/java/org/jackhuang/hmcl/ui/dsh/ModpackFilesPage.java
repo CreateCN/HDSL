@@ -189,8 +189,7 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
 
         // The configuration always travels, so its boxes are there to be seen rather than used.
         ModpackFileTreeItem configuration =
-                new ModpackFileTreeItem(i18n("dsh.modpack.files.configuration"),
-                        i18n("dsh.modpack.files.configuration.detail"));
+                new ModpackFileTreeItem(i18n("dsh.modpack.files.configuration"));
         for (String name : List.of("package.json", "cordis.patch.yml")) {
             ModpackFileTreeItem item = new ModpackFileTreeItem(name);
             item.setSelected(true);
@@ -211,8 +210,7 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
         if (!sections.isEmpty()) {
             Set<String> wanted = ModpackExportWizardProvider.settingsOf(settings);
             ModpackFileTreeItem settingsItem = new ModpackFileTreeItem(
-                    i18n("dsh.modpack.files.settings", sections.size()),
-                    i18n("dsh.modpack.files.settings.detail"));
+                    i18n("dsh.modpack.files.settings", sections.size()));
             settingsItem.setExpanded(true);
             for (String section : sections) {
                 ModpackFileTreeItem item = new ModpackFileTreeItem(section);
@@ -237,8 +235,7 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
         if (!skills.isEmpty()) {
             Set<String> wanted = ModpackExportWizardProvider.skillsOf(settings);
             ModpackFileTreeItem skillsItem = new ModpackFileTreeItem(
-                    i18n("dsh.modpack.files.skills", skills.size()),
-                    i18n("dsh.modpack.files.skills.detail"));
+                    i18n("dsh.modpack.files.skills", skills.size()));
             skillsItem.setExpanded(true);
             for (String skill : skills) {
                 ModpackFileTreeItem item = new ModpackFileTreeItem(skill);
@@ -259,10 +256,7 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
         }
         sessionCount = sessions.size();
 
-        sessionsItem = new ModpackFileTreeItem(i18n("dsh.modpack.files.sessions"),
-                sessionCount > 0
-                        ? i18n("dsh.modpack.files.sessions.count", sessionCount)
-                        : i18n("dsh.modpack.files.sessions.none"));
+        sessionsItem = new ModpackFileTreeItem(i18n("dsh.modpack.files.sessions"));
         sessionsItem.setSelected(Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.SESSIONS))
                 && sessionCount > 0);
         sessionsItem.setIndependent(sessionCount == 0);
@@ -446,52 +440,31 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
         }
     }
 
-    /// A row of the tree, which may carry the note shown beside it.
-    ///
-    /// The note is how the original explains a folder it recognises — the grey line after the name —
-    /// and it is read off the row rather than off the cell, because a cell is reused as the tree
-    /// scrolls and takes its content from whichever row it is given.
+    /// A row of the tree.
     private static final class ModpackFileTreeItem extends CheckBoxTreeItem<String> {
-        /// The localized explanation for this row, or `null` if there is none.
-        private final @Nullable String comment;
-
-        /// Creates a row showing only its name.
+        /// Creates a row showing its name.
         ///
         /// @param name what the row says
         ModpackFileTreeItem(String name) {
-            this(name, null);
-        }
-
-        /// Creates a row showing its name and, after it, an explanation.
-        ///
-        /// @param name    what the row says
-        /// @param comment the explanation, or `null` for none
-        ModpackFileTreeItem(String name, @Nullable String comment) {
             super(name);
-            this.comment = comment;
         }
     }
 
-    /// Draws a row as the original does: the bound checkbox, then the name, then the note.
+    /// Draws a row as the original does: the bound checkbox, then the name.
     ///
     /// The checkbox comes from [JFXCheckTreeCell], which is the material checkbox this launcher
     /// draws everywhere else and the one the original's export page uses.
     @NotNullByDefault
     private static final class ModpackFileTreeCell extends JFXCheckTreeCell<String> {
-        /// Holds the inherited checkbox followed by the labels.
+        /// Holds the inherited checkbox followed by the label.
         private final HBox content = new HBox(3);
 
         /// Shows the current row's name.
         private final Label name = new Label();
 
-        /// Shows the current row's note.
-        private final Label comment = new Label();
-
-        /// Creates reusable labels whose mouse events pass through to the cell.
+        /// Creates a reusable label whose mouse events pass through to the cell.
         private ModpackFileTreeCell() {
             name.setMouseTransparent(true);
-            comment.setStyle("-fx-text-fill: -monet-on-surface-variant;");
-            comment.setMouseTransparent(true);
             content.setAlignment(Pos.CENTER_LEFT);
             content.setPickOnBounds(false);
         }
@@ -503,7 +476,6 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
             super.updateDisplay(item, empty);
 
             name.setText(null);
-            comment.setText(null);
             if (empty || item == null) {
                 return;
             }
@@ -517,10 +489,6 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
             }
             name.setText(item);
             content.getChildren().add(name);
-            if (getTreeItem() instanceof ModpackFileTreeItem treeItem && treeItem.comment != null) {
-                comment.setText(treeItem.comment);
-                content.getChildren().add(comment);
-            }
             setGraphic(content);
         }
     }
