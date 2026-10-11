@@ -609,6 +609,17 @@ jobs:
         echo "macOS users take the .dmg or .zip; the standalone .sh below is the Linux build." >> "${note}"
         echo "Windows users take the .exe, which needs Java 21 installed; the .jar runs under any." >> "${note}"
         echo "" >> "${note}"
+        # The changelog goes above the table: what changed, then what to download. The commits are
+        # read from the last tag to this release — for a dry run there is no tag yet, so the range is
+        # the last tag on the branch, which is the same thing read the other way round. A changelog
+        # nobody can generate is worse than none, so a failure here is not made fatal: the note still
+        # carries the files and their digests.
+        if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+          python3 scripts/changelog.py --from "$(git describe --tags --abbrev=0 "${TAG}^")" --to "${TAG}" >> "${note}" || true
+        else
+          python3 scripts/changelog.py >> "${note}" || true
+        fi
+        echo "" >> "${note}"
         echo "| File | For | SHA-256 |" >> "${note}"
         echo "| --- | --- | --- |" >> "${note}"
         # The Arch package is listed like the others. It is not the tar.zst under another name:
