@@ -187,8 +187,12 @@ def main():
     revision = (start + ".." + end) if start else end
 
     rows = None
-    if repo and not args.no_github:
-        rows = from_github(repo, start or "HEAD", end)
+    # The compare endpoint answers a range between two commits, so there is nothing for it to answer
+    # when no earlier tag was found: a first release has no base to start from, and asking it anyway
+    # would file an empty changelog under a heading. That case is read out of the checkout instead,
+    # which is what `revision` already names.
+    if repo and start and not args.no_github:
+        rows = from_github(repo, start, end)
     if rows is None:
         rows = [(s, f, n, e, sub, None) for s, f, n, e, sub in from_git(revision)]
 

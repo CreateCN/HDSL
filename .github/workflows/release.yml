@@ -505,9 +505,12 @@ jobs:
   # `needs` for that reason — a job left out of it would have its assets arrive after the table was
   # written, and a checksum that was correct when it was read is not one that is correct now.
   #
-  # Nothing is checked out here — the job reads a release, not a tree — so every `gh` call names the
-  # repository: without one, `gh` looks for `.git` to work out which repository is meant and fails
-  # with "failed to run git: not a git repository", which is what this job did first.
+  # The checksums are read out of a release rather than out of a tree, so every `gh` call names the
+  # repository instead of leaving `gh` to look for `.git` to work out which one is meant.
+  #
+  # The changelog is the one thing here that is read out of a tree — `scripts/changelog.py` writes it,
+  # and the tags it ranges over are git's — so the job checks the repository out, at full depth: the
+  # range starts at an earlier tag, and a shallow clone carries neither it nor the commits between.
   #
   # A dry run has no release to read, so the checksums come from what the three build jobs kept
   # instead, and the note is printed rather than edited into a release.
@@ -521,6 +524,9 @@ jobs:
     timeout-minutes: 15
 
     steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
     - name: Work out the version
       shell: bash
       env:
@@ -613,8 +619,12 @@ jobs:
         # read from the last tag to this release — for a dry run there is no tag yet, so the range is
         # the last tag on the branch, which is the same thing read the other way round. A changelog
         # nobody can generate is worse than none, so a failure here is not made fatal: the note still
-        # carries the files and their digests.
-        python3 scripts/changelog.py --tag "${TAG}" >> "${note}" || true
+        # carries the files and their digests. It is not swallowed either: a run that wrote a note
+        # without its changelog is what went unnoticed once, and a step that cannot say it failed is
+        # a step nobody can fix.
+        if ! python3 scripts/changelog.py --tag "${TAG}" --repo "${{ github.repository }}" >> "${note}"; then
+          echo "::warning::the changelog could not be written; the note goes out without one"
+        fi
         echo "" >> "${note}"
         echo "| File | For | SHA-256 |" >> "${note}"
         echo "| --- | --- | --- |" >> "${note}"
