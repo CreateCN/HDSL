@@ -705,14 +705,14 @@ jobs:
           echo "::warning::the changelog could not be written; the note goes out without one"
         fi
         echo "" >> "${note}"
-        echo "| File | For | SHA-256 |" >> "${note}"
-        echo "| --- | --- | --- |" >> "${note}"
+        echo "| File | SHA-256 |" >> "${note}"
+        echo "| --- | --- |" >> "${note}"
         # The Arch package is listed like the others. It is not the tar.zst under another name:
         # `pacman -U` reads `.PKGINFO` out of the archive, so only a real pacman package installs,
         # and the portable tar.zst is for unpacking anywhere.
         for file in "hdsl-${VERSION}-linux-x64.tar.zst" "${arch_pkg}" "HDSL-${VERSION}-x86_64.AppImage" "hdsl-${VERSION}.deb" "hdsl-${VERSION}.sh" "hdsl-${VERSION}.exe" "hdsl-${VERSION}.jar" "HDSL-${VERSION}-aarch64.dmg" "HDSL-${VERSION}-aarch64.zip" "HDSL-${VERSION}-x64.dmg" "HDSL-${VERSION}-x64.zip"; do
           [ -n "${file}" ] || continue
-          echo "| [${file}](https://github.com/${{ github.repository }}/releases/download/${TAG}/${file}) | $(case "${file}" in *.pkg.tar.zst) echo "Arch (\`pacman -U\`)";; *.tar.zst) echo "portable (unpack anywhere)";; *.AppImage) echo "portable (single file)";; *.deb) echo "Debian / Ubuntu";; *.dmg) echo "macOS (mount)";; *.zip) echo "macOS (unpack)";; *.sh) echo "self-executing";; *.exe) echo "Windows (double-click)";; *.jar) echo "Windows (\`java -jar\`)";; esac) | \`$(cut -d' ' -f1 < "sums/${file}.sha256" 2>/dev/null || echo pending)\` |" >> "${note}"
+          echo "| [${file}](https://github.com/${{ github.repository }}/releases/download/${TAG}/${file}) | \`$(cut -d' ' -f1 < "sums/${file}.sha256" 2>/dev/null || echo pending)\` |" >> "${note}"
         done
         cat "${note}"
       env:
