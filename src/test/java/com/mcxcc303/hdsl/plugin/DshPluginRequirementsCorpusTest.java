@@ -76,6 +76,17 @@ class DshPluginRequirementsCorpusTest {
         return entries;
     }
 
+    /// Returns a field as it stands for something.
+    ///
+    /// A file of lines cannot carry a tab inside a field, and one of npm's cases is about exactly
+    /// that — \`<\t2.0.0\`, an operator separated from its version by one. It is written \`\\t\` there.
+    ///
+    /// @param field the field as the file holds it
+    /// @return the text it stands for
+    private static String text(String field) {
+        return field.replace("\\t", "\t");
+    }
+
     @Test
     void everyCaseNpmChecksItsOwnRangesWithIsAnsweredTheSameWay() throws IOException {
         List<String[]> cases = read(CASES);
@@ -85,9 +96,11 @@ class DshPluginRequirementsCorpusTest {
         List<String> wrong = new ArrayList<>();
         for (String[] entry : cases) {
             boolean expected = entry[0].equals("yes");
-            boolean answered = DshPluginRequirements.satisfies(entry[1], entry[2]);
+            boolean answered = DshPluginRequirements.satisfies(text(entry[1]), text(entry[2]));
             if (answered != expected) {
                 wrong.add(entry[1] + " -> " + entry[2]);
+                System.out.println("DIFF\t" + (expected ? "missed" : "wrongly fits") + "\t"
+                        + entry[1] + "\t" + entry[2]);
             }
         }
         assertTrue(wrong.isEmpty(), wrong.size() + " of " + cases.size()
@@ -110,7 +123,7 @@ class DshPluginRequirementsCorpusTest {
             // "missed" is npm's yes that this launcher does not give, and "wrongly fits" is the
             // same disagreement the other way round: the two words are npm's answer.
             boolean npmSays = entry[0].equals("missed");
-            assertEquals(!npmSays, DshPluginRequirements.satisfies(entry[1], entry[2]),
+            assertEquals(!npmSays, DshPluginRequirements.satisfies(text(entry[1]), text(entry[2])),
                     "this launcher now answers " + entry[1] + " -> " + entry[2] + " the way npm does,"
                             + " so it is no longer a difference and has to be struck off the list");
         }
