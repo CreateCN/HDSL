@@ -19,6 +19,11 @@ package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXListView;
 import com.jfoenix.controls.JFXPopup;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceIcons;
+import com.mcxcc303.hdsl.launch.DshProcess;
+import com.mcxcc303.hdsl.launch.DshProcessManager;
+import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.geometry.Insets;
@@ -29,11 +34,6 @@ import javafx.scene.control.ListView;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceIcons;
-import com.mcxcc303.hdsl.launch.DshProcess;
-import com.mcxcc303.hdsl.launch.DshProcessManager;
-import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ImageContainer;
 import org.jackhuang.hmcl.ui.construct.RipplerContainer;
@@ -56,138 +56,145 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// leaves the reader matching text.
 @NotNullByDefault
 public final class InstancePickerMenu extends JFXListView<DshInstance> {
-    /// The greatest height the menu will take before scrolling.
-    ///
-    /// HMCL's value; it is what keeps the menu shorter than the window behind it.
-    private static final double MAX_HEIGHT = 365;
+	/// The greatest height the menu will take before scrolling.
+	///
+	/// HMCL's value; it is what keeps the menu shorter than the window behind it.
+	private static final double MAX_HEIGHT = 365;
 
-    /// The height of one row.
-    private static final double CELL_HEIGHT = 50;
+	/// The height of one row.
+	private static final double CELL_HEIGHT = 50;
 
-    /// The width of the menu.
-    private static final double WIDTH = 300;
+	/// The width of the menu.
+	private static final double WIDTH = 300;
 
-    /// Called when an instance is chosen.
-    private final Consumer<DshInstance> onSelect;
+	/// Called when an instance is chosen.
+	private final Consumer<DshInstance> onSelect;
 
-    /// Creates the menu.
-    ///
-    /// @param instances the instances to offer
-    /// @param onSelect  run with the chosen instance
-    public InstancePickerMenu(List<DshInstance> instances, Consumer<DshInstance> onSelect) {
-        this.onSelect = onSelect;
+	/// Creates the menu.
+	///
+	/// @param instances the instances to offer
+	/// @param onSelect  run with the chosen instance
+	public InstancePickerMenu(List<DshInstance> instances, Consumer<DshInstance> onSelect) {
+		this.onSelect = onSelect;
 
-        setMaxHeight(MAX_HEIGHT);
-        setFixedCellSize(CELL_HEIGHT);
-        setPrefWidth(WIDTH);
-        setCellFactory(Cell::new);
-        getStyleClass().add("popup-menu-content");
-        getItems().setAll(instances);
-    }
+		setMaxHeight(MAX_HEIGHT);
+		setFixedCellSize(CELL_HEIGHT);
+		setPrefWidth(WIDTH);
+		setCellFactory(Cell::new);
+		getStyleClass().add("popup-menu-content");
+		getItems().setAll(instances);
+	}
 
-    /// Shows the menu above a node.
-    ///
-    /// @param owner the node the menu is anchored to
-    /// @param instances the instances to offer
-    /// @param onSelect run with the chosen instance
-    /// @return the popup, so the caller can close it
-    public static JFXPopup show(Node owner, List<DshInstance> instances, Consumer<DshInstance> onSelect) {
-        InstancePickerMenu menu = new InstancePickerMenu(instances, onSelect);
-        JFXPopup popup = new JFXPopup(menu);
-        popup.show(owner, JFXPopup.PopupVPosition.BOTTOM, JFXPopup.PopupHPosition.RIGHT,
-                0, -owner.getBoundsInLocal().getHeight());
-        return popup;
-    }
+	/// Shows the menu above a node.
+	///
+	/// @param owner     the node the menu is anchored to
+	/// @param instances the instances to offer
+	/// @param onSelect  run with the chosen instance
+	/// @return the popup, so the caller can close it
+	public static JFXPopup show(Node owner, List<DshInstance> instances, Consumer<DshInstance> onSelect) {
+		InstancePickerMenu menu = new InstancePickerMenu(instances, onSelect);
+		JFXPopup popup = new JFXPopup(menu);
+		popup.show(owner,
+		           JFXPopup.PopupVPosition.BOTTOM,
+		           JFXPopup.PopupHPosition.RIGHT,
+		           0,
+		           -owner.getBoundsInLocal().getHeight());
+		return popup;
+	}
 
-    /// One row of the picker.
-    ///
-    /// The shape is HMCL's: the instance's icon, its name and a summary line,
-    /// inside a rippling row that reports the selection.
-    private final class Cell extends ListCell<DshInstance> {
-        /// The instance icon.
-        private final ImageContainer icon = new ImageContainer(32);
+	/// One row of the picker.
+	///
+	/// The shape is HMCL's: the instance's icon, its name and a summary line,
+	/// inside a rippling row that reports the selection.
+	private final class Cell extends ListCell<DshInstance> {
+		/// The instance icon.
+		private final ImageContainer icon = new ImageContainer(32);
 
-        /// The name and summary.
-        private final TwoLineListItem content = new TwoLineListItem();
+		/// The name and summary.
+		private final TwoLineListItem content = new TwoLineListItem();
 
-        /// The tag shown beside the name, used here for the running state.
-        private final StringProperty tag = new SimpleStringProperty();
+		/// The tag shown beside the name, used here for the running state.
+		private final StringProperty tag = new SimpleStringProperty();
 
-        /// The row's graphic, re-installed for every item.
-        private final Region graphic;
+		/// The row's graphic, re-installed for every item.
+		private final Region graphic;
 
-        /// Creates the cell.
-        ///
-        /// @param listView the owning list
-        Cell(ListView<DshInstance> listView) {
-            setPadding(Insets.EMPTY);
+		/// Creates the cell.
+		///
+		/// @param listView the owning list
+		Cell(ListView<DshInstance> listView) {
+			setPadding(Insets.EMPTY);
 
-            icon.setMouseTransparent(true);
-            BorderPane.setAlignment(icon, Pos.CENTER);
+			icon.setMouseTransparent(true);
+			BorderPane.setAlignment(icon, Pos.CENTER);
 
-            content.setMouseTransparent(true);
-            FXUtils.onChangeAndOperate(tag, value -> {
-                content.getTags().clear();
-                if (value != null && !value.isBlank()) {
-                    content.addTag(value);
-                }
-            });
+			content.setMouseTransparent(true);
+			FXUtils.onChangeAndOperate(tag, value -> {
+				content.getTags().clear();
+				if (value != null && !value.isBlank()) {
+					content.addTag(value);
+				}
+			});
 
-            BorderPane container = new BorderPane();
-            container.getStyleClass().add("container");
-            container.setPickOnBounds(false);
-            container.setLeft(icon);
-            container.setCenter(content);
+			BorderPane container = new BorderPane();
+			container.getStyleClass().add("container");
+			container.setPickOnBounds(false);
+			container.setLeft(icon);
+			container.setCenter(content);
 
-            RipplerContainer rippler = new RipplerContainer(container);
+			RipplerContainer rippler = new RipplerContainer(container);
 
-            StackPane rootPane = new StackPane();
-            rootPane.getStyleClass().add("advanced-list-item");
-            rootPane.getChildren().setAll(rippler);
-            rootPane.maxWidthProperty().bind(listView.widthProperty().subtract(5));
+			StackPane rootPane = new StackPane();
+			rootPane.getStyleClass().add("advanced-list-item");
+			rootPane.getChildren().setAll(rippler);
+			rootPane.maxWidthProperty().bind(listView.widthProperty().subtract(5));
 
-            FXUtils.onClicked(rootPane, () -> {
-                DshInstance instance = getItem();
-                if (instance != null) {
-                    onSelect.accept(instance);
-                    if (getScene() != null && getScene().getWindow() instanceof JFXPopup popup) {
-                        popup.hide();
-                    }
-                }
-            });
+			FXUtils.onClicked(rootPane, () -> {
+				DshInstance instance = getItem();
+				if (instance != null) {
+					onSelect.accept(instance);
+					if (getScene() != null && getScene().getWindow() instanceof JFXPopup popup) {
+						popup.hide();
+					}
+				}
+			});
 
-            this.graphic = rootPane;
-        }
+			this.graphic = rootPane;
+		}
 
-        @Override
-        protected void updateItem(@Nullable DshInstance instance, boolean empty) {
-            DshInstance old = getItem();
-            boolean wasEmpty = isEmpty();
+		@Override
+		protected void updateItem(@Nullable DshInstance instance, boolean empty) {
+			DshInstance old = getItem();
+			boolean wasEmpty = isEmpty();
 
-            super.updateItem(instance, empty);
+			super.updateItem(instance, empty);
 
-            if (old == instance && wasEmpty == empty) {
-                return;
-            }
+			if (old == instance && wasEmpty == empty) {
+				return;
+			}
 
-            if (empty || instance == null) {
-                setGraphic(null);
-                return;
-            }
+			if (empty || instance == null) {
+				setGraphic(null);
+				return;
+			}
 
-            setGraphic(graphic);
-            icon.setImage(DshInstanceIcons.load(instance));
+			setGraphic(graphic);
+			icon.setImage(DshInstanceIcons.load(instance));
 
-            // What the row says is the instance's state, taken from the one place
-            // that decides it, so a picker row and a list row cannot disagree.
-            LaunchState state = DshLaunchService.state(instance.id());
-            DshProcess running = DshProcessManager.find(instance.id()).orElse(null);
-            content.setTitle(instance.id());
-            content.setSubtitle(state == LaunchState.RUNNING && running != null
-                    ? i18n("dsh.instance.running.since", running.uptime().toSeconds())
-                    : i18n("dsh.instance.summary", instance.version(), instance.profile(),
-                            i18n("dsh.instance.home." + instance.homeMode().name().toLowerCase(Locale.ROOT))));
-            tag.set(DshLaunchService.stateTag(state));
-        }
-    }
+			// What the row says is the instance's state, taken from the one place
+			// that decides it, so a picker row and a list row cannot disagree.
+			LaunchState state = DshLaunchService.state(instance.id());
+			DshProcess running = DshProcessManager.find(instance.id()).orElse(null);
+			content.setTitle(instance.id());
+			content.setSubtitle(state == LaunchState.RUNNING && running != null
+			                    ? i18n("dsh.instance.running.since",
+			                           running.uptime().toSeconds())
+			                    : i18n("dsh.instance.summary",
+			                           instance.version(),
+			                           instance.profile(),
+			                           i18n("dsh.instance.home." +
+			                                instance.homeMode().name().toLowerCase(Locale.ROOT))));
+			tag.set(DshLaunchService.stateTag(state));
+		}
+	}
 }

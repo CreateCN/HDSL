@@ -44,106 +44,104 @@ import java.util.List;
 /// rather than refused: the export is a diagnostic, and a name is not worth losing one over.
 @NotNullByDefault
 public final class DshLogs {
-    /// What every export's name begins with.
-    private static final String PREFIX = "hdsl";
+	/// What every export's name begins with.
+	private static final String PREFIX = "hdsl";
 
-    /// The suffix every export carries.
-    private static final String SUFFIX = ".log";
+	/// The suffix every export carries.
+	private static final String SUFFIX = ".log";
 
-    /// How the moment is written: sortable, and free of the colon a file name may not hold.
-    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss");
+	/// How the moment is written: sortable, and free of the colon a file name may not hold.
+	private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH-mm-ss");
 
-    /// How much of an instance's name is kept.
-    private static final int NAME_LIMIT = 64;
+	/// How much of an instance's name is kept.
+	private static final int NAME_LIMIT = 64;
 
-    /// The characters a file name may not hold, on any of the systems this runs on.
-    private static final String FORBIDDEN = "/\\:*?\"<>|";
+	/// The characters a file name may not hold, on any of the systems this runs on.
+	private static final String FORBIDDEN = "/\\:*?\"<>|";
 
-    private DshLogs() {
-    }
+	private DshLogs() {
+	}
 
-    /// Writes lines into the launcher's log directory, named for the launcher, the instance and now.
-    ///
-    /// @param instanceId the instance the lines came from, or `null` when they came from none
-    /// @param lines      the lines
-    /// @return the file that was written
-    /// @throws IOException when the directory or the file cannot be written
-    public static Path write(@Nullable String instanceId, List<String> lines) throws IOException {
-        return write(DshPaths.LOGS, instanceId, lines, LocalDateTime.now());
-    }
+	/// Writes lines into the launcher's log directory, named for the launcher, the instance and now.
+	///
+	/// @param instanceId the instance the lines came from, or `null` when they came from none
+	/// @param lines      the lines
+	/// @return the file that was written
+	/// @throws IOException when the directory or the file cannot be written
+	public static Path write(@Nullable String instanceId, List<String> lines) throws IOException {
+		return write(DshPaths.LOGS, instanceId, lines, LocalDateTime.now());
+	}
 
-    /// Writes lines into a directory, named for the launcher, the instance and the moment.
-    ///
-    /// @param directory  where to write
-    /// @param instanceId the instance the lines came from, or `null` when they came from none
-    /// @param lines      the lines
-    /// @param at         the moment the export is stamped with
-    /// @return the file that was written
-    /// @throws IOException when the directory or the file cannot be written
-    static Path write(Path directory, @Nullable String instanceId, List<String> lines, LocalDateTime at)
-            throws IOException {
-        Files.createDirectories(directory);
-        Path file = unused(directory.resolve(fileName(instanceId, at)));
-        Files.write(file, lines);
-        return file;
-    }
+	/// Writes lines into a directory, named for the launcher, the instance and the moment.
+	///
+	/// @param directory  where to write
+	/// @param instanceId the instance the lines came from, or `null` when they came from none
+	/// @param lines      the lines
+	/// @param at         the moment the export is stamped with
+	/// @return the file that was written
+	/// @throws IOException when the directory or the file cannot be written
+	static Path write(Path directory, @Nullable String instanceId, List<String> lines, LocalDateTime at)
+	throws IOException {
+		Files.createDirectories(directory);
+		Path file = unused(directory.resolve(fileName(instanceId, at)));
+		Files.write(file, lines);
+		return file;
+	}
 
-    /// Returns the name one export carries.
-    ///
-    /// @param instanceId the instance the lines came from, or `null` when they came from none
-    /// @param at         the moment the export is stamped with
-    /// @return the file name
-    static String fileName(@Nullable String instanceId, LocalDateTime at) {
-        String instance = usableName(instanceId);
-        String stamp = at.format(STAMP);
-        return instance.isEmpty()
-                ? PREFIX + "-" + stamp + SUFFIX
-                : PREFIX + "-" + instance + "-" + stamp + SUFFIX;
-    }
+	/// Returns the name one export carries.
+	///
+	/// @param instanceId the instance the lines came from, or `null` when they came from none
+	/// @param at         the moment the export is stamped with
+	/// @return the file name
+	static String fileName(@Nullable String instanceId, LocalDateTime at) {
+		String instance = usableName(instanceId);
+		String stamp = at.format(STAMP);
+		return instance.isEmpty() ? PREFIX + "-" + stamp + SUFFIX : PREFIX + "-" + instance + "-" + stamp + SUFFIX;
+	}
 
-    /// Returns a name no export has taken yet.
-    ///
-    /// Two exports a second apart is unlikely and two in the same second is not impossible, and the
-    /// second one overwriting the first would lose exactly the log somebody is trying to keep.
-    ///
-    /// @param wanted the name the moment asks for
-    /// @return a path under the same name, or under that name and a number
-    private static Path unused(Path wanted) {
-        if (!Files.exists(wanted)) {
-            return wanted;
-        }
-        String name = wanted.getFileName().toString();
-        String stem = name.substring(0, name.length() - SUFFIX.length());
-        for (int i = 2; ; i++) {
-            Path candidate = wanted.resolveSibling(stem + "-" + i + SUFFIX);
-            if (!Files.exists(candidate)) {
-                return candidate;
-            }
-        }
-    }
+	/// Returns a name no export has taken yet.
+	///
+	/// Two exports a second apart is unlikely and two in the same second is not impossible, and the
+	/// second one overwriting the first would lose exactly the log somebody is trying to keep.
+	///
+	/// @param wanted the name the moment asks for
+	/// @return a path under the same name, or under that name and a number
+	private static Path unused(Path wanted) {
+		if (!Files.exists(wanted)) {
+			return wanted;
+		}
+		String name = wanted.getFileName().toString();
+		String stem = name.substring(0, name.length() - SUFFIX.length());
+		for (int i = 2; ; i++) {
+			Path candidate = wanted.resolveSibling(stem + "-" + i + SUFFIX);
+			if (!Files.exists(candidate)) {
+				return candidate;
+			}
+		}
+	}
 
-    /// Returns an instance name a file name can hold, or an empty string.
-    ///
-    /// @param instanceId the instance, or `null`
-    /// @return the name
-    private static String usableName(@Nullable String instanceId) {
-        String trimmed = instanceId == null ? "" : instanceId.trim();
-        if (trimmed.isEmpty() || trimmed.equals(".") || trimmed.equals("..")) {
-            return "";
-        }
-        if (trimmed.length() > NAME_LIMIT) {
-            trimmed = trimmed.substring(0, NAME_LIMIT);
-        }
+	/// Returns an instance name a file name can hold, or an empty string.
+	///
+	/// @param instanceId the instance, or `null`
+	/// @return the name
+	private static String usableName(@Nullable String instanceId) {
+		String trimmed = instanceId == null ? "" : instanceId.trim();
+		if (trimmed.isEmpty() || trimmed.equals(".") || trimmed.equals("..")) {
+			return "";
+		}
+		if (trimmed.length() > NAME_LIMIT) {
+			trimmed = trimmed.substring(0, NAME_LIMIT);
+		}
 
-        StringBuilder safe = new StringBuilder(trimmed.length());
-        for (int i = 0; i < trimmed.length(); i++) {
-            char c = trimmed.charAt(i);
-            safe.append(Character.isISOControl(c) || FORBIDDEN.indexOf(c) >= 0 ? '-' : c);
-        }
-        // A name that ends in a dot or a space is a name Windows quietly rewrites.
-        while (safe.length() > 0 && (safe.charAt(safe.length() - 1) == '.' || safe.charAt(safe.length() - 1) == ' ')) {
-            safe.setLength(safe.length() - 1);
-        }
-        return safe.toString().trim();
-    }
+		StringBuilder safe = new StringBuilder(trimmed.length());
+		for (int i = 0; i < trimmed.length(); i++) {
+			char c = trimmed.charAt(i);
+			safe.append(Character.isISOControl(c) || FORBIDDEN.indexOf(c) >= 0 ? '-' : c);
+		}
+		// A name that ends in a dot or a space is a name Windows quietly rewrites.
+		while (safe.length() > 0 && (safe.charAt(safe.length() - 1) == '.' || safe.charAt(safe.length() - 1) == ' ')) {
+			safe.setLength(safe.length() - 1);
+		}
+		return safe.toString().trim();
+	}
 }

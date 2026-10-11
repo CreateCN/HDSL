@@ -17,9 +17,20 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
-import com.mcxcc303.hdsl.instance.InstanceStore;
-
 import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXPopup;
+import com.mcxcc303.hdsl.account.DshAccount;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.DshInstanceManager;
+import com.mcxcc303.hdsl.instance.DshPorts;
+import com.mcxcc303.hdsl.instance.InstanceStore;
+import com.mcxcc303.hdsl.launch.DshInstanceTerminal;
+import com.mcxcc303.hdsl.launch.DshProcess;
+import com.mcxcc303.hdsl.launch.DshProcessManager;
+import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
+import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -30,44 +41,27 @@ import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.account.DshAccount;
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.launch.DshInstanceTerminal;
-import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
-import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
+import javafx.util.Duration;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.animation.TransitionPane;
-import org.jackhuang.hmcl.ui.construct.AdvancedListBox;
-import org.jackhuang.hmcl.ui.construct.AdvancedListItem;
-import org.jackhuang.hmcl.ui.construct.ComponentList;
-import org.jackhuang.hmcl.ui.construct.LineButton;
-import org.jackhuang.hmcl.ui.construct.LineTextPane;
+import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
-import org.jackhuang.hmcl.ui.construct.PageAware;
-import org.jackhuang.hmcl.ui.construct.TabHeader;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
-import org.jackhuang.hmcl.ui.dsh.settings.InstanceSettingsPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
+import org.jackhuang.hmcl.ui.dsh.settings.InstanceSettingsPage;
 import org.jackhuang.hmcl.ui.wizard.Refreshable;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.List;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import javafx.util.Duration;
 
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -82,596 +76,601 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// reconciling `dsh plugin` run fails part way.
 @NotNullByDefault
 public final class InstancePage extends DecoratorAnimatedPage implements DecoratorPage, PageAware, Refreshable {
-    /// The instance being shown.
-    private final DshInstance instance;
+	/// The instance being shown.
+	private final DshInstance instance;
 
-    /// The page state published to the window decorator.
-    private final ReadOnlyObjectWrapper<State> state;
+	/// The page state published to the window decorator.
+	private final ReadOnlyObjectWrapper<State> state;
 
-    /// The tab strip driving the content pane.
-    private final TabHeader tab;
+	/// The tab strip driving the content pane.
+	private final TabHeader tab;
 
-    /// The settings tab.
-    private final TabHeader.Tab<InstanceSettingsPage> settingsTab = new TabHeader.Tab<>("dshInstanceSettings");
+	/// The settings tab.
+	private final TabHeader.Tab<InstanceSettingsPage> settingsTab = new TabHeader.Tab<>("dshInstanceSettings");
 
-    /// The components tab: what this instance runs, and what can be installed into it.
-    private final TabHeader.Tab<InstanceInstallersPage> installersTab = new TabHeader.Tab<>("dshInstanceInstallers");
+	/// The components tab: what this instance runs, and what can be installed into it.
+	private final TabHeader.Tab<InstanceInstallersPage> installersTab = new TabHeader.Tab<>("dshInstanceInstallers");
 
-    /// The sessions tab: the workspaces its conversations were recorded in.
-    private final TabHeader.Tab<WorkspaceListPage> sessionsTab = new TabHeader.Tab<>("dshInstanceSessions");
+	/// The sessions tab: the workspaces its conversations were recorded in.
+	private final TabHeader.Tab<WorkspaceListPage> sessionsTab = new TabHeader.Tab<>("dshInstanceSessions");
 
-    /// The plugins tab.
-    private final TabHeader.Tab<PluginListPage> pluginsTab = new TabHeader.Tab<>("dshInstancePlugins");
+	/// The plugins tab.
+	private final TabHeader.Tab<PluginListPage> pluginsTab = new TabHeader.Tab<>("dshInstancePlugins");
 
-    /// The skill packs tab: the instructions the agent can be given here.
-    private final TabHeader.Tab<SkillListPage> skillsTab = new TabHeader.Tab<>("dshInstanceSkills");
+	/// The skill packs tab: the instructions the agent can be given here.
+	private final TabHeader.Tab<SkillListPage> skillsTab = new TabHeader.Tab<>("dshInstanceSkills");
 
-    /// The details tab.
-    private final TabHeader.Tab<ScrollPane> detailsTab = new TabHeader.Tab<>("dshInstanceDetails");
+	/// The details tab.
+	private final TabHeader.Tab<ScrollPane> detailsTab = new TabHeader.Tab<>("dshInstanceDetails");
 
-    /// The animated content pane shared by the tabs.
-    private final TransitionPane transitionPane = new TransitionPane();
+	/// The animated content pane shared by the tabs.
+	private final TransitionPane transitionPane = new TransitionPane();
 
-    /// The sidebar entry that starts or stops this instance.
-    ///
-    /// It is kept rather than built in place because its label is the
-    /// instance's state: an instance that is up is stopped from here, and an
-    /// entry that still offered to start one would be offering a second server.
-    private final AdvancedListItem launchItem = new AdvancedListItem();
+	/// The sidebar entry that starts or stops this instance.
+	///
+	/// It is kept rather than built in place because its label is the
+	/// instance's state: an instance that is up is stopped from here, and an
+	/// entry that still offered to start one would be offering a second server.
+	private final AdvancedListItem launchItem = new AdvancedListItem();
 
-    /// Watches the instance's state while it is not simply idle.
-    private final Timeline ticker;
+	/// Watches the instance's state while it is not simply idle.
+	private final Timeline ticker;
 
-    /// The plugin list, rebuilt on every refresh.
-    private final ComponentList pluginList = new ComponentList();
+	/// The plugin list, rebuilt on every refresh.
+	private final ComponentList pluginList = new ComponentList();
 
-    /// The status line above the plugin list.
-    private final Label pluginStatus = new Label();
+	/// The status line above the plugin list.
+	private final Label pluginStatus = new Label();
 
-    /// Creates the page for an instance, opening its first tab.
-    ///
-    /// @param instance the instance to show
-    public InstancePage(DshInstance instance) {
-        this(instance, null);
-    }
+	/// Creates the page for an instance, opening its first tab.
+	///
+	/// @param instance the instance to show
+	public InstancePage(DshInstance instance) {
+		this(instance, null);
+	}
 
-    /// Creates the page for an instance.
-    ///
-    /// @param instance   the instance to show
-    /// @param initialTab the tab to open: `settings`, `installers`, `plugins`,
-    ///                   `skills`, `sessions` or `details`, or `null` for the first
-    public InstancePage(DshInstance instance, @Nullable String initialTab) {
-        this.instance = instance;
-        // The original titles this page with the page's name and the instance's,
-        // not with the instance alone: the window says where you are as well as
-        // what you are looking at.
-        this.state = new ReadOnlyObjectWrapper<>(
-                State.fromTitle(i18n("instance.manage.manage.title", instance.id())));
+	/// Creates the page for an instance.
+	///
+	/// @param instance   the instance to show
+	/// @param initialTab the tab to open: `settings`, `installers`, `plugins`,
+	///                   `skills`, `sessions` or `details`, or `null` for the first
+	public InstancePage(DshInstance instance, @Nullable String initialTab) {
+		this.instance = instance;
+		// The original titles this page with the page's name and the instance's,
+		// not with the instance alone: the window says where you are as well as
+		// what you are looking at.
+		this.state = new ReadOnlyObjectWrapper<>(State.fromTitle(i18n("instance.manage.manage.title", instance.id())));
 
+		settingsTab.setNodeSupplier(() -> new InstanceSettingsPage(instance, this::refresh));
+		installersTab.setNodeSupplier(() -> new InstanceInstallersPage(instance));
+		sessionsTab.setNodeSupplier(() -> new WorkspaceListPage(instance));
+		pluginsTab.setNodeSupplier(() -> new PluginListPage(instance));
+		skillsTab.setNodeSupplier(() -> new SkillListPage(instance));
+		detailsTab.setNodeSupplier(this::buildDetailsTab);
+		// Every tab the sidebar offers has to be in this list. A tab that is not
+		// is one the selection model cannot find: selecting it falls back to
+		// setting the selected *item* alone, which leaves the selected index and
+		// the tabs' own selected flags behind — and the next request for the tab
+		// whose index that was is then refused as a selection of what is already
+		// selected, while the page it asked for is shown anyway.
+		tab = new TabHeader(transitionPane, settingsTab, installersTab, pluginsTab, skillsTab, sessionsTab, detailsTab);
+		TabHeader.Tab<?> initial = switch (initialTab == null ? "" : initialTab.trim().toLowerCase(Locale.ROOT)) {
+			case "installers" -> installersTab;
+			case "plugins" -> pluginsTab;
+			case "skills" -> skillsTab;
+			case "sessions" -> sessionsTab;
+			case "details" -> detailsTab;
+			default -> settingsTab;
+		};
+		tab.select(initial, false);
 
-        settingsTab.setNodeSupplier(() -> new InstanceSettingsPage(instance, this::refresh));
-        installersTab.setNodeSupplier(() -> new InstanceInstallersPage(instance));
-        sessionsTab.setNodeSupplier(() -> new WorkspaceListPage(instance));
-        pluginsTab.setNodeSupplier(() -> new PluginListPage(instance));
-        skillsTab.setNodeSupplier(() -> new SkillListPage(instance));
-        detailsTab.setNodeSupplier(this::buildDetailsTab);
-        // Every tab the sidebar offers has to be in this list. A tab that is not
-        // is one the selection model cannot find: selecting it falls back to
-        // setting the selected *item* alone, which leaves the selected index and
-        // the tabs' own selected flags behind — and the next request for the tab
-        // whose index that was is then refused as a selection of what is already
-        // selected, while the page it asked for is shown anyway.
-        tab = new TabHeader(transitionPane, settingsTab, installersTab, pluginsTab, skillsTab,
-                sessionsTab, detailsTab);
-        TabHeader.Tab<?> initial = switch (initialTab == null ? "" : initialTab.trim().toLowerCase(Locale.ROOT)) {
-            case "installers" -> installersTab;
-            case "plugins" -> pluginsTab;
-            case "skills" -> skillsTab;
-            case "sessions" -> sessionsTab;
-            case "details" -> detailsTab;
-            default -> settingsTab;
-        };
-        tab.select(initial, false);
+		AdvancedListBox sideBar = new AdvancedListBox()
+				// Each entry carries the mark of the tab it opens and the solid
+				// version of it for when that tab is the one being shown, which is
+				// how the original's sidebar says where the page is. An entry
+				// given only one mark keeps that mark either way, so the icon set
+				// has to have a solid version — the folder copy and the tune have
+				// none, and the original leaves those alone for the same reason.
+				.addNavigationDrawerTab(tab,
+				                        settingsTab,
+				                        i18n("instance.manage.manage"),
+				                        SVG.SETTINGS,
+				                        SVG.SETTINGS_FILL)
+				// The original puts what can be installed straight after the
+				// instance's own settings, and everything installed after that.
+				.addNavigationDrawerTab(tab,
+				                        installersTab,
+				                        i18n("settings.tabs.installers"),
+				                        SVG.DEPLOYED_CODE,
+				                        SVG.DEPLOYED_CODE_FILL)
+				.addNavigationDrawerTab(tab,
+				                        pluginsTab,
+				                        i18n("dsh.instance.plugins"),
+				                        SVG.EXTENSION,
+				                        SVG.EXTENSION_FILL)
+				// The original marks its resource packs with the texture mark, and a skill
+				// pack is the same kind of thing: a folder of files that changes how the
+				// harness behaves. It has no solid version either, which the original allows
+				// for the same reason.
+				.addNavigationDrawerTab(tab, skillsTab, i18n("dsh.instance.skills"), SVG.TEXTURE)
+				// The folder-with-a-copy mark has no solid version in the icon set,
+				// so this entry would keep one mark either way. The pair the
+				// original uses for a pack of things is the one to take instead.
+				.addNavigationDrawerTab(tab,
+				                        sessionsTab,
+				                        i18n("dsh.instance.sessions"),
+				                        SVG.PACKAGE2,
+				                        SVG.PACKAGE2_FILL)
+				.addNavigationDrawerTab(tab, detailsTab, i18n("dsh.instance.details"), SVG.INFO, SVG.INFO_FILL);
 
-        AdvancedListBox sideBar = new AdvancedListBox()
-                // Each entry carries the mark of the tab it opens and the solid
-                // version of it for when that tab is the one being shown, which is
-                // how the original's sidebar says where the page is. An entry
-                // given only one mark keeps that mark either way, so the icon set
-                // has to have a solid version — the folder copy and the tune have
-                // none, and the original leaves those alone for the same reason.
-                .addNavigationDrawerTab(tab, settingsTab, i18n("instance.manage.manage"),
-                        SVG.SETTINGS, SVG.SETTINGS_FILL)
-                // The original puts what can be installed straight after the
-                // instance's own settings, and everything installed after that.
-                .addNavigationDrawerTab(tab, installersTab, i18n("settings.tabs.installers"),
-                        SVG.DEPLOYED_CODE, SVG.DEPLOYED_CODE_FILL)
-                .addNavigationDrawerTab(tab, pluginsTab, i18n("dsh.instance.plugins"),
-                        SVG.EXTENSION, SVG.EXTENSION_FILL)
-                // The original marks its resource packs with the texture mark, and a skill
-                // pack is the same kind of thing: a folder of files that changes how the
-                // harness behaves. It has no solid version either, which the original allows
-                // for the same reason.
-                .addNavigationDrawerTab(tab, skillsTab, i18n("dsh.instance.skills"),
-                        SVG.TEXTURE)
-                // The folder-with-a-copy mark has no solid version in the icon set,
-                // so this entry would keep one mark either way. The pair the
-                // original uses for a pack of things is the one to take instead.
-                .addNavigationDrawerTab(tab, sessionsTab, i18n("dsh.instance.sessions"),
-                        SVG.PACKAGE2, SVG.PACKAGE2_FILL)
-                .addNavigationDrawerTab(tab, detailsTab, i18n("dsh.instance.details"),
-                        SVG.INFO, SVG.INFO_FILL);
+		// The actions are a second box rather than a category inside the first.
+		// HMCL splits them the same way, and the split is why there is no
+		// divider: a category draws one, a separate box sits on its own.
+		// The launch entry is the box's own kind of item, so it sits where the
+		// original's test-launch entry sits; only its label and its mark are
+		// ours to change as the instance starts and stops.
+		launchItem.getStyleClass().add("navigation-drawer-item");
+		launchItem.setOnAction(event -> testLaunch());
 
-        // The actions are a second box rather than a category inside the first.
-        // HMCL splits them the same way, and the split is why there is no
-        // divider: a category draws one, a separate box sits on its own.
-        // The launch entry is the box's own kind of item, so it sits where the
-        // original's test-launch entry sits; only its label and its mark are
-        // ours to change as the instance starts and stops.
-        launchItem.getStyleClass().add("navigation-drawer-item");
-        launchItem.setOnAction(event -> testLaunch());
+		AdvancedListBox actions = new AdvancedListBox().add(launchItem)
+		                                               .addNavigationDrawerItem(i18n("settings.game.exploration"),
+		                                                                        SVG.FOLDER_OPEN,
+		                                                                        null,
+		                                                                        item -> item.setOnAction(event -> showBrowsePopup(
+				                                                                        item)))
+		                                               .addNavigationDrawerItem(i18n("settings.game.management"),
+		                                                                        SVG.MENU,
+		                                                                        null,
+		                                                                        item -> item.setOnAction(event -> showManagePopup(
+				                                                                        item)));
+		actions.getStyleClass().add("advanced-list-box-clear-padding");
 
-        AdvancedListBox actions = new AdvancedListBox()
-                .add(launchItem)
-                .addNavigationDrawerItem(i18n("settings.game.exploration"), SVG.FOLDER_OPEN, null,
-                        item -> item.setOnAction(event -> showBrowsePopup(item)))
-                .addNavigationDrawerItem(i18n("settings.game.management"), SVG.MENU, null,
-                        item -> item.setOnAction(event -> showManagePopup(item)));
-        actions.getStyleClass().add("advanced-list-box-clear-padding");
+		FXUtils.setLimitWidth(sideBar, 200);
+		FXUtils.setLimitHeight(actions, 40 * 3 + 12 * 2);
+		// The navigation box takes the room so the actions settle at the bottom.
+		// Its maximum height has to be lifted first: a control sized to its
+		// content will not grow just because the box asks it to.
+		sideBar.setMaxHeight(Double.MAX_VALUE);
+		VBox.setVgrow(sideBar, Priority.ALWAYS);
 
-        FXUtils.setLimitWidth(sideBar, 200);
-        FXUtils.setLimitHeight(actions, 40 * 3 + 12 * 2);
-        // The navigation box takes the room so the actions settle at the bottom.
-        // Its maximum height has to be lifted first: a control sized to its
-        // content will not grow just because the box asks it to.
-        sideBar.setMaxHeight(Double.MAX_VALUE);
-        VBox.setVgrow(sideBar, Priority.ALWAYS);
+		setLeft(sideBar, actions);
+		setCenter(transitionPane);
 
-        setLeft(sideBar, actions);
-        setCenter(transitionPane);
+		// The instance can start, become ready and stop on its own, so what this
+		// entry offers has to follow it rather than the page being reopened.
+		ticker = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshLaunchItem()));
+		ticker.setCycleCount(Animation.INDEFINITE);
+		ticker.play();
 
-        // The instance can start, become ready and stop on its own, so what this
-        // entry offers has to follow it rather than the page being reopened.
-        ticker = new Timeline(new KeyFrame(Duration.seconds(1), event -> refreshLaunchItem()));
-        ticker.setCycleCount(Animation.INDEFINITE);
-        ticker.play();
+		refreshLaunchItem();
+	}
 
-        refreshLaunchItem();
-    }
+	/// Names the action this page offers on the instance.
+	///
+	/// A stopped instance is started from here as a test, which is what the
+	/// original's own instance page calls it; a running one is stopped, and that
+	/// is the only thing the entry may be called then.
+	///
+	/// @param state the instance's state
+	/// @return the label
+	private static String actionLabel(LaunchState state) {
+		return state == LaunchState.STOPPED ? i18n("dsh.instance.test_launch") : DshLaunchService.actionLabel(state);
+	}
 
-    /// Names the action this page offers on the instance.
-    ///
-    /// A stopped instance is started from here as a test, which is what the
-    /// original's own instance page calls it; a running one is stopped, and that
-    /// is the only thing the entry may be called then.
-    ///
-    /// @param state the instance's state
-    /// @return the label
-    private static String actionLabel(LaunchState state) {
-        return state == LaunchState.STOPPED
-                ? i18n("dsh.instance.test_launch")
-                : DshLaunchService.actionLabel(state);
-    }
+	/// Returns the key the instance's harness is asking for, when it is up and printed one.
+	///
+	/// @param instance the instance
+	/// @return the key, or empty when the instance is not running or its harness printed none
+	private static Optional<String> launchToken(DshInstance instance) {
+		return DshProcessManager.find(instance.id()).flatMap(DshProcess::webUrl).flatMap(DshPorts::launchToken);
+	}
 
-    /// Draws the sidebar entry from the instance's state.
-    private void refreshLaunchItem() {
-        LaunchState state = DshLaunchService.state(instance.id());
-        launchItem.setTitle(actionLabel(state));
-        launchItem.setLeftIcon(state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL);
-        FXUtils.installFastTooltip(launchItem, DshLaunchService.actionHint(state));
-    }
+	/// Draws the sidebar entry from the instance's state.
+	private void refreshLaunchItem() {
+		LaunchState state = DshLaunchService.state(instance.id());
+		launchItem.setTitle(actionLabel(state));
+		launchItem.setLeftIcon(state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL);
+		FXUtils.installFastTooltip(launchItem, DshLaunchService.actionHint(state));
+	}
 
-    @Override
-    public ReadOnlyObjectProperty<State> stateProperty() {
-        return state.getReadOnlyProperty();
-    }
+	@Override
+	public ReadOnlyObjectProperty<State> stateProperty() {
+		return state.getReadOnlyProperty();
+	}
 
-    @Override
-    public void onPageShown() {
-        tab.onPageShown();
-        refresh();
-    }
+	@Override
+	public void onPageShown() {
+		tab.onPageShown();
+		refresh();
+	}
 
-    @Override
-    public void onPageHidden() {
-        tab.onPageHidden();
-    }
+	@Override
+	public void onPageHidden() {
+		tab.onPageHidden();
+	}
 
-    @Override
-    public void refresh() {
-        refreshPlugins();
-        refreshLaunchItem();
-    }
+	@Override
+	public void refresh() {
+		refreshPlugins();
+		refreshLaunchItem();
+	}
 
-    /// Builds the details tab.
-    ///
-    /// @return the tab content
-    private ScrollPane buildDetailsTab() {
-        String runtime = instance.nodeRuntimeOrDefault();
+	/// Builds the details tab.
+	///
+	/// @return the tab content
+	private ScrollPane buildDetailsTab() {
+		String runtime = instance.nodeRuntimeOrDefault();
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(buildDetail(i18n("dsh.install.step.version"), instance.version()));
-        list.getContent().add(buildDetail(i18n("dsh.instance.profile"), instance.profile()));
-        list.getContent().add(buildDetail(i18n("dsh.install.home"),
-                i18n("dsh.instance.home." + instance.homeMode().name().toLowerCase(Locale.ROOT))));
-        // The runtime is shown by name, not by its stored key: "system" is what
-        // the manifest holds, not what the rest of the interface calls it.
-        list.getContent().add(buildDetail(i18n("dsh.node.title"),
-                DshNodeRuntime.SYSTEM.equals(runtime)
-                        ? i18n("dsh.install.node.system")
-                        : runtime));
-        list.getContent().add(buildDetail(i18n("dsh.install.workspace"), instance.workspace()));
+		ComponentList list = new ComponentList();
+		list.getContent().add(buildDetail(i18n("dsh.install.step.version"), instance.version()));
+		list.getContent().add(buildDetail(i18n("dsh.instance.profile"), instance.profile()));
+		list.getContent()
+		    .add(buildDetail(i18n("dsh.install.home"),
+		                     i18n("dsh.instance.home." + instance.homeMode().name().toLowerCase(Locale.ROOT))));
+		// The runtime is shown by name, not by its stored key: "system" is what
+		// the manifest holds, not what the rest of the interface calls it.
+		list.getContent()
+		    .add(buildDetail(i18n("dsh.node.title"),
+		                     DshNodeRuntime.SYSTEM.equals(runtime) ? i18n("dsh.install.node.system") : runtime));
+		list.getContent().add(buildDetail(i18n("dsh.install.workspace"), instance.workspace()));
 
-        LineButton open = new LineButton();
-        open.setTitle(i18n("dsh.instance.open_home"));
-        open.setOnAction(event -> {
-            try {
-                FXUtils.showFileInExplorer(instance.instanceDirectory());
-            } catch (DshException e) {
-                Controllers.dialog(e.getMessage(), i18n("message.error"), MessageType.ERROR);
-            }
-        });
-        list.getContent().add(open);
+		LineButton open = new LineButton();
+		open.setTitle(i18n("dsh.instance.open_home"));
+		open.setOnAction(event -> {
+			try {
+				FXUtils.showFileInExplorer(instance.instanceDirectory());
+			} catch (DshException e) {
+				Controllers.dialog(e.getMessage(), i18n("message.error"), MessageType.ERROR);
+			}
+		});
+		list.getContent().add(open);
 
-        // A section title above the card, as every list in the original has, and
-        // the same card-list class the settings tab uses for its spacing.
-        VBox root = new VBox(ComponentList.createComponentListTitle(i18n("settings.game.section.basic")), list);
-        root.getStyleClass().add("card-list");
+		// A section title above the card, as every list in the original has, and
+		// the same card-list class the settings tab uses for its spacing.
+		VBox root = new VBox(ComponentList.createComponentListTitle(i18n("settings.game.section.basic")), list);
+		root.getStyleClass().add("card-list");
 
-        ScrollPane scroll = new ScrollPane(root);
-        scroll.setFitToWidth(true);
-        FXUtils.smoothScrolling(scroll);
-        return scroll;
-    }
+		ScrollPane scroll = new ScrollPane(root);
+		scroll.setFitToWidth(true);
+		FXUtils.smoothScrolling(scroll);
+		return scroll;
+	}
 
-    /// Builds one read-only detail row.
-    ///
-    /// @param title the label
-    /// @param value the value
-    /// @return the row
-    private Node buildDetail(String title, String value) {
-        LineTextPane row = new LineTextPane();
-        row.setTitle(title);
-        row.setText(value == null ? "" : value);
-        return row;
-    }
+	/// Builds one read-only detail row.
+	///
+	/// @param title the label
+	/// @param value the value
+	/// @return the row
+	private Node buildDetail(String title, String value) {
+		LineTextPane row = new LineTextPane();
+		row.setTitle(title);
+		row.setText(value == null ? "" : value);
+		return row;
+	}
 
-    /// Shows the folders this instance owns.
-    ///
-    /// The original puts these in a popup on the sidebar rather than on a tab:
-    /// they are places to go, not a view to read, and a popup says so.
-    ///
-    /// @param anchor the sidebar item the popup is anchored to
-    private void showBrowsePopup(org.jackhuang.hmcl.ui.construct.AdvancedListItem anchor) {
-        org.jackhuang.hmcl.ui.construct.PopupMenu menu = new org.jackhuang.hmcl.ui.construct.PopupMenu();
-        com.jfoenix.controls.JFXPopup popup = new com.jfoenix.controls.JFXPopup(menu);
+	/// Shows the folders this instance owns.
+	///
+	/// The original puts these in a popup on the sidebar rather than on a tab:
+	/// they are places to go, not a view to read, and a popup says so.
+	///
+	/// @param anchor the sidebar item the popup is anchored to
+	private void showBrowsePopup(AdvancedListItem anchor) {
+		PopupMenu menu = new PopupMenu();
+		JFXPopup popup = new JFXPopup(menu);
 
-        List<javafx.scene.Node> entries = new ArrayList<>();
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.STADIA_CONTROLLER, i18n("dsh.instance.open_home"),
-                () -> revealQuietly(instanceDirectoryOrNull()), popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.FOLDER, i18n("dsh.instance.open_home.dsh"),
-                () -> revealQuietly(homeChild("")), popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.FOLDER_OPEN, i18n("dsh.instance.open_workspace"),
-                () -> revealQuietly(instance.workspacePath()), popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.FOLDER_COPY, i18n("dsh.instance.open.sessions"),
-                () -> revealQuietly(homeChild("sessions")), popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.EXTENSION, i18n("dsh.instance.open.profiles"),
-                () -> revealQuietly(homeChild("profiles")), popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.ARCHIVE, i18n("dsh.instance.open.storages"),
-                () -> revealQuietly(homeChild("storages")), popup));
-        menu.getContent().setAll(entries);
+		List<Node> entries = new ArrayList<>();
+		entries.add(new IconedMenuItem(SVG.STADIA_CONTROLLER,
+		                               i18n("dsh.instance.open_home"),
+		                               () -> revealQuietly(instanceDirectoryOrNull()),
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.FOLDER,
+		                               i18n("dsh.instance.open_home.dsh"),
+		                               () -> revealQuietly(homeChild("")),
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.FOLDER_OPEN,
+		                               i18n("dsh.instance.open_workspace"),
+		                               () -> revealQuietly(instance.workspacePath()),
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.FOLDER_COPY,
+		                               i18n("dsh.instance.open.sessions"),
+		                               () -> revealQuietly(homeChild("sessions")),
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.EXTENSION,
+		                               i18n("dsh.instance.open.profiles"),
+		                               () -> revealQuietly(homeChild("profiles")),
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.ARCHIVE,
+		                               i18n("dsh.instance.open.storages"),
+		                               () -> revealQuietly(homeChild("storages")),
+		                               popup));
+		menu.getContent().setAll(entries);
 
-        popup.show(anchor, com.jfoenix.controls.JFXPopup.PopupVPosition.BOTTOM,
-                com.jfoenix.controls.JFXPopup.PopupHPosition.LEFT, anchor.getWidth(), 0);
-    }
+		popup.show(anchor, JFXPopup.PopupVPosition.BOTTOM, JFXPopup.PopupHPosition.LEFT, anchor.getWidth(), 0);
+	}
 
-    /// Writes this instance into a pack, through the original's wizard.
-    ///
-    /// The wizard asks what kind of pack, what it says about itself and what of the
-    /// instance goes into it, which is the order the original asks in — and writing
-    /// it is what the last step does.
-    private void exportModpack() {
-        Controllers.getDecorator().startWizard(new ModpackExportWizardProvider(instance),
-                i18n("modpack.wizard"));
-    }
+	/// Writes this instance into a pack, through the original's wizard.
+	///
+	/// The wizard asks what kind of pack, what it says about itself and what of the
+	/// instance goes into it, which is the order the original asks in — and writing
+	/// it is what the last step does.
+	private void exportModpack() {
+		Controllers.getDecorator().startWizard(new ModpackExportWizardProvider(instance), i18n("modpack.wizard"));
+	}
 
-    /// Shows the operations available on this instance.
-    ///
-    /// @param anchor the sidebar item the popup is anchored to
-    private void showManagePopup(org.jackhuang.hmcl.ui.construct.AdvancedListItem anchor) {
-        org.jackhuang.hmcl.ui.construct.PopupMenu menu = new org.jackhuang.hmcl.ui.construct.PopupMenu();
-        com.jfoenix.controls.JFXPopup popup = new com.jfoenix.controls.JFXPopup(menu);
+	/// Shows the operations available on this instance.
+	///
+	/// @param anchor the sidebar item the popup is anchored to
+	private void showManagePopup(AdvancedListItem anchor) {
+		PopupMenu menu = new PopupMenu();
+		JFXPopup popup = new JFXPopup(menu);
 
-        List<javafx.scene.Node> entries = new ArrayList<>();
-        LaunchState state = DshLaunchService.state(instance.id());
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL,
-                actionLabel(state), this::testLaunch, popup));
-        // Right below the launch entry, because it is what a person reaches for next: the instance
-        // is up and the page it serves is where the work happens. Offered whether it is running or
-        // not, the same as the instance list's menu — see [InstanceBrowser].
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.PUBLIC, i18n("dsh.instance.open_browser"),
-                () -> InstanceBrowser.open(instance), popup));
-        // Right under the browser entry, because it is the other half of the same thing: the address
-        // the harness serves is behind a key, and reaching it from another window means carrying the
-        // key over. An instance that is not running has none, and a harness from before the key
-        // existed printed none either — the entry is disabled rather than gone, so that what is
-        // missing is visible instead of being a menu that changes shape.
-        org.jackhuang.hmcl.ui.construct.IconedMenuItem copyToken =
-                new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                        SVG.CONTENT_COPY, i18n("dsh.instance.copy_token"), this::copyLaunchToken, popup);
-        copyToken.setDisable(launchToken(instance).isEmpty());
-        entries.add(copyToken);
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.SCRIPT, i18n("dsh.instance.open_logs"), this::openLogs, popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.OUTPUT, i18n("dsh.instance.terminal"), this::openTerminal, popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.MenuSeparator());
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.PACKAGE2, i18n("modpack.export"), this::exportModpack, popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.EDIT, i18n("instance.manage.rename"), this::renameInstance, popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.FOLDER_COPY, i18n("instance.manage.duplicate"), this::duplicateInstance, popup));
-        entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
-                SVG.DELETE, i18n("instance.manage.remove"), this::removeInstance, popup));
-        menu.getContent().setAll(entries);
+		List<Node> entries = new ArrayList<>();
+		LaunchState state = DshLaunchService.state(instance.id());
+		entries.add(new IconedMenuItem(state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL,
+		                               actionLabel(state),
+		                               this::testLaunch,
+		                               popup));
+		// Right below the launch entry, because it is what a person reaches for next: the instance
+		// is up and the page it serves is where the work happens. Offered whether it is running or
+		// not, the same as the instance list's menu — see [InstanceBrowser].
+		entries.add(new IconedMenuItem(SVG.PUBLIC,
+		                               i18n("dsh.instance.open_browser"),
+		                               () -> InstanceBrowser.open(instance),
+		                               popup));
+		// Right under the browser entry, because it is the other half of the same thing: the address
+		// the harness serves is behind a key, and reaching it from another window means carrying the
+		// key over. An instance that is not running has none, and a harness from before the key
+		// existed printed none either — the entry is disabled rather than gone, so that what is
+		// missing is visible instead of being a menu that changes shape.
+		IconedMenuItem copyToken = new IconedMenuItem(SVG.CONTENT_COPY,
+		                                              i18n("dsh.instance.copy_token"),
+		                                              this::copyLaunchToken,
+		                                              popup);
+		copyToken.setDisable(launchToken(instance).isEmpty());
+		entries.add(copyToken);
+		entries.add(new IconedMenuItem(SVG.SCRIPT, i18n("dsh.instance.open_logs"), this::openLogs, popup));
+		entries.add(new IconedMenuItem(SVG.OUTPUT, i18n("dsh.instance.terminal"), this::openTerminal, popup));
+		entries.add(new MenuSeparator());
+		entries.add(new IconedMenuItem(SVG.PACKAGE2, i18n("modpack.export"), this::exportModpack, popup));
+		entries.add(new IconedMenuItem(SVG.EDIT, i18n("instance.manage.rename"), this::renameInstance, popup));
+		entries.add(new IconedMenuItem(SVG.FOLDER_COPY,
+		                               i18n("instance.manage.duplicate"),
+		                               this::duplicateInstance,
+		                               popup));
+		entries.add(new IconedMenuItem(SVG.DELETE, i18n("instance.manage.remove"), this::removeInstance, popup));
+		menu.getContent().setAll(entries);
 
-        popup.show(anchor, com.jfoenix.controls.JFXPopup.PopupVPosition.BOTTOM,
-                com.jfoenix.controls.JFXPopup.PopupHPosition.LEFT, anchor.getWidth(), 0);
-    }
+		popup.show(anchor, JFXPopup.PopupVPosition.BOTTOM, JFXPopup.PopupHPosition.LEFT, anchor.getWidth(), 0);
+	}
 
-    /// Returns the instance directory, or `null` when it cannot be resolved.
-    ///
-    /// @return the directory
-    private Path instanceDirectoryOrNull() {
-        try {
-            return instance.instanceDirectory();
-        } catch (DshException e) {
-            return null;
-        }
-    }
+	/// Returns the instance directory, or `null` when it cannot be resolved.
+	///
+	/// @return the directory
+	private Path instanceDirectoryOrNull() {
+		try {
+			return instance.instanceDirectory();
+		} catch (DshException e) {
+			return null;
+		}
+	}
 
-    /// Returns a directory inside the instance's home, or the home itself.
-    ///
-    /// @param name the directory name, or an empty string for the home
-    /// @return the path, or `null` when the home cannot be resolved
-    private Path homeChild(String name) {
-        try {
-            Path home = instance.homeDirectory();
-            return name.isEmpty() ? home : home.resolve(name);
-        } catch (DshException e) {
-            return null;
-        }
-    }
+	/// Returns a directory inside the instance's home, or the home itself.
+	///
+	/// @param name the directory name, or an empty string for the home
+	/// @return the path, or `null` when the home cannot be resolved
+	private Path homeChild(String name) {
+		try {
+			Path home = instance.homeDirectory();
+			return name.isEmpty() ? home : home.resolve(name);
+		} catch (DshException e) {
+			return null;
+		}
+	}
 
-    /// Reveals a directory, reporting rather than throwing when it is missing.
-    ///
-    /// @param directory the directory to reveal, or `null`
-    private void revealQuietly(@Nullable Path directory) {
-        if (directory == null || !java.nio.file.Files.isDirectory(directory)) {
-            Controllers.dialog(i18n("dsh.instance.open.unavailable"), i18n("message.error"), MessageType.ERROR);
-            return;
-        }
-        FXUtils.showFileInExplorer(directory);
-    }
+	/// Reveals a directory, reporting rather than throwing when it is missing.
+	///
+	/// @param directory the directory to reveal, or `null`
+	private void revealQuietly(@Nullable Path directory) {
+		if (directory == null || !Files.isDirectory(directory)) {
+			Controllers.dialog(i18n("dsh.instance.open.unavailable"), i18n("message.error"), MessageType.ERROR);
+			return;
+		}
+		FXUtils.showFileInExplorer(directory);
+	}
 
-    /// Opens the folder DeepSeek Harness writes its diagnostics to.
-    ///
-    /// Not the launcher's own log folder, which is where this used to point: the
-    /// launcher writes its log to the terminal it was started from, so that
-    /// folder does not exist and the entry only ever reported that it could not
-    /// be opened. The harness writes a report under its own home when a start-up
-    /// audit fails, which is the thing worth reading when an instance will not
-    /// run — so that is what this opens, and it says so when there is nothing
-    /// there yet rather than opening somewhere else.
-    private void openLogs() {
-        Path logs = homeChild("logs");
-        if (logs == null || !java.nio.file.Files.isDirectory(logs)) {
-            Controllers.dialog(i18n("dsh.instance.logs.none"),
-                    i18n("dsh.instance.open_logs"), MessageType.WARNING);
-            return;
-        }
-        FXUtils.showFileInExplorer(logs);
-    }
+	/// Opens the folder DeepSeek Harness writes its diagnostics to.
+	///
+	/// Not the launcher's own log folder, which is where this used to point: the
+	/// launcher writes its log to the terminal it was started from, so that
+	/// folder does not exist and the entry only ever reported that it could not
+	/// be opened. The harness writes a report under its own home when a start-up
+	/// audit fails, which is the thing worth reading when an instance will not
+	/// run — so that is what this opens, and it says so when there is nothing
+	/// there yet rather than opening somewhere else.
+	private void openLogs() {
+		Path logs = homeChild("logs");
+		if (logs == null || !Files.isDirectory(logs)) {
+			Controllers.dialog(i18n("dsh.instance.logs.none"), i18n("dsh.instance.open_logs"), MessageType.WARNING);
+			return;
+		}
+		FXUtils.showFileInExplorer(logs);
+	}
 
-    /// Renames this instance.
-    private void renameInstance() {
-        Controllers.dialog(new org.jackhuang.hmcl.ui.construct.InputDialogPane(
-                i18n("instance.manage.rename"), instance.id(),
-                (newId, handler) -> {
-                    try {
-                        DshInstanceManager.rename(instance.id(), newId);
-                        handler.resolve();
-                        Controllers.navigate(Controllers.getInstancesPage());
-                    } catch (DshException e) {
-                        handler.reject(e.getMessage());
-                    }
-                }));
-    }
+	/// Renames this instance.
+	private void renameInstance() {
+		Controllers.dialog(new InputDialogPane(i18n("instance.manage.rename"), instance.id(), (newId, handler) -> {
+			try {
+				DshInstanceManager.rename(instance.id(), newId);
+				handler.resolve();
+				Controllers.navigate(Controllers.getInstancesPage());
+			} catch (DshException e) {
+				handler.reject(e.getMessage());
+			}
+		}));
+	}
 
-    /// Copies this instance into a new one.
-    ///
-    /// The copy is filled from a pack the launcher writes and reads back — version, profile, plugin
-    /// list, patch layer, local plugin files, plugin settings, skills — and the work runs behind a
-    /// progress dialog, because installing a harness and resolving its plugins takes minutes rather
-    /// than a click. That dialog is also what asks about install scripts, and the copy it made is
-    /// kept for the answer: see [DshInstanceManager#duplicate]. Saying that it finished is the
-    /// dialog's own toast, the same one every other installation ends with.
-    private void duplicateInstance() {
-        String newId = DshInstanceManager.nextId(instance.id());
-        PluginInstalls.runCreating(i18n("dsh.instance.duplicating", instance.id()),
-                () -> InstanceStore.find(newId),
-                report -> DshInstanceManager.duplicate(instance.id(), newId, report::accept),
-                null);
-    }
+	/// Copies this instance into a new one.
+	///
+	/// The copy is filled from a pack the launcher writes and reads back — version, profile, plugin
+	/// list, patch layer, local plugin files, plugin settings, skills — and the work runs behind a
+	/// progress dialog, because installing a harness and resolving its plugins takes minutes rather
+	/// than a click. That dialog is also what asks about install scripts, and the copy it made is
+	/// kept for the answer: see [DshInstanceManager#duplicate]. Saying that it finished is the
+	/// dialog's own toast, the same one every other installation ends with.
+	private void duplicateInstance() {
+		String newId = DshInstanceManager.nextId(instance.id());
+		PluginInstalls.runCreating(i18n("dsh.instance.duplicating", instance.id()),
+		                           () -> InstanceStore.find(newId),
+		                           report -> DshInstanceManager.duplicate(instance.id(), newId, report::accept),
+		                           null);
+	}
 
-    /// Starts or stops this instance from its own page.
-    /// Opens a terminal on this instance, set up the way a launch sets it up.
-    ///
-    /// The way out of a launch that will not start: the same home, the same environment and
-    /// the instance's own toolchain, in a shell where the harness can be run by hand.
-    private void openTerminal() {
-        try {
-            DshInstanceTerminal.open(instance, DshAccount.forInstance(instance));
-        } catch (DshException e) {
-            LOG.warning("Could not open a terminal on " + instance.id(), e);
-            Controllers.dialog(e.getMessage(), i18n("message.error"), MessageType.ERROR);
-        }
-    }
+	/// Starts or stops this instance from its own page.
+	/// Opens a terminal on this instance, set up the way a launch sets it up.
+	///
+	/// The way out of a launch that will not start: the same home, the same environment and
+	/// the instance's own toolchain, in a shell where the harness can be run by hand.
+	private void openTerminal() {
+		try {
+			DshInstanceTerminal.open(instance, DshAccount.forInstance(instance));
+		} catch (DshException e) {
+			LOG.warning("Could not open a terminal on " + instance.id(), e);
+			Controllers.dialog(e.getMessage(), i18n("message.error"), MessageType.ERROR);
+		}
+	}
 
-    private void testLaunch() {
-        // Test launch shows the output: the point of launching from here is to
-        // see what the program does, which is what the original's test game does
-        // too. Stopping it is the same action everywhere and shows nothing.
-        DshLaunchService.toggle(instance, this::refresh, true);
-    }
+	private void testLaunch() {
+		// Test launch shows the output: the point of launching from here is to
+		// see what the program does, which is what the original's test game does
+		// too. Stopping it is the same action everywhere and shows nothing.
+		DshLaunchService.toggle(instance, this::refresh, true);
+	}
 
-    /// Returns the key the instance's harness is asking for, when it is up and printed one.
-    ///
-    /// @param instance the instance
-    /// @return the key, or empty when the instance is not running or its harness printed none
-    private static java.util.Optional<String> launchToken(DshInstance instance) {
-        return com.mcxcc303.hdsl.launch.DshProcessManager.find(instance.id())
-                .flatMap(com.mcxcc303.hdsl.launch.DshProcess::webUrl)
-                .flatMap(com.mcxcc303.hdsl.instance.DshPorts::launchToken);
-    }
+	/// Puts the key the running harness asks for on the clipboard.
+	///
+	/// The entry that calls this is disabled unless there is one, so an empty key here means the
+	/// instance stopped between the menu being drawn and the entry being pressed. Said rather than
+	/// swallowed: a copy that copied nothing looks exactly like one that worked.
+	private void copyLaunchToken() {
+		Optional<String> token = launchToken(instance);
+		if (token.isEmpty()) {
+			Controllers.showToast(i18n("dsh.instance.token_missing"));
+			return;
+		}
+		FXUtils.copyText(token.get(), i18n("dsh.instance.token_copied"));
+	}
 
-    /// Puts the key the running harness asks for on the clipboard.
-    ///
-    /// The entry that calls this is disabled unless there is one, so an empty key here means the
-    /// instance stopped between the menu being drawn and the entry being pressed. Said rather than
-    /// swallowed: a copy that copied nothing looks exactly like one that worked.
-    private void copyLaunchToken() {
-        java.util.Optional<String> token = launchToken(instance);
-        if (token.isEmpty()) {
-            Controllers.showToast(i18n("dsh.instance.token_missing"));
-            return;
-        }
-        org.jackhuang.hmcl.ui.FXUtils.copyText(token.get(), i18n("dsh.instance.token_copied"));
-    }
+	/// Deletes this instance after confirmation, leaving the page afterwards.
+	///
+	/// The question is the launcher's own, and so is what follows it: the progress dialog every
+	/// other operation of this size is shown in, which runs the removal and stays until it has
+	/// finished. The removal waits twice — an instance that is running is stopped first and the
+	/// stop waits for the child to drain, and the tree is then taken away with retries because a
+	/// handle that is closing takes a moment to close — so it is work with a beginning and an end,
+	/// and what is shown for it is a progress dialog rather than a question. Run on the interface
+	/// thread instead, the window stops repainting for as long as the child takes to die: Windows
+	/// paints it white and offers to end it, and what the person reports is a launcher that has
+	/// crashed.
+	///
+	/// The page is left only once the instance is gone. A failure keeps it where it is, beside the
+	/// error, because there is still an instance there to try again on.
+	private void removeInstance() {
+		String id = instance.id();
+		Controllers.confirm(i18n("dsh.instance.remove.confirm", id), i18n("dsh.instance.remove"), () -> {
+			AtomicBoolean failed = new AtomicBoolean();
+			ProgressDialog.run(i18n("dsh.instance.remove"), progress -> {
+				progress.accept(i18n("dsh.instance.removing", id));
+				DshInstanceManager.delete(id);
+			}, () -> {
+				if (!failed.get()) {
+					Controllers.navigate(Controllers.getInstancesPage());
+				}
+			}, failure -> {
+				failed.set(true);
+				return false;
+			});
+		}, null);
+	}
 
-    /// Deletes this instance after confirmation, leaving the page afterwards.
-    ///
-    /// The question is the launcher's own, and so is what follows it: the progress dialog every
-    /// other operation of this size is shown in, which runs the removal and stays until it has
-    /// finished. The removal waits twice — an instance that is running is stopped first and the
-    /// stop waits for the child to drain, and the tree is then taken away with retries because a
-    /// handle that is closing takes a moment to close — so it is work with a beginning and an end,
-    /// and what is shown for it is a progress dialog rather than a question. Run on the interface
-    /// thread instead, the window stops repainting for as long as the child takes to die: Windows
-    /// paints it white and offers to end it, and what the person reports is a launcher that has
-    /// crashed.
-    ///
-    /// The page is left only once the instance is gone. A failure keeps it where it is, beside the
-    /// error, because there is still an instance there to try again on.
-    private void removeInstance() {
-        String id = instance.id();
-        Controllers.confirm(i18n("dsh.instance.remove.confirm", id), i18n("dsh.instance.remove"),
-                () -> {
-                    AtomicBoolean failed = new AtomicBoolean();
-                    ProgressDialog.run(i18n("dsh.instance.remove"),
-                            progress -> {
-                                progress.accept(i18n("dsh.instance.removing", id));
-                                DshInstanceManager.delete(id);
-                            },
-                            () -> {
-                                if (!failed.get()) {
-                                    Controllers.navigate(Controllers.getInstancesPage());
-                                }
-                            },
-                            failure -> {
-                                failed.set(true);
-                                return false;
-                            });
-                },
-                null);
-    }
+	/// Rebuilds the plugin list from the profile manifest on disk.
+	private void refreshPlugins() {
+		pluginList.getContent().clear();
 
-    /// Rebuilds the plugin list from the profile manifest on disk.
-    private void refreshPlugins() {
-        pluginList.getContent().clear();
+		Map<String, String> dependencies;
+		List<String> bundles;
+		try {
+			Path home = instance.homeDirectory();
+			dependencies = DshPluginInstaller.readDependencies(home, instance.profile());
+			bundles = DshPluginInstaller.readBundles(home, instance.profile());
+		} catch (DshException e) {
+			pluginStatus.setText(e.getMessage());
+			return;
+		}
 
-        Map<String, String> dependencies;
-        List<String> bundles;
-        try {
-            java.nio.file.Path home = instance.homeDirectory();
-            dependencies = DshPluginInstaller.readDependencies(home, instance.profile());
-            bundles = DshPluginInstaller.readBundles(home, instance.profile());
-        } catch (DshException e) {
-            pluginStatus.setText(e.getMessage());
-            return;
-        }
+		// Only the packages the user added; the in-box bundles every profile
+		// starts with are not the user's to manage.
+		int shown = 0;
+		for (Map.Entry<String, String> entry : dependencies.entrySet()) {
+			pluginList.getContent().add(buildPluginRow(entry.getKey(), entry.getValue(), bundles));
+			shown++;
+		}
+		if (shown == 0) {
+			LineTextPane note = new LineTextPane();
+			note.setText(i18n("dsh.instance.plugins.empty"));
+			pluginList.getContent().add(note);
+		}
 
-        // Only the packages the user added; the in-box bundles every profile
-        // starts with are not the user's to manage.
-        int shown = 0;
-        for (Map.Entry<String, String> entry : dependencies.entrySet()) {
-            pluginList.getContent().add(buildPluginRow(entry.getKey(), entry.getValue(), bundles));
-            shown++;
-        }
-        if (shown == 0) {
-            LineTextPane note = new LineTextPane();
-            note.setText(i18n("dsh.instance.plugins.empty"));
-            pluginList.getContent().add(note);
-        }
+		pluginStatus.setText(i18n("dsh.instance.plugins.count", shown));
+	}
 
-        pluginStatus.setText(i18n("dsh.instance.plugins.count", shown));
-    }
+	/// Builds one installed-plugin row.
+	///
+	/// @param name    the package name
+	/// @param version the declared version range
+	/// @param bundles the profile's active bundle list
+	/// @return the row
+	private LineButton buildPluginRow(String name, String version, List<String> bundles) {
+		boolean active = bundles.contains(name);
 
-    /// Builds one installed-plugin row.
-    ///
-    /// @param name    the package name
-    /// @param version the declared version range
-    /// @param bundles the profile's active bundle list
-    /// @return the row
-    private LineButton buildPluginRow(String name, String version, List<String> bundles) {
-        boolean active = bundles.contains(name);
+		JFXButton remove = FXUtils.newToggleButton4(SVG.DELETE, 18);
+		remove.setOnAction(event -> removePlugin(name));
 
-        JFXButton remove = FXUtils.newToggleButton4(SVG.DELETE, 18);
-        remove.setOnAction(event -> removePlugin(name));
+		LineButton row = new LineButton();
+		row.setTitle(name);
+		row.setSubtitle(active
+		                ? i18n("dsh.instance.plugins.active", version)
+		                : i18n("dsh.instance.plugins.inactive", version));
+		row.setRowTrailing(remove);
+		return row;
+	}
 
-        LineButton row = new LineButton();
-        row.setTitle(name);
-        row.setSubtitle(active
-                ? i18n("dsh.instance.plugins.active", version)
-                : i18n("dsh.instance.plugins.inactive", version));
-        row.setRowTrailing(remove);
-        return row;
-    }
-
-    /// Removes an installed plugin after confirmation.
-    ///
-    /// @param name the package name
-    private void removePlugin(String name) {
-        Controllers.confirm(i18n("dsh.instance.plugins.remove.confirm", name),
-                i18n("dsh.instance.plugins.remove"),
-                () -> CompletableFuture.runAsync(() -> {
-                    try {
-                        DshPluginInstaller.remove(instance, name, null);
-                    } catch (DshException e) {
-                        throw new CompletionException(e);
-                    }
-                }, Schedulers.io()).whenComplete((ignored, throwable) -> runInFX(() -> {
-                    if (throwable != null) {
-                        Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
-                                ? throwable.getCause()
-                                : throwable;
-                        LOG.warning("Failed to remove " + name, cause);
-                        Controllers.dialog(cause.getMessage(), i18n("dsh.instance.plugins.remove_failed"),
-                                MessageType.ERROR);
-                    } else {
-                        Controllers.showToast(i18n("dsh.instance.plugins.removed", name));
-                    }
-                    refreshPlugins();
-                })),
-                null);
-    }
+	/// Removes an installed plugin after confirmation.
+	///
+	/// @param name the package name
+	private void removePlugin(String name) {
+		Controllers.confirm(i18n("dsh.instance.plugins.remove.confirm", name),
+		                    i18n("dsh.instance.plugins.remove"),
+		                    () -> CompletableFuture.runAsync(() -> {
+			                    try {
+				                    DshPluginInstaller.remove(instance, name, null);
+			                    } catch (DshException e) {
+				                    throw new CompletionException(e);
+			                    }
+		                    }, Schedulers.io()).whenComplete((ignored, throwable) -> runInFX(() -> {
+			                    if (throwable != null) {
+				                    Throwable cause =
+						                    throwable instanceof CompletionException && throwable.getCause() != null
+						                    ? throwable.getCause()
+						                    : throwable;
+				                    LOG.warning("Failed to remove " + name, cause);
+				                    Controllers.dialog(cause.getMessage(),
+				                                       i18n("dsh.instance.plugins.remove_failed"),
+				                                       MessageType.ERROR);
+			                    } else {
+				                    Controllers.showToast(i18n("dsh.instance.plugins.removed", name));
+			                    }
+			                    refreshPlugins();
+		                    })),
+		                    null);
+	}
 }

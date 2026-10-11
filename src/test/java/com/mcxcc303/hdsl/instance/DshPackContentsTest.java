@@ -17,14 +17,10 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.pack.PackExporter;
 import com.mcxcc303.hdsl.pack.PackManifest;
-
-import com.mcxcc303.hdsl.instance.DshHomeMode;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
-
-import com.google.gson.JsonObject;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -37,67 +33,84 @@ import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipFile;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies that what a pack says it carries is what it carries.
 ///
 /// The choosing happens in a tree, and a box there has to mean something: a pack that named a plugin
 /// it left out would describe an installation nobody can make from it, and an import would try.
 class DshPackContentsTest {
-    /// The instance these tests build a pack from.
-    private static final String INSTANCE_ID = "pack-contents-test";
+	/// The instance these tests build a pack from.
+	private static final String INSTANCE_ID = "pack-contents-test";
 
-    @Test
-    void aBundleLeftOutIsNeitherCarriedNorNamed(@TempDir Path temp) throws Exception {
-        Path home = Files.createTempDirectory("pack-contents-home");
-        DshInstance instance = InstanceStore.find(INSTANCE_ID);
-        if (instance == null) {
-            instance = DshInstanceManager.create(INSTANCE_ID, "0.1.6-alpha.2",
-                    DshInstance.DEFAULT_PROFILE, home, DshHomeMode.ISOLATED, null,
-                    List.of(), Map.of());
-        }
+	@Test
+	void aBundleLeftOutIsNeitherCarriedNorNamed(@TempDir Path temp) throws Exception {
+		Path home = Files.createTempDirectory("pack-contents-home");
+		DshInstance instance = InstanceStore.find(INSTANCE_ID);
+		if (instance == null) {
+			instance = DshInstanceManager.create(INSTANCE_ID,
+			                                     "0.1.6-alpha.2",
+			                                     DshInstance.DEFAULT_PROFILE,
+			                                     home,
+			                                     DshHomeMode.ISOLATED,
+			                                     null,
+			                                     List.of(),
+			                                     Map.of());
+		}
 
-        try {
-            Path profile = instance.homeDirectory().resolve("profiles").resolve(instance.profile());
-            Files.createDirectories(profile);
-            Files.writeString(profile.resolve("package.json"), """
-                    {"name":"dsh-profile-web","private":true,
-                     "dependencies":{"dshmarket":"1.52.0","dsh-cost-meter":"1.7.30"},
-                     "dsh":{"profile":{"bundles":["@deepseek-ai/dsh-base","dshmarket","dsh-cost-meter"]}}}
-                    """);
+		try {
+			Path profile = instance.homeDirectory().resolve("profiles").resolve(instance.profile());
+			Files.createDirectories(profile);
+			Files.writeString(profile.resolve("package.json"), """
+					{"name":"dsh-profile-web","private":true,
+					 "dependencies":{"dshmarket":"1.52.0","dsh-cost-meter":"1.7.30"},
+					 "dsh":{"profile":{"bundles":["@deepseek-ai/dsh-base","dshmarket","dsh-cost-meter"]}}}
+					""");
 
-            Path target = temp.resolve("pack.zip");
-            PackManifest.Options options = new PackManifest.Options("test", "1.0", "", "", "", "", false,
-                    Set.of("dsh-cost-meter"), Set.of(), Set.of());
-            PackExporter.export(instance, target, options, null);
+			Path target = temp.resolve("pack.zip");
+			PackManifest.Options options = new PackManifest.Options("test",
+			                                                        "1.0",
+			                                                        "",
+			                                                        "",
+			                                                        "",
+			                                                        "",
+			                                                        false,
+			                                                        Set.of("dsh-cost-meter"),
+			                                                        Set.of(),
+			                                                        Set.of());
+			PackExporter.export(instance, target, options, null);
 
-            JsonObject manifest;
-            try (ZipFile zip = new ZipFile(target.toFile())) {
-                manifest = JsonUtils.fromJson(new String(
-                        zip.getInputStream(zip.getEntry("manifest.json")).readAllBytes(),
-                        StandardCharsets.UTF_8), JsonObject.class);
-            }
+			JsonObject manifest;
+			try (ZipFile zip = new ZipFile(target.toFile())) {
+				manifest = JsonUtils.fromJson(new String(zip.getInputStream(zip.getEntry("manifest.json"))
+				                                            .readAllBytes(), StandardCharsets.UTF_8), JsonObject.class);
+			}
 
-            List<String> bundles = manifest.getAsJsonArray("bundles").asList().stream()
-                    .map(com.google.gson.JsonElement::getAsString).toList();
-            assertEquals(List.of("@deepseek-ai/dsh-base", "dshmarket"), bundles,
-                    "a bundle left out does not travel, and the order of the rest is kept");
+			List<String> bundles = manifest.getAsJsonArray("bundles")
+			                               .asList()
+			                               .stream()
+			                               .map(JsonElement::getAsString)
+			                               .toList();
+			assertEquals(List.of("@deepseek-ai/dsh-base", "dshmarket"),
+			             bundles,
+			             "a bundle left out does not travel, and the order of the rest is kept");
 
-            List<String> named = manifest.getAsJsonArray("plugins").asList().stream()
-                    .map(com.google.gson.JsonElement::getAsJsonObject)
-                    .map(element -> element.get("name").getAsString()).toList();
-            assertTrue(named.contains("dshmarket"), "what travels is named");
-            assertFalse(named.contains("dsh-cost-meter"),
-                    "and what does not travel is not named either, or an import would fetch it");
+			List<String> named = manifest.getAsJsonArray("plugins")
+			                             .asList()
+			                             .stream()
+			                             .map(JsonElement::getAsJsonObject)
+			                             .map(element -> element.get("name").getAsString())
+			                             .toList();
+			assertTrue(named.contains("dshmarket"), "what travels is named");
+			assertFalse(named.contains("dsh-cost-meter"),
+			            "and what does not travel is not named either, or an import would fetch it");
 
-            // What else the archive holds is the export's own business; what this test is about is
-            // that the manifest describes what is in it.
-        } finally {
-            // A test that registers an instance has to remove it whatever happens: leaving one behind
-            // is what makes the next test fail for a reason that has nothing to do with it.
-            DshInstanceManager.delete(INSTANCE_ID);
-        }
-    }
+			// What else the archive holds is the export's own business; what this test is about is
+			// that the manifest describes what is in it.
+		} finally {
+			// A test that registers an instance has to remove it whatever happens: leaving one behind
+			// is what makes the next test fail for a reason that has nothing to do with it.
+			DshInstanceManager.delete(INSTANCE_ID);
+		}
+	}
 }

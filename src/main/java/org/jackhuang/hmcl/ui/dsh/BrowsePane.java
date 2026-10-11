@@ -17,11 +17,11 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
 import javafx.geometry.Insets;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshInstance;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LineButton;
@@ -46,86 +46,81 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// the layout is learnable before anything has been created in it.
 @NotNullByDefault
 public final class BrowsePane extends ScrollPane {
-    /// Creates the pane for an instance.
-    ///
-    /// @param instance the instance whose directories are listed
-    public BrowsePane(DshInstance instance) {
-        setFitToWidth(true);
+	/// Creates the pane for an instance.
+	///
+	/// @param instance the instance whose directories are listed
+	public BrowsePane(DshInstance instance) {
+		setFitToWidth(true);
 
-        ComponentList list = new ComponentList();
-        for (Directory directory : directoriesOf(instance)) {
-            list.getContent().add(buildRow(directory));
-        }
+		ComponentList list = new ComponentList();
+		for (Directory directory : directoriesOf(instance)) {
+			list.getContent().add(buildRow(directory));
+		}
 
-        VBox root = new VBox(ComponentList.createComponentListTitle(i18n("dsh.instance.folders")), list);
-        root.setPadding(new Insets(10));
-        setContent(root);
+		VBox root = new VBox(ComponentList.createComponentListTitle(i18n("dsh.instance.folders")), list);
+		root.setPadding(new Insets(10));
+		setContent(root);
 
-        // Must run after the content is installed: smooth scrolling binds to the
-        // content node and throws on a null content.
-        FXUtils.smoothScrolling(this);
-    }
+		// Must run after the content is installed: smooth scrolling binds to the
+		// content node and throws on a null content.
+		FXUtils.smoothScrolling(this);
+	}
 
-    /// Collects the directories an instance owns.
-    ///
-    /// @param instance the instance
-    /// @return the directories, in the order they are shown
-    private static List<Directory> directoriesOf(DshInstance instance) {
-        List<Directory> directories = new ArrayList<>();
-        directories.add(new Directory(i18n("dsh.instance.open_workspace"),
-                instance.workspacePath(), null));
-        directories.add(new Directory(i18n("dsh.instance.open_home"),
-                safeHome(instance), null));
+	/// Collects the directories an instance owns.
+	///
+	/// @param instance the instance
+	/// @return the directories, in the order they are shown
+	private static List<Directory> directoriesOf(DshInstance instance) {
+		List<Directory> directories = new ArrayList<>();
+		directories.add(new Directory(i18n("dsh.instance.open_workspace"), instance.workspacePath(), null));
+		directories.add(new Directory(i18n("dsh.instance.open_home"), safeHome(instance), null));
 
-        Path home = safeHome(instance);
-        if (home != null) {
-            directories.add(new Directory(i18n("dsh.instance.open.sessions"),
-                    home.resolve("sessions"), null));
-            directories.add(new Directory(i18n("dsh.instance.open.profiles"),
-                    home.resolve("profiles"), null));
-            directories.add(new Directory(i18n("dsh.instance.open.storages"),
-                    home.resolve("storages"), null));
-        }
-        return directories;
-    }
+		Path home = safeHome(instance);
+		if (home != null) {
+			directories.add(new Directory(i18n("dsh.instance.open.sessions"), home.resolve("sessions"), null));
+			directories.add(new Directory(i18n("dsh.instance.open.profiles"), home.resolve("profiles"), null));
+			directories.add(new Directory(i18n("dsh.instance.open.storages"), home.resolve("storages"), null));
+		}
+		return directories;
+	}
 
-    /// Resolves an instance's home without failing the whole page.
-    ///
-    /// @param instance the instance
-    /// @return the home, or `null` when it cannot be resolved
-    private static Path safeHome(DshInstance instance) {
-        try {
-            return instance.homeDirectory();
-        } catch (DshException e) {
-            LOG.warning("The instance home could not be resolved", e);
-            return null;
-        }
-    }
+	/// Resolves an instance's home without failing the whole page.
+	///
+	/// @param instance the instance
+	/// @return the home, or `null` when it cannot be resolved
+	private static Path safeHome(DshInstance instance) {
+		try {
+			return instance.homeDirectory();
+		} catch (DshException e) {
+			LOG.warning("The instance home could not be resolved", e);
+			return null;
+		}
+	}
 
-    /// Builds one directory row.
-    ///
-    /// @param directory the directory
-    /// @return the row
-    private static LineButton buildRow(Directory directory) {
-        LineButton row = new LineButton();
-        row.setTitle(directory.title());
-        if (directory.path() == null) {
-            row.setSubtitle(i18n("dsh.instance.open.unavailable"));
-            row.setDisable(true);
-            return row;
-        }
+	/// Builds one directory row.
+	///
+	/// @param directory the directory
+	/// @return the row
+	private static LineButton buildRow(Directory directory) {
+		LineButton row = new LineButton();
+		row.setTitle(directory.title());
+		if (directory.path() == null) {
+			row.setSubtitle(i18n("dsh.instance.open.unavailable"));
+			row.setDisable(true);
+			return row;
+		}
 
-        row.setSubtitle(directory.path().toString());
-        row.setDisable(!Files.isDirectory(directory.path()));
-        row.setOnAction(event -> FXUtils.showFileInExplorer(directory.path()));
-        return row;
-    }
+		row.setSubtitle(directory.path().toString());
+		row.setDisable(!Files.isDirectory(directory.path()));
+		row.setOnAction(event -> FXUtils.showFileInExplorer(directory.path()));
+		return row;
+	}
 
-    /// One directory the browse page offers.
-    ///
-    /// @param title the row label
-    /// @param path  the directory, or `null` when it cannot be resolved
-    /// @param note  an optional note shown with the path
-    private record Directory(String title, Path path, String note) {
-    }
+	/// One directory the browse page offers.
+	///
+	/// @param title the row label
+	/// @param path  the directory, or `null` when it cannot be resolved
+	/// @param note  an optional note shown with the path
+	private record Directory(String title, Path path, String note) {
+	}
 }

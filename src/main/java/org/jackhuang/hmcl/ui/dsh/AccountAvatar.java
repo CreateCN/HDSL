@@ -50,27 +50,31 @@ import org.jetbrains.annotations.NotNullByDefault;
 ///   large one from drawing its top-left corner instead of its face.
 @NotNullByDefault
 public final class AccountAvatar {
-    private AccountAvatar() {
-    }
+	private AccountAvatar() {
+	}
 
-    /// Draws one skin's head, filling the canvas.
-    ///
-    /// @param canvas where to draw
-    /// @param skin   a skin atlas, at any of the sizes the format allows
-    public static void draw(Canvas canvas, Image skin) {
-        GraphicsContext graphics = canvas.getGraphicsContext2D();
-        graphics.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
+	/// Draws one skin's head, filling the canvas.
+	///
+	/// @param canvas where to draw
+	/// @param skin   a skin atlas, at any of the sizes the format allows
+	public static void draw(Canvas canvas, Image skin) {
+		GraphicsContext graphics = canvas.getGraphicsContext2D();
+		graphics.clearRect(0, 0, canvas.getWidth(), canvas.getHeight());
 
-        int size = (int) canvas.getWidth();
-        int scale = (int) skin.getWidth() / 64;
-        int faceOffset = (int) Math.round(size / 18.0);
+		int size = (int) canvas.getWidth();
+		int scale = (int) skin.getWidth() / 64;
+		int faceOffset = (int) Math.round(size / 18.0);
 
-        graphics.setImageSmoothing(false);
-        graphics.drawImage(skin,
-                8 * scale, 8 * scale, 8 * scale, 8 * scale,
-                faceOffset, faceOffset, size - 2 * faceOffset, size - 2 * faceOffset);
-        graphics.drawImage(skin,
-                40 * scale, 8 * scale, 8 * scale, 8 * scale,
-                0, 0, size, size);
-    }
+		graphics.setImageSmoothing(false);
+		graphics.drawImage(skin,
+		                   8 * scale,
+		                   8 * scale,
+		                   8 * scale,
+		                   8 * scale,
+		                   faceOffset,
+		                   faceOffset,
+		                   size - 2 * faceOffset,
+		                   size - 2 * faceOffset);
+		graphics.drawImage(skin, 40 * scale, 8 * scale, 8 * scale, 8 * scale, 0, 0, size, size);
+	}
 }

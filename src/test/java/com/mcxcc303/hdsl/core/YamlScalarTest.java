@@ -17,8 +17,6 @@
  */
 package com.mcxcc303.hdsl.core;
 
-import com.mcxcc303.hdsl.core.YamlScalar;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,18 +28,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /// package name with an at sign in front of it, it is a file the harness cannot parse — and the
 /// harness reads these files while it starts, so the launch dies rather than the value being wrong.
 class YamlScalarTest {
-    @Test
-    void aValueYamlWouldReadAsSomethingElseIsQuoted() {
-        // The case this exists for is a package name written into an injected setting:
-        // `@deepseek-ai/…` in plain text is not a name with an at sign in front of it, it is a file
-        // the harness cannot parse — and the harness reads these files as it starts, so the launch
-        // dies rather than a value being wrong.
-        assertEquals("\"@deepseek-ai/dsh-web-search-deepseek\"",
-                YamlScalar.of("@deepseek-ai/dsh-web-search-deepseek"));
-        assertEquals("\"true\"", YamlScalar.of("true"));
-        // And the other half of the rule, which is what keeps this from rewriting a file the
-        // launcher does not own: what YAML already reads as the same text is left alone.
-        assertEquals("0.1.7-rc.1", YamlScalar.of("0.1.7-rc.1"));
-        assertEquals("a@b", YamlScalar.of("a@b"), "the rule is about the first character");
-    }
+	@Test
+	void aValueYamlWouldReadAsSomethingElseIsQuoted() {
+		// The case this exists for is a package name written into an injected setting:
+		// `@deepseek-ai/…` in plain text is not a name with an at sign in front of it, it is a file
+		// the harness cannot parse — and the harness reads these files as it starts, so the launch
+		// dies rather than a value being wrong.
+		assertEquals("\"@deepseek-ai/dsh-web-search-deepseek\"", YamlScalar.of("@deepseek-ai/dsh-web-search-deepseek"));
+		assertEquals("\"true\"", YamlScalar.of("true"));
+		// And the other half of the rule, which is what keeps this from rewriting a file the
+		// launcher does not own: what YAML already reads as the same text is left alone.
+		assertEquals("0.1.7-rc.1", YamlScalar.of("0.1.7-rc.1"));
+		assertEquals("a@b", YamlScalar.of("a@b"), "the rule is about the first character");
+	}
 }

@@ -41,102 +41,102 @@ import java.util.Locale;
 /// container scales what it is given, so a mis-sized asset looks merely soft.
 @NotNullByDefault
 public enum DshInstanceIcon {
-    /// The DeepSeek Harness mark, in colour.
-    DSH_APPLICATION("dsh_application"),
-    /// The DeepSeek Harness mark on a light background.
-    DSH_BLACK("dsh_black"),
-    /// The DeepSeek Harness mark on a dark background.
-    DSH_WHITE("dsh_white"),
-    /// The default icon.
-    DEFAULT("grass"),
-    /// Grass block.
-    GRASS("grass"),
-    /// Chest.
-    CHEST("chest"),
-    /// Chicken.
-    CHICKEN("chicken"),
-    /// Command block.
-    COMMAND("command"),
-    /// The April Fools artwork.
-    APRIL_FOOLS("april_fools"),
-    /// The OptiFine logo.
-    OPTIFINE("optifine"),
-    /// Crafting table.
-    CRAFT_TABLE("craft_table"),
-    /// The Fabric logo.
-    FABRIC("fabric"),
-    /// The Legacy Fabric logo.
-    LEGACY_FABRIC("legacyfabric"),
-    /// The Forge logo.
-    FORGE("forge"),
-    /// The Cleanroom logo.
-    CLEANROOM("cleanroom"),
-    /// The NeoForge logo.
-    NEO_FORGE("neoforge"),
-    /// Furnace.
-    FURNACE("furnace"),
-    /// The Quilt logo.
-    QUILT("quilt");
+	/// The DeepSeek Harness mark, in colour.
+	DSH_APPLICATION("dsh_application"),
+	/// The DeepSeek Harness mark on a light background.
+	DSH_BLACK("dsh_black"),
+	/// The DeepSeek Harness mark on a dark background.
+	DSH_WHITE("dsh_white"),
+	/// The default icon.
+	DEFAULT("grass"),
+	/// Grass block.
+	GRASS("grass"),
+	/// Chest.
+	CHEST("chest"),
+	/// Chicken.
+	CHICKEN("chicken"),
+	/// Command block.
+	COMMAND("command"),
+	/// The April Fools artwork.
+	APRIL_FOOLS("april_fools"),
+	/// The OptiFine logo.
+	OPTIFINE("optifine"),
+	/// Crafting table.
+	CRAFT_TABLE("craft_table"),
+	/// The Fabric logo.
+	FABRIC("fabric"),
+	/// The Legacy Fabric logo.
+	LEGACY_FABRIC("legacyfabric"),
+	/// The Forge logo.
+	FORGE("forge"),
+	/// The Cleanroom logo.
+	CLEANROOM("cleanroom"),
+	/// The NeoForge logo.
+	NEO_FORGE("neoforge"),
+	/// Furnace.
+	FURNACE("furnace"),
+	/// The Quilt logo.
+	QUILT("quilt");
 
-    private final String asset;
+	private final String asset;
 
-    DshInstanceIcon(String asset) {
-        this.asset = asset;
-    }
+	DshInstanceIcon(String asset) {
+		this.asset = asset;
+	}
 
-    /// Returns the identifier stored with an instance.
-    ///
-    /// @return the lower-case identifier
-    public String id() {
-        return name().toLowerCase(Locale.ROOT);
-    }
+	/// Resolves an icon from its stored identifier.
+	///
+	/// @param value the stored identifier, possibly `null` or unknown
+	/// @return the matching icon, or [DshInstanceIcon#DEFAULT]
+	public static DshInstanceIcon of(@Nullable String value) {
+		if (value != null) {
+			for (DshInstanceIcon icon : values()) {
+				if (icon.id().equalsIgnoreCase(value.trim())) {
+					return icon;
+				}
+			}
+		}
+		return DEFAULT;
+	}
 
-    /// Returns the bundled image this icon uses.
-    ///
-    /// Not the same as [#id]: `DEFAULT` and `GRASS` are separate choices that
-    /// share one image, because a stored choice records what the user picked
-    /// rather than which file it came from.
-    ///
-    /// @return the asset name without its extension
-    public String assetName() {
-        return asset;
-    }
+	/// Returns the identifier stored with an instance.
+	///
+	/// @return the lower-case identifier
+	public String id() {
+		return name().toLowerCase(Locale.ROOT);
+	}
 
-    /// Resolves an icon from its stored identifier.
-    ///
-    /// @param value the stored identifier, possibly `null` or unknown
-    /// @return the matching icon, or [DshInstanceIcon#DEFAULT]
-    public static DshInstanceIcon of(@Nullable String value) {
-        if (value != null) {
-            for (DshInstanceIcon icon : values()) {
-                if (icon.id().equalsIgnoreCase(value.trim())) {
-                    return icon;
-                }
-            }
-        }
-        return DEFAULT;
-    }
+	/// Returns the bundled image this icon uses.
+	///
+	/// Not the same as [#id]: `DEFAULT` and `GRASS` are separate choices that
+	/// share one image, because a stored choice records what the user picked
+	/// rather than which file it came from.
+	///
+	/// @return the asset name without its extension
+	public String assetName() {
+		return asset;
+	}
 
-    /// Loads the icon image from the bundled assets.
-    ///
-    /// @return the image, or `null` when the asset is missing
-    public @Nullable Image load() {
-        return load(1.0);
-    }
+	/// Loads the icon image from the bundled assets.
+	///
+	/// @return the image, or `null` when the asset is missing
+	public @Nullable Image load() {
+		return load(1.0);
+	}
 
-    /// Loads the icon at the resolution a display asks for.
-    ///
-    /// Uses the `@2x` asset when one is bundled and the screen is dense enough
-    /// to benefit, which is what the rest of the set does.
-    ///
-    /// @param scale the display scale, `1.0` for an ordinary screen
-    /// @return the image, or `null` when the asset is missing
-    public @Nullable Image load(double scale) {
-        String suffix = scale > 1.5 ? "@2x" : "";
-        var url = DshInstanceIcon.class.getResource("/assets/img/" + asset + suffix + ".png");
-        if (url == null && !suffix.isEmpty()) {
-            url = DshInstanceIcon.class.getResource("/assets/img/" + asset + ".png");
-        }
-        return url == null ? null : new Image(url.toExternalForm(), true);
-    }
+	/// Loads the icon at the resolution a display asks for.
+	///
+	/// Uses the `@2x` asset when one is bundled and the screen is dense enough
+	/// to benefit, which is what the rest of the set does.
+	///
+	/// @param scale the display scale, `1.0` for an ordinary screen
+	/// @return the image, or `null` when the asset is missing
+	public @Nullable Image load(double scale) {
+		String suffix = scale > 1.5 ? "@2x" : "";
+		var url = DshInstanceIcon.class.getResource("/assets/img/" + asset + suffix + ".png");
+		if (url == null && !suffix.isEmpty()) {
+			url = DshInstanceIcon.class.getResource("/assets/img/" + asset + ".png");
+		}
+		return url == null ? null : new Image(url.toExternalForm(), true);
+	}
 }

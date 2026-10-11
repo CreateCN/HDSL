@@ -28,44 +28,44 @@ import org.jetbrains.annotations.Nullable;
 /// returns is a window somebody has to hunt for.
 @NotNullByDefault
 public enum DshLauncherVisibility {
-    /// Stay where it is.
-    KEEP("keep"),
+	/// Stay where it is.
+	KEEP("keep"),
 
-    /// Get out of the way entirely.
-    HIDE("hide"),
+	/// Get out of the way entirely.
+	HIDE("hide"),
 
-    /// Stay in the task bar, out of the way.
-    MINIMIZE("minimize");
+	/// Stay in the task bar, out of the way.
+	MINIMIZE("minimize");
 
-    /// The value the setting is stored as.
-    private final String id;
+	/// The value the setting is stored as.
+	private final String id;
 
-    /// Creates a choice.
-    ///
-    /// @param id the stored value
-    DshLauncherVisibility(String id) {
-        this.id = id;
-    }
+	/// Creates a choice.
+	///
+	/// @param id the stored value
+	DshLauncherVisibility(String id) {
+		this.id = id;
+	}
 
-    /// Returns the value the setting is stored as.
-    ///
-    /// @return the id
-    public String id() {
-        return id;
-    }
+	/// Reads a stored value.
+	///
+	/// @param value the stored value, or `null`
+	/// @return the choice, or [DshLauncherVisibility#KEEP] when it is not one
+	public static DshLauncherVisibility of(@Nullable String value) {
+		if (value != null) {
+			for (DshLauncherVisibility choice : values()) {
+				if (choice.id.equalsIgnoreCase(value.trim())) {
+					return choice;
+				}
+			}
+		}
+		return KEEP;
+	}
 
-    /// Reads a stored value.
-    ///
-    /// @param value the stored value, or `null`
-    /// @return the choice, or [DshLauncherVisibility#KEEP] when it is not one
-    public static DshLauncherVisibility of(@Nullable String value) {
-        if (value != null) {
-            for (DshLauncherVisibility choice : values()) {
-                if (choice.id.equalsIgnoreCase(value.trim())) {
-                    return choice;
-                }
-            }
-        }
-        return KEEP;
-    }
+	/// Returns the value the setting is stored as.
+	///
+	/// @return the id
+	public String id() {
+		return id;
+	}
 }

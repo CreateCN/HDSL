@@ -17,8 +17,6 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
-
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -33,39 +31,37 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /// like any other build script — and reading it wrongly would ask about a package that does not
 /// exist, so the shape is pinned here against the output pnpm really prints.
 class DshPluginInstallerTest {
-    /// The entry pnpm named in a real refusal, printed as one line.
-    private static final String NAMED =
-            "  dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/180c3144da8eb4229cacb843aced229ea55912fc: true";
+	/// The entry pnpm named in a real refusal, printed as one line.
+	private static final String NAMED = "  dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/180c3144da8eb4229cacb843aced229ea55912fc: true";
 
-    @Test
-    void theEntryPnpmNamesForARepositoryHostedPackageIsRead() {
-        List<String> output = List.of(
-                "[ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED] Failed to prepare git-hosted package fetched from"
-                        + " \"https://codeload.github.com/dsh-market/dsh-market/tar.gz/180c3144da8eb4229cacb843aced229ea55912fc\":"
-                        + " The git-hosted package \"dshmarket@1.66.2\" needs to execute build scripts but is not in the"
-                        + " \"allowBuilds\" allowlist.",
-                "",
-                "This error happened while installing a direct dependency of /tmp/profile",
-                "",
-                "Add the package to \"allowBuilds\" in your project's pnpm-workspace.yaml to allow it to run"
-                        + " scripts. For example:",
-                "allowBuilds:",
-                NAMED);
+	@Test
+	void theEntryPnpmNamesForARepositoryHostedPackageIsRead() {
+		List<String> output = List.of(
+				"[ERR_PNPM_GIT_DEP_PREPARE_NOT_ALLOWED] Failed to prepare git-hosted package fetched from" +
+				" \"https://codeload.github.com/dsh-market/dsh-market/tar.gz/180c3144da8eb4229cacb843aced229ea55912fc\":"
+				+ " The git-hosted package \"dshmarket@1.66.2\" needs to execute build scripts but is not in the" +
+				" \"allowBuilds\" allowlist.",
+				"",
+				"This error happened while installing a direct dependency of /tmp/profile",
+				"",
+				"Add the package to \"allowBuilds\" in your project's pnpm-workspace.yaml to allow it to run" +
+				" scripts. For example:",
+				"allowBuilds:",
+				NAMED);
 
-        assertEquals(List.of("dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/"
-                        + "180c3144da8eb4229cacb843aced229ea55912fc"),
-                DshPluginInstaller.gitBuildKeys(output));
-    }
+		assertEquals(List.of("dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/"
+		                     + "180c3144da8eb4229cacb843aced229ea55912fc"), DshPluginInstaller.gitBuildKeys(output));
+	}
 
-    @Test
-    void aDifferentFailureNamesNothing() {
-        assertEquals(List.of(), DshPluginInstaller.gitBuildKeys(List.of(
-                        " ERR_PNPM_NO_MATCHING_VERSION  No matching version found for dsh-thing@9.9.9")),
-                "a package that does not exist is not a package waiting to be allowed to build");
+	@Test
+	void aDifferentFailureNamesNothing() {
+		assertEquals(List.of(),
+		             DshPluginInstaller.gitBuildKeys(List.of(
+				             " ERR_PNPM_NO_MATCHING_VERSION  No matching version found for dsh-thing@9.9.9")),
+		             "a package that does not exist is not a package waiting to be allowed to build");
 
-        assertEquals(List.of(), DshPluginInstaller.gitBuildKeys(List.of(
-                        "allowBuilds:",
-                        "  node-pty: set this to true or false")),
-                "the placeholder pnpm writes itself is a different flow, and is not read as one of these");
-    }
+		assertEquals(List.of(),
+		             DshPluginInstaller.gitBuildKeys(List.of("allowBuilds:", "  node-pty: set this to true or false")),
+		             "the placeholder pnpm writes itself is a different flow, and is not read as one of these");
+	}
 }

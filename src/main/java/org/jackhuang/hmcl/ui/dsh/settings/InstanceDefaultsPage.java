@@ -17,25 +17,30 @@
  */
 package org.jackhuang.hmcl.ui.dsh.settings;
 
-import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
-import com.mcxcc303.hdsl.launch.DshEnvironment;
+import com.jfoenix.controls.JFXTextField;
+import com.mcxcc303.hdsl.core.DshPaths;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
+import com.mcxcc303.hdsl.launch.DshEnvironment;
 import com.mcxcc303.hdsl.launch.DshLauncherVisibility;
+import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
-import com.mcxcc303.hdsl.core.DshPaths;
 import com.mcxcc303.hdsl.runtime.NodeRuntime;
 import com.mcxcc303.hdsl.runtime.NodeRuntimeManager;
+import javafx.beans.property.StringProperty;
+import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.construct.ComponentList;
-import org.jackhuang.hmcl.ui.construct.LinePane;
-import org.jackhuang.hmcl.ui.construct.LineSelectButton;
-import org.jackhuang.hmcl.ui.construct.LineToggleButton;
+import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.util.logging.Logger;
 import org.jetbrains.annotations.NotNullByDefault;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -57,282 +62,278 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// for the same answer to live.
 @NotNullByDefault
 public final class InstanceDefaultsPage extends ScrollPane {
-    /// Creates the page.
-    public InstanceDefaultsPage() {
-        setFitToWidth(true);
-        setFitToHeight(true);
+	/// Creates the page.
+	public InstanceDefaultsPage() {
+		setFitToWidth(true);
+		setFitToHeight(true);
 
-        VBox root = new VBox(
-                ComponentList.createComponentListTitle(i18n("dsh.settings.environment")),
-                buildEnvironmentList(),
-                ComponentList.createComponentListTitle(i18n("dsh.settings.build_scripts")),
-                buildBuildScriptsList(),
-                ComponentList.createComponentListTitle(i18n("dsh.settings.launcher")),
-                buildLauncherList(),
-                ComponentList.createComponentListTitle(i18n("dsh.settings.env_vars")),
-                buildEnvironmentVariablesList(),
-                ComponentList.createComponentListTitle(i18n("dsh.settings.commands")),
-                buildCommandsList(),
-                ComponentList.createComponentListTitle(i18n("dsh.settings.debug")),
-                buildDebugList());
-        root.getStyleClass().add("card-list");
-        setContent(root);
+		VBox root = new VBox(ComponentList.createComponentListTitle(i18n("dsh.settings.environment")),
+		                     buildEnvironmentList(),
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.build_scripts")),
+		                     buildBuildScriptsList(),
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.launcher")),
+		                     buildLauncherList(),
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.env_vars")),
+		                     buildEnvironmentVariablesList(),
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.commands")),
+		                     buildCommandsList(),
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.debug")),
+		                     buildDebugList());
+		root.getStyleClass().add("card-list");
+		setContent(root);
 
-        // After the content: smooth scrolling binds to it and throws on null.
-        FXUtils.smoothScrolling(this);
-    }
+		// After the content: smooth scrolling binds to it and throws on null.
+		FXUtils.smoothScrolling(this);
+	}
 
-    /// Builds the environment section: what a new instance is given.
-    ///
-    /// HMCL keeps Java management at the top level of its settings rather than
-    /// per instance, and the reasoning carries over: a runtime is a launcher's
-    /// business, not something every instance should have its own copy of. An
-    /// instance may still pin its own, which is what these are the defaults for.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildEnvironmentList() {
-        ComponentList list = new ComponentList();
+	/// Returns the folder the launcher writes its log in, making it when it is not there yet.
+	///
+	/// @return the log folder
+	private static Path logFolder() {
+		Path logs = DshPaths.LOGS;
+		try {
+			Files.createDirectories(logs);
+		} catch (IOException e) {
+			Logger.LOG.warning("Could not create the log folder " + logs, e);
+		}
+		return logs;
+	}
 
-        LineSelectButton<String> node = new LineSelectButton<>();
-        node.setTitle(i18n("dsh.settings.default_node"));
+	/// Builds the environment section: what a new instance is given.
+	///
+	/// HMCL keeps Java management at the top level of its settings rather than
+	/// per instance, and the reasoning carries over: a runtime is a launcher's
+	/// business, not something every instance should have its own copy of. An
+	/// instance may still pin its own, which is what these are the defaults for.
+	///
+	/// @return the assembled component list
+	private ComponentList buildEnvironmentList() {
+		ComponentList list = new ComponentList();
 
-        List<String> runtimes = new ArrayList<>();
-        runtimes.add(DshNodeRuntime.SYSTEM);
-        for (NodeRuntime runtime : NodeRuntimeManager.listInstalled()) {
-            runtimes.add(runtime.version());
-        }
-        node.setItems(runtimes);
-        node.setNullSafeConverter(selection -> DshNodeRuntime.SYSTEM.equals(selection)
-                ? i18n("dsh.install.node.system")
-                : selection);
-        node.setValue(settings().defaultNodeRuntimeProperty().get());
-        node.valueProperty().addListener((observable, was, value) -> {
-            if (value != null && !value.equals(was)) {
-                settings().defaultNodeRuntimeProperty().set(value);
-                SettingsManager.save();
-            }
-        });
-        list.getContent().add(node);
+		LineSelectButton<String> node = new LineSelectButton<>();
+		node.setTitle(i18n("dsh.settings.default_node"));
 
-        LineSelectButton<DshHomeMode> home = new LineSelectButton<>();
-        home.setTitle(i18n("dsh.settings.default_home"));
-        // The policy first, then what "not isolated" means — the original's arrangement, and the
-        // one that reads correctly: the rule decides, and the mode below says what it falls back to.
-        LineSelectButton<DshIsolationPolicy> policy = new LineSelectButton<>();
-        policy.setTitle(i18n("dsh.settings.isolation"));
-        policy.setItems(DshIsolationPolicy.values());
-        policy.setConverter(choice -> choice == null ? ""
-                : i18n("dsh.settings.isolation." + choice.id()));
-        policy.setValue(settings().isolationPolicy());
-        policy.valueProperty().addListener((observable, was, value) -> {
-            if (value != null) {
-                settings().isolationPolicyProperty().set(value);
-            }
-        });
-        home.setItems(DshHomeMode.ISOLATED, DshHomeMode.VERSION_SHARED);
-        home.setNullSafeConverter(mode -> i18n("dsh.instance.home." + mode.name().toLowerCase(Locale.ROOT)));
-        home.setValue(settings().defaultHomeModeProperty().get());
-        home.valueProperty().addListener((observable, was, value) -> {
-            if (value != null && value != was) {
-                settings().defaultHomeModeProperty().set(value);
-                SettingsManager.save();
-            }
-        });
-        list.getContent().add(policy);
-        list.getContent().add(home);
+		List<String> runtimes = new ArrayList<>();
+		runtimes.add(DshNodeRuntime.SYSTEM);
+		for (NodeRuntime runtime : NodeRuntimeManager.listInstalled()) {
+			runtimes.add(runtime.version());
+		}
+		node.setItems(runtimes);
+		node.setNullSafeConverter(selection -> DshNodeRuntime.SYSTEM.equals(selection)
+		                                       ? i18n("dsh.install.node.system")
+		                                       : selection);
+		node.setValue(settings().defaultNodeRuntimeProperty().get());
+		node.valueProperty().addListener((observable, was, value) -> {
+			if (value != null && !value.equals(was)) {
+				settings().defaultNodeRuntimeProperty().set(value);
+				SettingsManager.save();
+			}
+		});
+		list.getContent().add(node);
 
-        // The arguments a new instance is launched with. Beside the runtime and the home, because
-        // it is the third thing that decides what actually runs.
-        //
-        // A plain row with a field on it, **not** an inheritable one — and that is the whole point of
-        // this row rather than a detail. The inheritable rows carry a globe beside the name, and the
-        // globe means "this follows the launcher until you say otherwise"; there is nothing above
-        // this row to follow, because this row *is* the launcher's answer. A globe here would be
-        // offering to inherit the setting from itself.
-        //
-        // It has no subtitle for the same reason: the line it used to carry describes an instance
-        // overriding the launcher, which is a sentence about the page next door. What this row does
-        // is what its own name already says.
-        LinePane arguments = new LinePane();
-        arguments.setTitle(i18n("dsh.settings.default_launch_args"));
+		LineSelectButton<DshHomeMode> home = new LineSelectButton<>();
+		home.setTitle(i18n("dsh.settings.default_home"));
+		// The policy first, then what "not isolated" means — the original's arrangement, and the
+		// one that reads correctly: the rule decides, and the mode below says what it falls back to.
+		LineSelectButton<DshIsolationPolicy> policy = new LineSelectButton<>();
+		policy.setTitle(i18n("dsh.settings.isolation"));
+		policy.setItems(DshIsolationPolicy.values());
+		policy.setConverter(choice -> choice == null ? "" : i18n("dsh.settings.isolation." + choice.id()));
+		policy.setValue(settings().isolationPolicy());
+		policy.valueProperty().addListener((observable, was, value) -> {
+			if (value != null) {
+				settings().isolationPolicyProperty().set(value);
+			}
+		});
+		home.setItems(DshHomeMode.ISOLATED, DshHomeMode.VERSION_SHARED);
+		home.setNullSafeConverter(mode -> i18n("dsh.instance.home." + mode.name().toLowerCase(Locale.ROOT)));
+		home.setValue(settings().defaultHomeModeProperty().get());
+		home.valueProperty().addListener((observable, was, value) -> {
+			if (value != null && value != was) {
+				settings().defaultHomeModeProperty().set(value);
+				SettingsManager.save();
+			}
+		});
+		list.getContent().add(policy);
+		list.getContent().add(home);
 
-        // The launcher's own text field, not JavaFX's: every other row on this page wears the
-        // launcher's field surface, and the stock control is a white box in the middle of a dark
-        // page — which is exactly what a first attempt at this looked like.
-        com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField();
-        field.setMinWidth(420);
-        field.setText(settings().defaultLaunchArguments());
-        field.textProperty().addListener((observable, was, text) ->
-                settings().defaultLaunchArgumentsProperty().set(text == null ? "" : text));
-        arguments.setRight(field);
-        list.getContent().add(arguments);
+		// The arguments a new instance is launched with. Beside the runtime and the home, because
+		// it is the third thing that decides what actually runs.
+		//
+		// A plain row with a field on it, **not** an inheritable one — and that is the whole point of
+		// this row rather than a detail. The inheritable rows carry a globe beside the name, and the
+		// globe means "this follows the launcher until you say otherwise"; there is nothing above
+		// this row to follow, because this row *is* the launcher's answer. A globe here would be
+		// offering to inherit the setting from itself.
+		//
+		// It has no subtitle for the same reason: the line it used to carry describes an instance
+		// overriding the launcher, which is a sentence about the page next door. What this row does
+		// is what its own name already says.
+		LinePane arguments = new LinePane();
+		arguments.setTitle(i18n("dsh.settings.default_launch_args"));
 
-        return list;
-    }
+		// The launcher's own text field, not JavaFX's: every other row on this page wears the
+		// launcher's field surface, and the stock control is a white box in the middle of a dark
+		// page — which is exactly what a first attempt at this looked like.
+		JFXTextField field = new JFXTextField();
+		field.setMinWidth(420);
+		field.setText(settings().defaultLaunchArguments());
+		field.textProperty()
+		     .addListener((observable, was, text) -> settings().defaultLaunchArgumentsProperty()
+		                                                       .set(text == null ? "" : text));
+		arguments.setRight(field);
+		list.getContent().add(arguments);
 
-    /// Builds the row about install scripts.
-    ///
-    /// Off by default: an install script runs with the user's own rights and nobody
-    /// has read it, so a launcher that ran them without being asked would be deciding
-    /// something that is not its to decide. An instance states its own answer, and the
-    /// instance's settings page is where it does.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildBuildScriptsList() {
-        LineSelectButton<DshBuildScriptPolicy> approve = new LineSelectButton<>();
-        approve.setTitle(i18n("dsh.settings.build_scripts.approve"));
-        // The rows around it say what they are for, and this one is the least obvious of
-        // them: what it decides is whether somebody is asked before a plugin's install
-        // script runs.
-        approve.setItems(List.of(DshBuildScriptPolicy.AUTO, DshBuildScriptPolicy.MANUAL,
-                DshBuildScriptPolicy.NEVER));
-        // The control asks for a display name before a value exists, so the converter
-        // answers for nothing as well as for an answer.
-        approve.setConverter(policy -> policy == null
-                ? "" : i18n("dsh.settings.build_scripts." + policy.id()));
-        approve.setValue(settings().buildScriptPolicy());
-        approve.valueProperty().addListener((observable, was, value) -> {
-            if (value != null) {
-                settings().buildScriptPolicyProperty().set(value);
-            }
-        });
+		return list;
+	}
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(approve);
-        return list;
-    }
+	/// Builds the row about install scripts.
+	///
+	/// Off by default: an install script runs with the user's own rights and nobody
+	/// has read it, so a launcher that ran them without being asked would be deciding
+	/// something that is not its to decide. An instance states its own answer, and the
+	/// instance's settings page is where it does.
+	///
+	/// @return the assembled component list
+	private ComponentList buildBuildScriptsList() {
+		LineSelectButton<DshBuildScriptPolicy> approve = new LineSelectButton<>();
+		approve.setTitle(i18n("dsh.settings.build_scripts.approve"));
+		// The rows around it say what they are for, and this one is the least obvious of
+		// them: what it decides is whether somebody is asked before a plugin's install
+		// script runs.
+		approve.setItems(List.of(DshBuildScriptPolicy.AUTO, DshBuildScriptPolicy.MANUAL, DshBuildScriptPolicy.NEVER));
+		// The control asks for a display name before a value exists, so the converter
+		// answers for nothing as well as for an answer.
+		approve.setConverter(policy -> policy == null ? "" : i18n("dsh.settings.build_scripts." + policy.id()));
+		approve.setValue(settings().buildScriptPolicy());
+		approve.valueProperty().addListener((observable, was, value) -> {
+			if (value != null) {
+				settings().buildScriptPolicyProperty().set(value);
+			}
+		});
 
-    /// Builds the rows about what the launcher does while an instance runs.
-    ///
-    /// The original's own rows in its launcher-settings card, in its order: how the
-    /// launcher gets out of the way, and whether the log window is opened.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildLauncherList() {
-        LineSelectButton<DshLauncherVisibility> visibility = new LineSelectButton<>();
-        visibility.setTitle(i18n("dsh.settings.launcher.visibility"));
-        visibility.setItems(DshLauncherVisibility.values());
-        visibility.setConverter(choice -> choice == null ? ""
-                : i18n("dsh.settings.launcher.visibility." + choice.id()));
-        visibility.setValue(settings().launcherVisibilityProperty().get());
-        visibility.valueProperty().addListener((observable, was, value) -> {
-            if (value != null) {
-                settings().launcherVisibilityProperty().set(value);
-            }
-        });
+		ComponentList list = new ComponentList();
+		list.getContent().add(approve);
+		return list;
+	}
 
-        LineToggleButton showLogs = new LineToggleButton();
-        showLogs.setTitle(i18n("dsh.settings.launcher.show_logs"));
-        showLogs.selectedProperty().bindBidirectional(settings().showLogsProperty());
+	/// Builds the rows about what the launcher does while an instance runs.
+	///
+	/// The original's own rows in its launcher-settings card, in its order: how the
+	/// launcher gets out of the way, and whether the log window is opened.
+	///
+	/// @return the assembled component list
+	private ComponentList buildLauncherList() {
+		LineSelectButton<DshLauncherVisibility> visibility = new LineSelectButton<>();
+		visibility.setTitle(i18n("dsh.settings.launcher.visibility"));
+		visibility.setItems(DshLauncherVisibility.values());
+		visibility.setConverter(choice -> choice == null
+		                                  ? ""
+		                                  : i18n("dsh.settings.launcher.visibility." + choice.id()));
+		visibility.setValue(settings().launcherVisibilityProperty().get());
+		visibility.valueProperty().addListener((observable, was, value) -> {
+			if (value != null) {
+				settings().launcherVisibilityProperty().set(value);
+			}
+		});
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(visibility);
-        list.getContent().add(showLogs);
-        return list;
-    }
+		LineToggleButton showLogs = new LineToggleButton();
+		showLogs.setTitle(i18n("dsh.settings.launcher.show_logs"));
+		showLogs.selectedProperty().bindBidirectional(settings().showLogsProperty());
 
-    /// Builds the two commands that run around an instance.
-    ///
-    /// A command is about the launcher's own behaviour rather than about the harness:
-    /// one runs before an instance starts and one after it has ended, and what they are
-    /// for is fitting the launcher into somebody's workflow. An instance may state its
-    /// own, which is what the instance's settings page is for.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildCommandsList() {
-        ComponentList list = new ComponentList();
-        list.getContent().add(commandRow(i18n("dsh.settings.commands.pre"),
-                settings().preLaunchCommandProperty()));
-        list.getContent().add(commandRow(i18n("dsh.settings.commands.post"),
-                settings().postExitCommandProperty()));
-        return list;
-    }
+		ComponentList list = new ComponentList();
+		list.getContent().add(visibility);
+		list.getContent().add(showLogs);
+		return list;
+	}
 
-    /// Builds one command row.
-    ///
-    /// The original's shape for a row with a box to type in: the name on the left and the field
-    /// beside it, which is how every other row here is built.
-    ///
-    /// @param title    the row's name
-    /// @param property what is typed into it
-    /// @return the row
-    private javafx.scene.Node commandRow(String title, javafx.beans.property.StringProperty property) {
-        LinePane pane = new LinePane();
-        pane.setTitle(title);
+	/// Builds the two commands that run around an instance.
+	///
+	/// A command is about the launcher's own behaviour rather than about the harness:
+	/// one runs before an instance starts and one after it has ended, and what they are
+	/// for is fitting the launcher into somebody's workflow. An instance may state its
+	/// own, which is what the instance's settings page is for.
+	///
+	/// @return the assembled component list
+	private ComponentList buildCommandsList() {
+		ComponentList list = new ComponentList();
+		list.getContent().add(commandRow(i18n("dsh.settings.commands.pre"), settings().preLaunchCommandProperty()));
+		list.getContent().add(commandRow(i18n("dsh.settings.commands.post"), settings().postExitCommandProperty()));
+		return list;
+	}
 
-        com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField();
-        field.setMinWidth(420);
-        field.textProperty().bindBidirectional(property);
-        pane.setRight(field);
-        return pane;
-    }
+	/// Builds one command row.
+	///
+	/// The original's shape for a row with a box to type in: the name on the left and the field
+	/// beside it, which is how every other row here is built.
+	///
+	/// @param title    the row's name
+	/// @param property what is typed into it
+	/// @return the row
+	private Node commandRow(String title, StringProperty property) {
+		LinePane pane = new LinePane();
+		pane.setTitle(title);
 
-    /// Builds the switch for the launcher's own debug lines.
-    ///
-    /// The switch is only worth anything beside the log it writes to, so the row that opens
-    /// that folder is built here rather than somewhere else: what somebody does after turning
-    /// the debug lines on is go and read them, and a file whose location is not on any page is
-    /// a file they have to be told about.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildDebugList() {
-        LineToggleButton debug = new LineToggleButton();
-        debug.setTitle(i18n("dsh.settings.debug.log"));
-        debug.setSubtitle(i18n("dsh.settings.debug.log.hint"));
-        debug.selectedProperty().bindBidirectional(settings().debugLogProperty());
-        debug.selectedProperty().addListener((observable, was, value) ->
-                org.jackhuang.hmcl.util.logging.Logger.setDebugEnabled(Boolean.TRUE.equals(value)));
+		JFXTextField field = new JFXTextField();
+		field.setMinWidth(420);
+		field.textProperty().bindBidirectional(property);
+		pane.setRight(field);
+		return pane;
+	}
 
-        org.jackhuang.hmcl.ui.construct.LineButton folder = new org.jackhuang.hmcl.ui.construct.LineButton();
-        folder.setTitle(i18n("settings.launcher.launcher_log.reveal"));
-        folder.setSubtitle(DshPaths.LOGS.toString());
-        folder.setLeading(org.jackhuang.hmcl.ui.SVG.FOLDER_OPEN, 16);
-        // Revealed rather than opened: the file explorer selects the folder this way, and the
-        // folder is made first so that the first run — which has not written one yet — gives a
-        // window with the place in it rather than an error about a path that is not there.
-        folder.setOnAction(event -> FXUtils.showFileInExplorer(logFolder()));
+	/// Builds the switch for the launcher's own debug lines.
+	///
+	/// The switch is only worth anything beside the log it writes to, so the row that opens
+	/// that folder is built here rather than somewhere else: what somebody does after turning
+	/// the debug lines on is go and read them, and a file whose location is not on any page is
+	/// a file they have to be told about.
+	///
+	/// @return the assembled component list
+	private ComponentList buildDebugList() {
+		LineToggleButton debug = new LineToggleButton();
+		debug.setTitle(i18n("dsh.settings.debug.log"));
+		debug.setSubtitle(i18n("dsh.settings.debug.log.hint"));
+		debug.selectedProperty().bindBidirectional(settings().debugLogProperty());
+		debug.selectedProperty()
+		     .addListener((observable, was, value) -> Logger.setDebugEnabled(Boolean.TRUE.equals(value)));
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(debug);
-        list.getContent().add(folder);
-        return list;
-    }
+		LineButton folder = new LineButton();
+		folder.setTitle(i18n("settings.launcher.launcher_log.reveal"));
+		folder.setSubtitle(DshPaths.LOGS.toString());
+		folder.setLeading(SVG.FOLDER_OPEN, 16);
+		// Revealed rather than opened: the file explorer selects the folder this way, and the
+		// folder is made first so that the first run — which has not written one yet — gives a
+		// window with the place in it rather than an error about a path that is not there.
+		folder.setOnAction(event -> FXUtils.showFileInExplorer(logFolder()));
 
-    /// Returns the folder the launcher writes its log in, making it when it is not there yet.
-    ///
-    /// @return the log folder
-    private static java.nio.file.Path logFolder() {
-        java.nio.file.Path logs = DshPaths.LOGS;
-        try {
-            java.nio.file.Files.createDirectories(logs);
-        } catch (java.io.IOException e) {
-            org.jackhuang.hmcl.util.logging.Logger.LOG.warning(
-                    "Could not create the log folder " + logs, e);
-        }
-        return logs;
-    }
+		ComponentList list = new ComponentList();
+		list.getContent().add(debug);
+		list.getContent().add(folder);
+		return list;
+	}
 
-    /// Builds the editor for the variables every instance runs with.
-    ///
-    /// One line of `NAME=VALUE` pairs, which is the shape the instance's own row has: the two are
-    /// the same setting seen from either end, and reading one should not mean learning a second
-    /// shape. What an instance sets is laid over this, so a variable written here reaches every
-    /// instance that has not overridden it.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildEnvironmentVariablesList() {
-        LinePane pane = new LinePane();
-        pane.setTitle(i18n("dsh.settings.env_vars"));
+	/// Builds the editor for the variables every instance runs with.
+	///
+	/// One line of `NAME=VALUE` pairs, which is the shape the instance's own row has: the two are
+	/// the same setting seen from either end, and reading one should not mean learning a second
+	/// shape. What an instance sets is laid over this, so a variable written here reaches every
+	/// instance that has not overridden it.
+	///
+	/// @return the assembled component list
+	private ComponentList buildEnvironmentVariablesList() {
+		LinePane pane = new LinePane();
+		pane.setTitle(i18n("dsh.settings.env_vars"));
 
-        com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField();
-        field.setMinWidth(420);
-        field.setText(DshEnvironment.format(settings().globalEnvironment()));
-        field.textProperty().addListener((observable, was, text) ->
-                settings().globalEnvironmentProperty().set(DshEnvironment.parse(text)));
-        pane.setRight(field);
+		JFXTextField field = new JFXTextField();
+		field.setMinWidth(420);
+		field.setText(DshEnvironment.format(settings().globalEnvironment()));
+		field.textProperty()
+		     .addListener((observable, was, text) -> settings().globalEnvironmentProperty()
+		                                                       .set(DshEnvironment.parse(text)));
+		pane.setRight(field);
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(pane);
-        return list;
-    }
+		ComponentList list = new ComponentList();
+		list.getContent().add(pane);
+		return list;
+	}
 }

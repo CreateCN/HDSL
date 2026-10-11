@@ -17,40 +17,40 @@ import java.util.function.Consumer;
 /// never read: the page it shows writes into the caller's own.
 @NotNullByDefault
 public final class AppBootWizardProvider implements WizardProvider {
-    /// The version the launcher itself runs, which needs no warning.
-    private final @Nullable String launcherVersion;
+	/// The version the launcher itself runs, which needs no warning.
+	private final @Nullable String launcherVersion;
 
-    /// Receives the chosen version, or `null` for the launcher's own.
-    private final Consumer<@Nullable String> onChosen;
+	/// Receives the chosen version, or `null` for the launcher's own.
+	private final Consumer<@Nullable String> onChosen;
 
-    /// Creates the provider.
-    ///
-    /// @param launcherVersion the version the launcher runs, or `null`
-    /// @param onChosen        receives the chosen version
-    public AppBootWizardProvider(@Nullable String launcherVersion, Consumer<@Nullable String> onChosen) {
-        this.launcherVersion = launcherVersion;
-        this.onChosen = onChosen;
-    }
+	/// Creates the provider.
+	///
+	/// @param launcherVersion the version the launcher runs, or `null`
+	/// @param onChosen        receives the chosen version
+	public AppBootWizardProvider(@Nullable String launcherVersion, Consumer<@Nullable String> onChosen) {
+		this.launcherVersion = launcherVersion;
+		this.onChosen = onChosen;
+	}
 
-    @Override
-    public void start(SettingsMap settings) {
-        // Nothing to seed: the page reads the versions itself.
-    }
+	@Override
+	public void start(SettingsMap settings) {
+		// Nothing to seed: the page reads the versions itself.
+	}
 
-    @Override
-    public @Nullable Node createPage(WizardController controller, int step, SettingsMap settings) {
-        return step == 0 ? new AppBootSelectPage(controller, launcherVersion, onChosen) : null;
-    }
+	@Override
+	public @Nullable Node createPage(WizardController controller, int step, SettingsMap settings) {
+		return step == 0 ? new AppBootSelectPage(controller, launcherVersion, onChosen) : null;
+	}
 
-    @Override
-    public Object finish(SettingsMap settings) {
-        // The choice is applied by the page when it is made; there is no work
-        // left for the wizard to run.
-        return null;
-    }
+	@Override
+	public Object finish(SettingsMap settings) {
+		// The choice is applied by the page when it is made; there is no work
+		// left for the wizard to run.
+		return null;
+	}
 
-    @Override
-    public boolean cancel() {
-        return true;
-    }
+	@Override
+	public boolean cancel() {
+		return true;
+	}
 }

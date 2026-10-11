@@ -17,11 +17,7 @@
  */
 package com.mcxcc303.hdsl.instance;
 
-import com.mcxcc303.hdsl.instance.DshHomeMode;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.core.DshPaths;
-
 import org.jackhuang.hmcl.util.io.FileUtils;
 import org.junit.jupiter.api.Test;
 
@@ -30,11 +26,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies that renaming an instance takes everything named after it along.
 ///
@@ -43,79 +35,84 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// new folder and then deleted from it. The folder the instance owns is named
 /// after the instance, so the instance's own files have to move with it.
 class DshInstanceRenameTest {
-    /// Renames an instance in one home mode and checks what moved and what did not.
-    ///
-    /// @param mode the home mode the instance is made with
-    /// @throws Exception when the filesystem refuses
-    private static void renamingTakesTheFolderAlong(DshHomeMode mode) throws Exception {
-        String id = "test-rename-" + mode.name().toLowerCase() + "-" + Long.toHexString(System.nanoTime());
-        String newId = id + "-renamed";
-        Path customHome = mode == DshHomeMode.CUSTOM
-                ? Files.createTempDirectory("test-rename-home-") : null;
+	/// Renames an instance in one home mode and checks what moved and what did not.
+	///
+	/// @param mode the home mode the instance is made with
+	/// @throws Exception when the filesystem refuses
+	private static void renamingTakesTheFolderAlong(DshHomeMode mode) throws Exception {
+		String id = "test-rename-" + mode.name().toLowerCase() + "-" + Long.toHexString(System.nanoTime());
+		String newId = id + "-renamed";
+		Path customHome = mode == DshHomeMode.CUSTOM ? Files.createTempDirectory("test-rename-home-") : null;
 
-        DshInstance created = DshInstanceManager.create(id, "1.0.0", DshInstance.DEFAULT_PROFILE,
-                Path.of(System.getProperty("java.io.tmpdir")), mode, customHome, List.of(), Map.of());
-        assertNotNull(created, "the instance has to be made before it can be renamed");
+		DshInstance created = DshInstanceManager.create(id,
+		                                                "1.0.0",
+		                                                DshInstance.DEFAULT_PROFILE,
+		                                                Path.of(System.getProperty("java.io.tmpdir")),
+		                                                mode,
+		                                                customHome,
+		                                                List.of(),
+		                                                Map.of());
+		assertNotNull(created, "the instance has to be made before it can be renamed");
 
-        Path oldDirectory = DshPaths.instanceDirectory(id);
-        Path newDirectory = DshPaths.instanceDirectory(newId);
+		Path oldDirectory = DshPaths.instanceDirectory(id);
+		Path newDirectory = DshPaths.instanceDirectory(newId);
 
-        try {
-            Files.createDirectories(oldDirectory.resolve("dsh"));
-            Files.writeString(oldDirectory.resolve("dsh/marker.txt"), "runtime");
+		try {
+			Files.createDirectories(oldDirectory.resolve("dsh"));
+			Files.writeString(oldDirectory.resolve("dsh/marker.txt"), "runtime");
 
-            DshInstance renamed = DshInstanceManager.rename(id, newId);
+			DshInstance renamed = DshInstanceManager.rename(id, newId);
 
-            assertEquals(newId, renamed.id(), "the instance has to come back under its new id");
-            assertNotNull(InstanceStore.find(newId), "the new id has to be readable");
-            assertNull(InstanceStore.find(id), "the old id must hold nothing");
-            assertTrue(Files.isRegularFile(newDirectory.resolve(InstanceStore.MANIFEST_NAME)),
-                    "the manifest has to move with the instance instead of being deleted");
-            assertTrue(Files.isRegularFile(newDirectory.resolve("dsh/marker.txt")),
-                    "the runtime has to move with the instance");
-            assertFalse(Files.exists(oldDirectory), "the old folder has to be gone");
-            assertTrue(InstanceListing.list().stream().anyMatch(i -> i.id().equals(newId)),
-                    "the list has to show the new id");
+			assertEquals(newId, renamed.id(), "the instance has to come back under its new id");
+			assertNotNull(InstanceStore.find(newId), "the new id has to be readable");
+			assertNull(InstanceStore.find(id), "the old id must hold nothing");
+			assertTrue(Files.isRegularFile(newDirectory.resolve(InstanceStore.MANIFEST_NAME)),
+			           "the manifest has to move with the instance instead of being deleted");
+			assertTrue(Files.isRegularFile(newDirectory.resolve("dsh/marker.txt")),
+			           "the runtime has to move with the instance");
+			assertFalse(Files.exists(oldDirectory), "the old folder has to be gone");
+			assertTrue(InstanceListing.list().stream().anyMatch(i -> i.id().equals(newId)),
+			           "the list has to show the new id");
 
-            if (mode == DshHomeMode.ISOLATED) {
-                assertTrue(Files.isDirectory(newDirectory.resolve("home")),
-                        "an isolated home is part of the folder and moves with it");
-            }
-            if (mode == DshHomeMode.CUSTOM) {
-                assertTrue(Files.exists(customHome), "a home the person chose is left where it is");
-            }
-        } finally {
-            deleteQuietly(id);
-            deleteQuietly(newId);
-            if (customHome != null) {
-                FileUtils.deleteDirectoryQuietly(customHome);
-            }
-        }
-    }
+			if (mode == DshHomeMode.ISOLATED) {
+				assertTrue(Files.isDirectory(newDirectory.resolve("home")),
+				           "an isolated home is part of the folder and moves with it");
+			}
+			if (mode == DshHomeMode.CUSTOM) {
+				assertTrue(Files.exists(customHome), "a home the person chose is left where it is");
+			}
+		} finally {
+			deleteQuietly(id);
+			deleteQuietly(newId);
+			if (customHome != null) {
+				FileUtils.deleteDirectoryQuietly(customHome);
+			}
+		}
+	}
 
-    /// Removes an instance without letting a cleanup failure mask the assertions.
-    ///
-    /// @param id the instance id
-    private static void deleteQuietly(String id) {
-        try {
-            DshInstanceManager.delete(id);
-        } catch (Exception ignored) {
-            // There was nothing left to remove.
-        }
-    }
+	/// Removes an instance without letting a cleanup failure mask the assertions.
+	///
+	/// @param id the instance id
+	private static void deleteQuietly(String id) {
+		try {
+			DshInstanceManager.delete(id);
+		} catch (Exception ignored) {
+			// There was nothing left to remove.
+		}
+	}
 
-    @Test
-    void anIsolatedInstanceMovesItsOwnFolderAndHome() throws Exception {
-        renamingTakesTheFolderAlong(DshHomeMode.ISOLATED);
-    }
+	@Test
+	void anIsolatedInstanceMovesItsOwnFolderAndHome() throws Exception {
+		renamingTakesTheFolderAlong(DshHomeMode.ISOLATED);
+	}
 
-    @Test
-    void aSharedHomeInstanceMovesOnlyItsOwnFolder() throws Exception {
-        renamingTakesTheFolderAlong(DshHomeMode.GLOBAL);
-    }
+	@Test
+	void aSharedHomeInstanceMovesOnlyItsOwnFolder() throws Exception {
+		renamingTakesTheFolderAlong(DshHomeMode.GLOBAL);
+	}
 
-    @Test
-    void aCustomHomeInstanceKeepsItsChosenHome() throws Exception {
-        renamingTakesTheFolderAlong(DshHomeMode.CUSTOM);
-    }
+	@Test
+	void aCustomHomeInstanceKeepsItsChosenHome() throws Exception {
+		renamingTakesTheFolderAlong(DshHomeMode.CUSTOM);
+	}
 }

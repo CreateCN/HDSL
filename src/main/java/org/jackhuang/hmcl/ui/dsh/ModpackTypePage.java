@@ -46,80 +46,82 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// be made when there is more than one to make.
 @NotNullByDefault
 public final class ModpackTypePage extends VBox implements WizardPage {
-    /// The wizard this page belongs to.
-    private final WizardController controller;
+	/// The wizard this page belongs to.
+	private final WizardController controller;
 
-    /// Creates the page.
-    ///
-    /// @param controller the wizard controller
-    public ModpackTypePage(WizardController controller) {
-        this.controller = controller;
+	/// Creates the page.
+	///
+	/// @param controller the wizard controller
+	public ModpackTypePage(WizardController controller) {
+		this.controller = controller;
 
-        setPadding(new Insets(10));
-        getStyleClass().add("jfx-list-view");
-        setMaxSize(400, 150);
-        setSpacing(8);
+		setPadding(new Insets(10));
+		getStyleClass().add("jfx-list-view");
+		setMaxSize(400, 150);
+		setSpacing(8);
 
-        Label title = new Label(i18n("modpack.export.as"));
-        VBox.setMargin(title, new Insets(8, 0, 8, 12));
-        getChildren().setAll(title, createButton(true), createButton(false));
+		Label title = new Label(i18n("modpack.export.as"));
+		VBox.setMargin(title, new Insets(8, 0, 8, 12));
+		getChildren().setAll(title, createButton(true), createButton(false));
 
-        // Said once, as the wizard opens: part of what this instance holds is not something a pack
-        // can carry. Deferred to the next pulse because this page is built before it is on screen,
-        // and a dialog raised here would stand in front of the page it is about.
-        Platform.runLater(() -> warnAboutLocalPlugins(controller));
-    }
+		// Said once, as the wizard opens: part of what this instance holds is not something a pack
+		// can carry. Deferred to the next pulse because this page is built before it is on screen,
+		// and a dialog raised here would stand in front of the page it is about.
+		Platform.runLater(() -> warnAboutLocalPlugins(controller));
+	}
 
-    /// Says what a plugin installed from this machine means for the pack, once per wizard.
-    ///
-    /// @param controller the wizard controller
-    private static void warnAboutLocalPlugins(WizardController controller) {
-        SettingsMap settings = controller.getSettings();
-        if (Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.LOCAL_WARNED))
-                || ModpackExportWizardProvider.localPluginsOf(settings).isEmpty()) {
-            return;
-        }
-        settings.put(ModpackExportWizardProvider.LOCAL_WARNED, Boolean.TRUE);
-        Controllers.dialog(i18n("dsh.modpack.development.enter"),
-                i18n("dsh.modpack.development.title"), MessageType.WARNING);
-    }
+	/// Says what a plugin installed from this machine means for the pack, once per wizard.
+	///
+	/// @param controller the wizard controller
+	private static void warnAboutLocalPlugins(WizardController controller) {
+		SettingsMap settings = controller.getSettings();
+		if (Boolean.TRUE.equals(settings.get(ModpackExportWizardProvider.LOCAL_WARNED)) ||
+		    ModpackExportWizardProvider.localPluginsOf(settings).isEmpty()) {
+			return;
+		}
+		settings.put(ModpackExportWizardProvider.LOCAL_WARNED, Boolean.TRUE);
+		Controllers.dialog(i18n("dsh.modpack.development.enter"),
+		                   i18n("dsh.modpack.development.title"),
+		                   MessageType.WARNING);
+	}
 
-    /// Builds the one option there is.
-    ///
-    /// The shape the original's three options have: a card, a two-line label, and
-    /// the arrow that says it leads somewhere.
-    ///
-    /// @return the row
-    private Node createButton(boolean hdsl) {
-        JFXButton button = new JFXButton();
-        button.getStyleClass().add("card");
-        button.setOnAction(event -> {
-            controller.getSettings().put(ModpackExportWizardProvider.FORMAT, hdsl
-                    ? ModpackExportWizardProvider.FORMAT_HDSL
-                    : ModpackExportWizardProvider.FORMAT_PACKFORGE);
-            controller.onNext();
-        });
-        button.prefWidthProperty().bind(widthProperty());
+	/// Builds the one option there is.
+	///
+	/// The shape the original's three options have: a card, a two-line label, and
+	/// the arrow that says it leads somewhere.
+	///
+	/// @return the row
+	private Node createButton(boolean hdsl) {
+		JFXButton button = new JFXButton();
+		button.getStyleClass().add("card");
+		button.setOnAction(event -> {
+			controller.getSettings()
+			          .put(ModpackExportWizardProvider.FORMAT,
+			               hdsl
+			               ? ModpackExportWizardProvider.FORMAT_HDSL
+			               : ModpackExportWizardProvider.FORMAT_PACKFORGE);
+			controller.onNext();
+		});
+		button.prefWidthProperty().bind(widthProperty());
 
-        BorderPane graphic = new BorderPane();
-        graphic.setMouseTransparent(true);
-        graphic.setLeft(new TwoLineListItem(
-                i18n(hdsl ? "dsh.modpack.type" : "dsh.packforge.type"),
-                i18n(hdsl ? "dsh.modpack.type.detail" : "dsh.packforge.type.detail")));
+		BorderPane graphic = new BorderPane();
+		graphic.setMouseTransparent(true);
+		graphic.setLeft(new TwoLineListItem(i18n(hdsl ? "dsh.modpack.type" : "dsh.packforge.type"),
+		                                    i18n(hdsl ? "dsh.modpack.type.detail" : "dsh.packforge.type.detail")));
 
-        Node arrow = SVG.ARROW_FORWARD.createIcon();
-        BorderPane.setAlignment(arrow, Pos.CENTER);
-        graphic.setRight(arrow);
-        button.setGraphic(graphic);
-        return button;
-    }
+		Node arrow = SVG.ARROW_FORWARD.createIcon();
+		BorderPane.setAlignment(arrow, Pos.CENTER);
+		graphic.setRight(arrow);
+		button.setGraphic(graphic);
+		return button;
+	}
 
-    @Override
-    public void cleanup(SettingsMap settings) {
-    }
+	@Override
+	public void cleanup(SettingsMap settings) {
+	}
 
-    @Override
-    public String getTitle() {
-        return i18n("modpack.wizard.step.3.title");
-    }
+	@Override
+	public String getTitle() {
+		return i18n("modpack.wizard.step.3.title");
+	}
 }

@@ -18,6 +18,9 @@
 package com.mcxcc303.hdsl.instance;
 
 import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Locale;
 
 /// How the browser surface's port is chosen for an instance.
 ///
@@ -27,34 +30,34 @@ import org.jetbrains.annotations.NotNullByDefault;
 /// therefore keeps one port for its whole life, whichever mode is in use.
 @NotNullByDefault
 public enum DshPortMode {
-    /// Pick a free port on first launch and keep it from then on.
-    AUTO,
+	/// Pick a free port on first launch and keep it from then on.
+	AUTO,
 
-    /// Use the port the user chose.
-    FIXED,
+	/// Use the port the user chose.
+	FIXED,
 
-    /// Follow the launcher's own policy, which is what an instance starts at.
-    GLOBAL;
+	/// Follow the launcher's own policy, which is what an instance starts at.
+	GLOBAL;
 
-    /// Returns the name used in settings files and on the command line.
-    ///
-    /// @return the lower-case name
-    public String id() {
-        return name().toLowerCase(java.util.Locale.ROOT);
-    }
+	/// Resolves a mode from its stored name.
+	///
+	/// @param value the stored name, possibly `null` or of the wrong case
+	/// @return the matching mode, or [DshPortMode#AUTO] when unrecognised
+	public static DshPortMode of(@Nullable String value) {
+		if (value != null) {
+			for (DshPortMode mode : values()) {
+				if (mode.name().equalsIgnoreCase(value.trim())) {
+					return mode;
+				}
+			}
+		}
+		return AUTO;
+	}
 
-    /// Resolves a mode from its stored name.
-    ///
-    /// @param value the stored name, possibly `null` or of the wrong case
-    /// @return the matching mode, or [DshPortMode#AUTO] when unrecognised
-    public static DshPortMode of(@org.jetbrains.annotations.Nullable String value) {
-        if (value != null) {
-            for (DshPortMode mode : values()) {
-                if (mode.name().equalsIgnoreCase(value.trim())) {
-                    return mode;
-                }
-            }
-        }
-        return AUTO;
-    }
+	/// Returns the name used in settings files and on the command line.
+	///
+	/// @return the lower-case name
+	public String id() {
+		return name().toLowerCase(Locale.ROOT);
+	}
 }

@@ -17,27 +17,28 @@
  */
 package org.jackhuang.hmcl.ui.dsh.install;
 
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.harness.DshPackageRegistry;
+import com.mcxcc303.hdsl.harness.DshPreset;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.harness.DshPackageRegistry;
-import com.mcxcc303.hdsl.harness.DshPreset;
 import org.jackhuang.hmcl.task.Schedulers;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.dsh.VersionFilterBar;
-import java.util.List;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LineButton;
 import org.jackhuang.hmcl.ui.construct.SpinnerPane;
+import org.jackhuang.hmcl.ui.dsh.VersionFilterBar;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardPage;
 import org.jackhuang.hmcl.util.SettingsMap;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -51,121 +52,119 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// user presses Install on the create page.
 @NotNullByDefault
 public final class PresetChoicePage extends ScrollPane implements WizardPage {
-    /// The wizard controller used to return.
-    private final WizardController controller;
+	/// The wizard controller used to return.
+	private final WizardController controller;
 
-    /// The catalogue entry being configured.
-    private final DshPreset preset;
+	/// The catalogue entry being configured.
+	private final DshPreset preset;
 
-    /// The version rows, filtered by the name box and the type filter.
-    private final ComponentList choices = new ComponentList();
+	/// The version rows, filtered by the name box and the type filter.
+	private final ComponentList choices = new ComponentList();
 
-    /// The name box and type filter, shared with the other version lists.
-    private final VersionFilterBar filterBar = new VersionFilterBar(this::render, this::loadVersions);
+	/// The name box and type filter, shared with the other version lists.
+	private final VersionFilterBar filterBar = new VersionFilterBar(this::render, this::loadVersions);
+	/// The status line.
+	private final Label status = new Label();
+	/// Covers the list while versions load.
+	private final SpinnerPane spinner = new SpinnerPane();
+	/// Every version the last load returned, before filtering.
+	private List<String> versions = List.of();
 
-    /// Every version the last load returned, before filtering.
-    private List<String> versions = List.of();
+	/// Creates the page.
+	///
+	/// @param controller the wizard controller
+	/// @param preset     the catalogue entry to configure
+	public PresetChoicePage(WizardController controller, DshPreset preset) {
+		this.controller = controller;
+		this.preset = preset;
 
-    /// The status line.
-    private final Label status = new Label();
+		setFitToWidth(true);
 
-    /// Covers the list while versions load.
-    private final SpinnerPane spinner = new SpinnerPane();
+		VBox root = new VBox(10);
+		// The original's install pages pad their root by sixteen.
+		root.setPadding(new Insets(16));
 
-    /// Creates the page.
-    ///
-    /// @param controller the wizard controller
-    /// @param preset     the catalogue entry to configure
-    public PresetChoicePage(WizardController controller, DshPreset preset) {
-        this.controller = controller;
-        this.preset = preset;
+		Label title = new Label(preset.name());
+		title.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
 
-        setFitToWidth(true);
+		Label description = new Label(preset.description());
+		description.setWrapText(true);
 
-        VBox root = new VBox(10);
-        // The original's install pages pad their root by sixteen.
-        root.setPadding(new Insets(16));
+		root.getChildren().addAll(title, description, filterBar, status, choices);
+		spinner.setContent(root);
+		setContent(spinner);
+		FXUtils.smoothScrolling(this);
 
-        Label title = new Label(preset.name());
-        title.setStyle("-fx-font-size: 15px; -fx-font-weight: bold;");
+		loadVersions();
+	}
 
-        Label description = new Label(preset.description());
-        description.setWrapText(true);
+	/// Loads the package's published versions in the background.
+	private void loadVersions() {
+		spinner.setLoading(true);
+		status.setText(i18n("dsh.versions.loading"));
 
-        root.getChildren().addAll(title, description, filterBar, status, choices);
-        spinner.setContent(root);
-        setContent(spinner);
-        FXUtils.smoothScrolling(this);
+		CompletableFuture.supplyAsync(() -> {
+			try {
+				return DshPackageRegistry.fetchVersions(preset.spec());
+			} catch (DshException e) {
+				throw new CompletionException(e);
+			}
+		}, Schedulers.io()).whenComplete((versions, throwable) -> runInFX(() -> {
+			spinner.setLoading(false);
+			if (throwable != null) {
+				Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
+				                  ? throwable.getCause()
+				                  : throwable;
+				LOG.warning("Failed to list versions of " + preset.spec(), cause);
+				status.setText(i18n("dsh.versions.load_failed") + ": " + cause.getMessage());
+				return;
+			}
+			status.setText(i18n("dsh.install.plugin.choose"));
+			this.versions = versions;
+			render();
+		}));
+	}
 
-        loadVersions();
-    }
+	/// Rebuilds the version rows from the last load and the filters.
+	private void render() {
+		choices.getContent().clear();
 
-    /// Loads the package's published versions in the background.
-    private void loadVersions() {
-        spinner.setLoading(true);
-        status.setText(i18n("dsh.versions.loading"));
+		// Every version the registry lists. A cap of twenty was here, and the
+		// marketplace publishes a hundred and twenty: the one list a user wants
+		// a particular old version from was the one that stopped at the newest
+		// twenty. The name box above it is what makes a long list usable.
+		for (String version : versions) {
+			if (filterBar.accepts(version)) {
+				choices.getContent().add(buildVersion(version));
+			}
+		}
+	}
 
-        CompletableFuture.supplyAsync(() -> {
-            try {
-                return DshPackageRegistry.fetchVersions(preset.spec());
-            } catch (DshException e) {
-                throw new java.util.concurrent.CompletionException(e);
-            }
-        }, Schedulers.io()).whenComplete((versions, throwable) -> runInFX(() -> {
-            spinner.setLoading(false);
-            if (throwable != null) {
-                Throwable cause = throwable instanceof java.util.concurrent.CompletionException
-                        && throwable.getCause() != null ? throwable.getCause() : throwable;
-                LOG.warning("Failed to list versions of " + preset.spec(), cause);
-                status.setText(i18n("dsh.versions.load_failed") + ": " + cause.getMessage());
-                return;
-            }
-            status.setText(i18n("dsh.install.plugin.choose"));
-            this.versions = versions;
-            render();
-        }));
-    }
+	/// @return the row
+	private LineButton buildVersion(String version) {
+		LineButton row = new LineButton();
+		row.setTitle(version);
+		row.setSubtitle(preset.spec() + "@" + version);
+		row.setOnAction(event -> choose(version));
+		return row;
+	}
 
-    /// Rebuilds the version rows from the last load and the filters.
-    private void render() {
-        choices.getContent().clear();
+	/// Records the choice and returns to the quick-install page.
+	///
+	/// @param version the chosen version, an empty string for "latest", or `null` for "do not install"
+	private void choose(@Nullable String version) {
+		SettingsMap settings = controller.getSettings();
+		DshInstallWizardProvider.presetChoices(settings).put(preset.id(), version);
+		controller.onPrev(false);
+	}
 
-        // Every version the registry lists. A cap of twenty was here, and the
-        // marketplace publishes a hundred and twenty: the one list a user wants
-        // a particular old version from was the one that stopped at the newest
-        // twenty. The name box above it is what makes a long list usable.
-        for (String version : versions) {
-            if (filterBar.accepts(version)) {
-                choices.getContent().add(buildVersion(version));
-            }
-        }
-    }
+	@Override
+	public void onNavigate(SettingsMap settings) {
+		// Reaching this page again means returning from it; nothing to refresh.
+	}
 
-    /// @return the row
-    private LineButton buildVersion(String version) {
-        LineButton row = new LineButton();
-        row.setTitle(version);
-        row.setSubtitle(preset.spec() + "@" + version);
-        row.setOnAction(event -> choose(version));
-        return row;
-    }
-
-    /// Records the choice and returns to the quick-install page.
-    ///
-    /// @param version the chosen version, an empty string for "latest", or `null` for "do not install"
-    private void choose(@Nullable String version) {
-        SettingsMap settings = controller.getSettings();
-        DshInstallWizardProvider.presetChoices(settings).put(preset.id(), version);
-        controller.onPrev(false);
-    }
-
-    @Override
-    public void onNavigate(SettingsMap settings) {
-        // Reaching this page again means returning from it; nothing to refresh.
-    }
-
-    @Override
-    public String getTitle() {
-        return i18n("dsh.install.plugin.choose");
-    }
+	@Override
+	public String getTitle() {
+		return i18n("dsh.install.plugin.choose");
+	}
 }

@@ -17,16 +17,13 @@
  */
 package com.mcxcc303.hdsl.instance;
 
-import com.mcxcc303.hdsl.instance.DshInstanceIcon;
-
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies the instance icon set is complete and resolvable.
 ///
@@ -34,49 +31,49 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// chooser. This checks the name against the bundled resources instead, and
 /// requires the three DeepSeek Harness marks to lead the set.
 class DshInstanceIconTest {
-    @Test
-    void everyIconResolvesToABundledImage() {
-        for (DshInstanceIcon icon : DshInstanceIcon.values()) {
-            assertNotNull(DshInstanceIcon.class.getResource("/assets/img/" + icon.assetName() + ".png"),
-                    "no image is bundled for " + icon.name() + " (looked for " + icon.assetName() + ".png)");
-        }
-    }
+	@Test
+	void everyIconResolvesToABundledImage() {
+		for (DshInstanceIcon icon : DshInstanceIcon.values()) {
+			assertNotNull(DshInstanceIcon.class.getResource("/assets/img/" + icon.assetName() + ".png"),
+			              "no image is bundled for " + icon.name() + " (looked for " + icon.assetName() + ".png)");
+		}
+	}
 
-    @Test
-    void everyIconHasADenseVariant() {
-        // The set is a 32-pixel image with a 64-pixel @2x beside it, and a
-        // missing half is invisible until someone looks at a dense display.
-        for (DshInstanceIcon icon : DshInstanceIcon.values()) {
-            assertNotNull(DshInstanceIcon.class.getResource("/assets/img/" + icon.assetName() + "@2x.png"),
-                    "no @2x image is bundled for " + icon.name());
-        }
-    }
+	@Test
+	void everyIconHasADenseVariant() {
+		// The set is a 32-pixel image with a 64-pixel @2x beside it, and a
+		// missing half is invisible until someone looks at a dense display.
+		for (DshInstanceIcon icon : DshInstanceIcon.values()) {
+			assertNotNull(DshInstanceIcon.class.getResource("/assets/img/" + icon.assetName() + "@2x.png"),
+			              "no @2x image is bundled for " + icon.name());
+		}
+	}
 
-    @Test
-    void theDeepSeekHarnessMarksComeFirst() {
-        DshInstanceIcon[] icons = DshInstanceIcon.values();
-        assertSame(DshInstanceIcon.DSH_APPLICATION, icons[0]);
-        assertSame(DshInstanceIcon.DSH_BLACK, icons[1]);
-        assertSame(DshInstanceIcon.DSH_WHITE, icons[2]);
-    }
+	@Test
+	void theDeepSeekHarnessMarksComeFirst() {
+		DshInstanceIcon[] icons = DshInstanceIcon.values();
+		assertSame(DshInstanceIcon.DSH_APPLICATION, icons[0]);
+		assertSame(DshInstanceIcon.DSH_BLACK, icons[1]);
+		assertSame(DshInstanceIcon.DSH_WHITE, icons[2]);
+	}
 
-    @Test
-    void theDefaultIsInTheSet() {
-        assertTrue(java.util.Arrays.asList(DshInstanceIcon.values()).contains(DshInstanceIcon.DEFAULT));
-    }
+	@Test
+	void theDefaultIsInTheSet() {
+		assertTrue(Arrays.asList(DshInstanceIcon.values()).contains(DshInstanceIcon.DEFAULT));
+	}
 
-    @Test
-    void namesAreUnique() {
-        Set<String> seen = new HashSet<>();
-        for (DshInstanceIcon icon : DshInstanceIcon.values()) {
-            assertTrue(seen.add(icon.id()), "duplicate icon id: " + icon.id());
-        }
-    }
+	@Test
+	void namesAreUnique() {
+		Set<String> seen = new HashSet<>();
+		for (DshInstanceIcon icon : DshInstanceIcon.values()) {
+			assertTrue(seen.add(icon.id()), "duplicate icon id: " + icon.id());
+		}
+	}
 
-    @Test
-    void anUnknownNameFallsBackToTheDefault() {
-        assertSame(DshInstanceIcon.DEFAULT, DshInstanceIcon.of("no-such-icon"));
-        assertSame(DshInstanceIcon.DEFAULT, DshInstanceIcon.of(null));
-        assertSame(DshInstanceIcon.DSH_APPLICATION, DshInstanceIcon.of("dsh_application"));
-    }
+	@Test
+	void anUnknownNameFallsBackToTheDefault() {
+		assertSame(DshInstanceIcon.DEFAULT, DshInstanceIcon.of("no-such-icon"));
+		assertSame(DshInstanceIcon.DEFAULT, DshInstanceIcon.of(null));
+		assertSame(DshInstanceIcon.DSH_APPLICATION, DshInstanceIcon.of("dsh_application"));
+	}
 }

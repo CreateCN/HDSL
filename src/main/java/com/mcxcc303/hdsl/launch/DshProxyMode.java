@@ -27,54 +27,54 @@ import org.jetbrains.annotations.Nullable;
 /// port to type. Which of them is chosen decides whether the two fields below mean anything.
 @NotNullByDefault
 public enum DshProxyMode {
-    /// Whatever the system is configured to use, which is to say nothing of the launcher's own.
-    SYSTEM("system"),
+	/// Whatever the system is configured to use, which is to say nothing of the launcher's own.
+	SYSTEM("system"),
 
-    /// No proxy, even if the system has one.
-    NONE("none"),
+	/// No proxy, even if the system has one.
+	NONE("none"),
 
-    /// An HTTP proxy at a host and port.
-    HTTP("http"),
+	/// An HTTP proxy at a host and port.
+	HTTP("http"),
 
-    /// A SOCKS proxy at a host and port.
-    SOCKS("socks");
+	/// A SOCKS proxy at a host and port.
+	SOCKS("socks");
 
-    /// The value the setting is stored as.
-    private final String id;
+	/// The value the setting is stored as.
+	private final String id;
 
-    /// Creates a mode.
-    ///
-    /// @param id the stored value
-    DshProxyMode(String id) {
-        this.id = id;
-    }
+	/// Creates a mode.
+	///
+	/// @param id the stored value
+	DshProxyMode(String id) {
+		this.id = id;
+	}
 
-    /// Returns the value the setting is stored as.
-    ///
-    /// @return the id
-    public String id() {
-        return id;
-    }
+	/// Reads a stored value.
+	///
+	/// @param value the stored value, or `null`
+	/// @return the mode, or [DshProxyMode#SYSTEM] when it is not one
+	public static DshProxyMode of(@Nullable String value) {
+		if (value != null) {
+			for (DshProxyMode mode : values()) {
+				if (mode.id.equalsIgnoreCase(value.trim())) {
+					return mode;
+				}
+			}
+		}
+		return SYSTEM;
+	}
 
-    /// Returns whether this mode needs a host and a port.
-    ///
-    /// @return whether it does
-    public boolean usesAddress() {
-        return this == HTTP || this == SOCKS;
-    }
+	/// Returns the value the setting is stored as.
+	///
+	/// @return the id
+	public String id() {
+		return id;
+	}
 
-    /// Reads a stored value.
-    ///
-    /// @param value the stored value, or `null`
-    /// @return the mode, or [DshProxyMode#SYSTEM] when it is not one
-    public static DshProxyMode of(@Nullable String value) {
-        if (value != null) {
-            for (DshProxyMode mode : values()) {
-                if (mode.id.equalsIgnoreCase(value.trim())) {
-                    return mode;
-                }
-            }
-        }
-        return SYSTEM;
-    }
+	/// Returns whether this mode needs a host and a port.
+	///
+	/// @return whether it does
+	public boolean usesAddress() {
+		return this == HTTP || this == SOCKS;
+	}
 }

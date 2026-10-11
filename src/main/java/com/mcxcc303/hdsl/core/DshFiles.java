@@ -17,14 +17,11 @@
  */
 package com.mcxcc303.hdsl.core;
 
+import org.jackhuang.hmcl.util.logging.Logger;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.io.IOException;
-import java.nio.file.AccessDeniedException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Path;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.DosFileAttributeView;
 
@@ -63,137 +60,139 @@ import java.nio.file.attribute.DosFileAttributeView;
 ///   reporting a failure and having done the work.
 @NotNullByDefault
 public final class DshFiles {
-    /// How many times a removal is attempted before it is reported as failed.
-    private static final int ATTEMPTS = 4;
+	/// How many times a removal is attempted before it is reported as failed.
+	private static final int ATTEMPTS = 4;
 
-    /// How long the first wait between attempts is; each attempt waits longer.
-    private static final long WAIT_MILLIS = 120;
+	/// How long the first wait between attempts is; each attempt waits longer.
+	private static final long WAIT_MILLIS = 120;
 
-    private DshFiles() {
-    }
+	private DshFiles() {
+	}
 
-    /// Removes a directory and everything under it.
-    ///
-    /// A path that is not there is not an error: the caller asked for it to be
-    /// gone, and it is.
-    ///
-    /// @param root the directory to remove
-    /// @throws IOException when an entry cannot be removed, naming that entry
-    public static void deleteTree(Path root) throws IOException {
-        if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
-            return;
-        }
-        IOException failure = null;
-        for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
-            try {
-                remove(root);
-                return;
-            } catch (IOException e) {
-                failure = e;
-                sleep(WAIT_MILLIS * (attempt + 1));
-            }
-        }
-        throw failure;
-    }
+	/// Removes a directory and everything under it.
+	///
+	/// A path that is not there is not an error: the caller asked for it to be
+	/// gone, and it is.
+	///
+	/// @param root the directory to remove
+	/// @throws IOException when an entry cannot be removed, naming that entry
+	public static void deleteTree(Path root) throws IOException {
+		if (!Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+			return;
+		}
+		IOException failure = null;
+		for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
+			try {
+				remove(root);
+				return;
+			} catch (IOException e) {
+				failure = e;
+				sleep(WAIT_MILLIS * (attempt + 1));
+			}
+		}
+		throw failure;
+	}
 
-    /// Removes a directory and everything under it, ignoring a failure.
-    ///
-    /// Used where the removal is tidying up after an operation that has already
-    /// succeeded, and where failing it would turn a success into a failure.
-    ///
-    /// @param root the directory to remove
-    /// @return whether it is gone
-    public static boolean deleteTreeQuietly(Path root) {
-        try {
-            deleteTree(root);
-            return true;
-        } catch (IOException e) {
-            org.jackhuang.hmcl.util.logging.Logger.LOG.warning("Failed to remove " + root, e);
-            return false;
-        }
-    }
+	/// Removes a directory and everything under it, ignoring a failure.
+	///
+	/// Used where the removal is tidying up after an operation that has already
+	/// succeeded, and where failing it would turn a success into a failure.
+	///
+	/// @param root the directory to remove
+	/// @return whether it is gone
+	public static boolean deleteTreeQuietly(Path root) {
+		try {
+			deleteTree(root);
+			return true;
+		} catch (IOException e) {
+			Logger.LOG.warning("Failed to remove " + root, e);
+			return false;
+		}
+	}
 
-    /// Removes one entry, taking its children first.
-    ///
-    /// @param path the entry
-    /// @throws IOException when it cannot be removed
-    private static void remove(Path path) throws IOException {
-        // A reparse point is deleted rather than walked into, whatever it points
-        // at. It is asked before the directory question, because that is the
-        // question a junction answers wrongly.
-        if (isReparsePoint(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-            delete(path);
-            return;
-        }
-        try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
-            for (Path entry : entries) {
-                remove(entry);
-            }
-        }
-        delete(path);
-    }
+	/// Removes one entry, taking its children first.
+	///
+	/// @param path the entry
+	/// @throws IOException when it cannot be removed
+	private static void remove(Path path) throws IOException {
+		// A reparse point is deleted rather than walked into, whatever it points
+		// at. It is asked before the directory question, because that is the
+		// question a junction answers wrongly.
+		if (isReparsePoint(path) || !Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+			delete(path);
+			return;
+		}
+		try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
+			for (Path entry : entries) {
+				remove(entry);
+			}
+		}
+		delete(path);
+	}
 
-    /// Removes one entry, clearing the attribute that stops Windows from doing it.
-    ///
-    /// @param path the entry
-    /// @throws IOException when it still cannot be removed
-    private static void delete(Path path) throws IOException {
-        try {
-            Files.deleteIfExists(path);
-        } catch (AccessDeniedException refused) {
-            // Only the entry that refused is touched, and only once: a tree of
-            // fifty thousand files must not pay two extra calls each for the
-            // handful that are read-only.
-            if (!clearReadOnly(path)) {
-                throw refused;
-            }
-            Files.deleteIfExists(path);
-        }
-    }
+	/// Removes one entry, clearing the attribute that stops Windows from doing it.
+	///
+	/// @param path the entry
+	/// @throws IOException when it still cannot be removed
+	private static void delete(Path path) throws IOException {
+		try {
+			Files.deleteIfExists(path);
+		} catch (AccessDeniedException refused) {
+			// Only the entry that refused is touched, and only once: a tree of
+			// fifty thousand files must not pay two extra calls each for the
+			// handful that are read-only.
+			if (!clearReadOnly(path)) {
+				throw refused;
+			}
+			Files.deleteIfExists(path);
+		}
+	}
 
-    /// Clears an entry's read-only attribute.
-    ///
-    /// @param path the entry
-    /// @return whether the attribute was cleared, which is impossible on a
-    ///         filesystem that has no such attribute
-    private static boolean clearReadOnly(Path path) {
-        try {
-            DosFileAttributeView attributes =
-                    Files.getFileAttributeView(path, DosFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
-            if (attributes == null) {
-                return false;
-            }
-            attributes.setReadOnly(false);
-            return true;
-        } catch (IOException | RuntimeException e) {
-            return false;
-        }
-    }
+	/// Clears an entry's read-only attribute.
+	///
+	/// @param path the entry
+	/// @return whether the attribute was cleared, which is impossible on a
+	///         filesystem that has no such attribute
+	private static boolean clearReadOnly(Path path) {
+		try {
+			DosFileAttributeView attributes = Files.getFileAttributeView(path,
+			                                                             DosFileAttributeView.class,
+			                                                             LinkOption.NOFOLLOW_LINKS);
+			if (attributes == null) {
+				return false;
+			}
+			attributes.setReadOnly(false);
+			return true;
+		} catch (IOException | RuntimeException e) {
+			return false;
+		}
+	}
 
-    /// Reports whether an entry is a link of some kind rather than a directory.
-    ///
-    /// @param path the entry
-    /// @return whether it must be deleted rather than entered
-    private static boolean isReparsePoint(Path path) {
-        try {
-            BasicFileAttributes attributes =
-                    Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-            return attributes.isSymbolicLink() || attributes.isOther();
-        } catch (IOException | RuntimeException e) {
-            // Something that cannot even be asked about is not something to walk
-            // into: it is deleted, and the failure that follows names it.
-            return true;
-        }
-    }
+	/// Reports whether an entry is a link of some kind rather than a directory.
+	///
+	/// @param path the entry
+	/// @return whether it must be deleted rather than entered
+	private static boolean isReparsePoint(Path path) {
+		try {
+			BasicFileAttributes attributes = Files.readAttributes(path,
+			                                                      BasicFileAttributes.class,
+			                                                      LinkOption.NOFOLLOW_LINKS);
+			return attributes.isSymbolicLink() || attributes.isOther();
+		} catch (IOException | RuntimeException e) {
+			// Something that cannot even be asked about is not something to walk
+			// into: it is deleted, and the failure that follows names it.
+			return true;
+		}
+	}
 
-    /// Waits a while, giving a closing handle time to close.
-    ///
-    /// @param millis how long to wait
-    private static void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
+	/// Waits a while, giving a closing handle time to close.
+	///
+	/// @param millis how long to wait
+	private static void sleep(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
+	}
 }

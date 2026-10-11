@@ -17,20 +17,23 @@
  */
 package com.mcxcc303.hdsl.harness;
 
-import com.mcxcc303.hdsl.instance.InstanceListing;
-
 import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import com.mcxcc303.hdsl.core.DshPaths;
-
+import com.mcxcc303.hdsl.instance.DshInstance;
+import com.mcxcc303.hdsl.instance.InstanceListing;
+import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import org.jackhuang.hmcl.Metadata;
+import org.jackhuang.hmcl.setting.SettingsManager;
+import org.jackhuang.hmcl.theme.ThemePackManager;
+import org.jackhuang.hmcl.util.i18n.I18n;
+import org.jackhuang.hmcl.util.i18n.SupportedLocale;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /// Prints a diagnostics report describing everything HDSL needs to run.
@@ -41,118 +44,118 @@ import java.util.Optional;
 /// exercised outside the UI.
 @NotNullByDefault
 public final class DshDoctor {
-    private DshDoctor() {
-    }
+	private DshDoctor() {
+	}
 
-    /// Runs the diagnostics and prints them.
-    ///
-    /// @param out the stream to print to
-    /// @return the process exit code, non-zero when a hard requirement is missing
-    public static int report(PrintStream out) {
-        out.println("HDSL " + Metadata.VERSION + " diagnostics");
-        out.println("Java:      " + System.getProperty("java.vm.name") + " " + System.getProperty("java.version"));
-        out.println("OS:        " + System.getProperty("os.name") + " / " + System.getProperty("os.arch"));
-        out.println();
+	/// Runs the diagnostics and prints them.
+	///
+	/// @param out the stream to print to
+	/// @return the process exit code, non-zero when a hard requirement is missing
+	public static int report(PrintStream out) {
+		out.println("HDSL " + Metadata.VERSION + " diagnostics");
+		out.println("Java:      " + System.getProperty("java.vm.name") + " " + System.getProperty("java.version"));
+		out.println("OS:        " + System.getProperty("os.name") + " / " + System.getProperty("os.arch"));
+		out.println();
 
-        out.println("Language");
-        out.println("  system locale:   " + java.util.Locale.getDefault());
-        out.println("  resolved locale: " + org.jackhuang.hmcl.util.i18n.I18n.getLocale().getLocale()
-                + "  (display: " + org.jackhuang.hmcl.util.i18n.I18n.getLocale().getDisplayLocale() + ")");
-        out.println("  supported:       " + org.jackhuang.hmcl.util.i18n.SupportedLocale.getSupportedLocales().size()
-                + " locale(s)");
-        out.println("  sample string:   " + org.jackhuang.hmcl.util.i18n.I18n.i18n("dsh.instance.create"));
-        out.println();
+		out.println("Language");
+		out.println("  system locale:   " + Locale.getDefault());
+		out.println("  resolved locale: " + I18n.getLocale().getLocale() + "  (display: " +
+		            I18n.getLocale().getDisplayLocale() + ")");
+		out.println("  supported:       " + SupportedLocale.getSupportedLocales().size() + " locale(s)");
+		out.println("  sample string:   " + I18n.i18n("dsh.instance.create"));
+		out.println();
 
-        out.println("Appearance");
-        try {
-            var settings = org.jackhuang.hmcl.setting.SettingsManager.settings();
-            out.println("  background source: " + settings.backgroundTypeProperty().get());
-            out.println("  image path:        " + settings.customBackgroundImagePathProperty().get());
-            out.println("  overrides:         " + settings.getThemeAppearanceOverrides());
-            out.println("  theme:             " + settings.getSelectedThemeOrDefault());
-            var resolved = org.jackhuang.hmcl.theme.ThemePackManager.resolveCurrentBackground(
-                    org.jackhuang.hmcl.theme.ThemePackManager.currentResolveContext());
-            out.println("  resolved:          type=" + resolved.type()
-                    + " imagePath=" + resolved.imagePath()
-                    + " builtin=" + resolved.builtinBackgroundId());
-        } catch (Throwable e) {
-            out.println("  FAILED: " + e);
-        }
-        out.println();
+		out.println("Appearance");
+		try {
+			var settings = SettingsManager.settings();
+			out.println("  background source: " + settings.backgroundTypeProperty().get());
+			out.println("  image path:        " + settings.customBackgroundImagePathProperty().get());
+			out.println("  overrides:         " + settings.getThemeAppearanceOverrides());
+			out.println("  theme:             " + settings.getSelectedThemeOrDefault());
+			var resolved = ThemePackManager.resolveCurrentBackground(ThemePackManager.currentResolveContext());
+			out.println("  resolved:          type=" + resolved.type() + " imagePath=" + resolved.imagePath() +
+			            " builtin=" + resolved.builtinBackgroundId());
+		} catch (Throwable e) {
+			out.println("  FAILED: " + e);
+		}
+		out.println();
 
-        out.println("Directories");
-        out.println("  user home: " + Metadata.HMCL_USER_HOME);
-        out.println("  instances: " + DshPaths.INSTANCES);
-        out.println();
+		out.println("Directories");
+		out.println("  user home: " + Metadata.HMCL_USER_HOME);
+		out.println("  instances: " + DshPaths.INSTANCES);
+		out.println();
 
-        out.println("JavaScript toolchain");
-        Optional<DshNodeRuntime> detected = DshNodeRuntime.detect();
-        boolean runtimeOk;
-        if (detected.isEmpty()) {
-            out.println("  node:  NOT FOUND");
-            out.println("  required: " + DshNodeRuntime.requirement());
-            runtimeOk = false;
-        } else {
-            DshNodeRuntime runtime = detected.get();
-            out.println("  node:  " + runtime.nodeVersion() + "  (" + runtime.node() + ")"
-                    + (runtime.isNodeSupported() ? "  [supported]" : "  [UNSUPPORTED]"));
-            out.println("  npm:   " + describe(runtime.npm(), runtime.npmVersion()));
-            out.println("  pnpm:  " + describe(runtime.pnpm(), runtime.pnpmVersion())
-                    + (runtime.canManagePlugins() ? "" : "  [plugin management unavailable]"));
-            out.println("  required: " + DshNodeRuntime.requirement());
-            runtimeOk = runtime.isNodeSupported() && runtime.canInstall();
-        }
-        out.println();
+		out.println("JavaScript toolchain");
+		Optional<DshNodeRuntime> detected = DshNodeRuntime.detect();
+		boolean runtimeOk;
+		if (detected.isEmpty()) {
+			out.println("  node:  NOT FOUND");
+			out.println("  required: " + DshNodeRuntime.requirement());
+			runtimeOk = false;
+		} else {
+			DshNodeRuntime runtime = detected.get();
+			out.println("  node:  " + runtime.nodeVersion() + "  (" + runtime.node() + ")" +
+			            (runtime.isNodeSupported() ? "  [supported]" : "  [UNSUPPORTED]"));
+			out.println("  npm:   " + describe(runtime.npm(), runtime.npmVersion()));
+			out.println("  pnpm:  " + describe(runtime.pnpm(), runtime.pnpmVersion()) +
+			            (runtime.canManagePlugins() ? "" : "  [plugin management unavailable]"));
+			out.println("  required: " + DshNodeRuntime.requirement());
+			runtimeOk = runtime.isNodeSupported() && runtime.canInstall();
+		}
+		out.println();
 
-        out.println("Instances and the DeepSeek Harness each carries");
-        List<DshInstance> installed = InstanceListing.list();
-        if (installed.isEmpty()) {
-            out.println("  (none)");
-        } else {
-            for (DshInstance instance : installed) {
-                String location;
-                try {
-                    location = instance.dshDirectory().toString();
-                } catch (DshException e) {
-                    location = "(unusable identifier)";
-                }
-                out.println("  " + instance.id() + "  dsh " + instance.version()
-                        + "  ->  " + location
-                        + (HarnessInstaller.isInstalled(instance) ? "" : "  [INCOMPLETE]"));
-            }
-        }
-        out.println();
+		out.println("Instances and the DeepSeek Harness each carries");
+		List<DshInstance> installed = InstanceListing.list();
+		if (installed.isEmpty()) {
+			out.println("  (none)");
+		} else {
+			for (DshInstance instance : installed) {
+				String location;
+				try {
+					location = instance.dshDirectory().toString();
+				} catch (DshException e) {
+					location = "(unusable identifier)";
+				}
+				out.println("  " + instance.id() + "  dsh " + instance.version() + "  ->  " + location +
+				            (HarnessInstaller.isInstalled(instance) ? "" : "  [INCOMPLETE]"));
+			}
+		}
+		out.println();
 
-        out.println("npm registry");
-        if (!runtimeOk) {
-            out.println("  skipped (toolchain incomplete)");
-        } else {
-            try {
-                List<DshRelease> releases = ReleaseQueries.fetchReleases();
-                out.println("  reachable, " + releases.size() + " published version(s)");
-                releases.stream().limit(5).forEach(release ->
-                        out.println("    " + release.version()
-                                + (release.primaryTag() == null ? "" : "  [" + release.primaryTag() + "]")));
-            } catch (DshException e) {
-                out.println("  FAILED: " + e.getMessage());
-            }
-        }
+		out.println("npm registry");
+		if (!runtimeOk) {
+			out.println("  skipped (toolchain incomplete)");
+		} else {
+			try {
+				List<DshRelease> releases = ReleaseQueries.fetchReleases();
+				out.println("  reachable, " + releases.size() + " published version(s)");
+				releases.stream()
+				        .limit(5)
+				        .forEach(release -> out.println("    " + release.version() + (release.primaryTag() == null
+				                                                                      ? ""
+				                                                                      : "  [" + release.primaryTag() +
+				                                                                        "]")));
+			} catch (DshException e) {
+				out.println("  FAILED: " + e.getMessage());
+			}
+		}
 
-        out.println();
-        out.println(runtimeOk ? "Result: ready to install DeepSeek Harness versions."
-                : "Result: the JavaScript toolchain is incomplete.");
-        return runtimeOk ? 0 : 1;
-    }
+		out.println();
+		out.println(runtimeOk
+		            ? "Result: ready to install DeepSeek Harness versions."
+		            : "Result: the JavaScript toolchain is incomplete.");
+		return runtimeOk ? 0 : 1;
+	}
 
-    /// Renders an optional executable and its version.
-    ///
-    /// @param path    the executable, or `null`
-    /// @param version the reported version, or `null`
-    /// @return a display string
-    private static String describe(@Nullable java.nio.file.Path path, @Nullable String version) {
-        if (path == null) {
-            return "NOT FOUND";
-        }
-        return (version == null ? "unknown" : version) + "  (" + path + ")";
-    }
+	/// Renders an optional executable and its version.
+	///
+	/// @param path    the executable, or `null`
+	/// @param version the reported version, or `null`
+	/// @return a display string
+	private static String describe(@Nullable Path path, @Nullable String version) {
+		if (path == null) {
+			return "NOT FOUND";
+		}
+		return (version == null ? "unknown" : version) + "  (" + path + ")";
+	}
 }

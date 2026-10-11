@@ -17,12 +17,10 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.plugin.DshBuildScripts;
 import com.mcxcc303.hdsl.core.DshCommand;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
-
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -56,213 +54,223 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @Tag("external")
 class DshBuildScriptsKeyTest {
 
-    /// The profile of the instance these tests work in.
-    private static final String PROFILE = DshInstance.DEFAULT_PROFILE;
+	/// The profile of the instance these tests work in.
+	private static final String PROFILE = DshInstance.DEFAULT_PROFILE;
 
-    /// A profile whose package manager refused one package from the registry.
-    private static final String FROM_THE_REGISTRY = """
-            packages:
-              - .
+	/// A profile whose package manager refused one package from the registry.
+	private static final String FROM_THE_REGISTRY = """
+			packages:
+			  - .
+			
+			nodeLinker: hoisted
+			allowBuilds:
+			  node-pty: set this to true or false
+			""";
 
-            nodeLinker: hoisted
-            allowBuilds:
-              node-pty: set this to true or false
-            """;
+	/// What pnpm 11.24 actually wrote for a package installed from a file.
+	///
+	/// Recorded from a real run — `dsh plugin --profile web add file:…/dsh-postinstall-probe-1.0.0.tgz`
+	/// against a throwaway `DSH_HOME` — rather than written by hand from what the format is supposed to
+	/// be, because the shape of the key is the thing in question.
+	private static final String FROM_A_FILE = """
+			packages:
+			  - .
+			
+			nodeLinker: hoisted
+			autoInstallPeers: false
+			allowBuilds:
+			  dsh-postinstall-probe@file:../../../pkg/dsh-postinstall-probe-1.0.0.tgz: set this to true or false
+			""";
 
-    /// What pnpm 11.24 actually wrote for a package installed from a file.
-    ///
-    /// Recorded from a real run — `dsh plugin --profile web add file:…/dsh-postinstall-probe-1.0.0.tgz`
-    /// against a throwaway `DSH_HOME` — rather than written by hand from what the format is supposed to
-    /// be, because the shape of the key is the thing in question.
-    private static final String FROM_A_FILE = """
-            packages:
-              - .
+	/// The key in [#FROM_A_FILE], which is what has to survive being read and written back.
+	private static final String FILE_KEY = "dsh-postinstall-probe@file:../../../pkg/dsh-postinstall-probe-1.0.0.tgz";
 
-            nodeLinker: hoisted
-            autoInstallPeers: false
-            allowBuilds:
-              dsh-postinstall-probe@file:../../../pkg/dsh-postinstall-probe-1.0.0.tgz: set this to true or false
-            """;
+	/// Returns what a pnpm says its version is, so a skipped run names the package manager it saw.
+	///
+	/// Its version is the whole question when the two disagree about where a refused build script is
+	/// written, and a message saying only "nothing was recorded" leaves that to be guessed.
+	///
+	/// @param pnpm the pnpm
+	/// @return its version, or what running it said instead
+	private static String pnpmVersion(Path pnpm) {
+		try {
+			return DshCommand.run(List.of(pnpm.toString(), "--version"), null, null).text().trim();
+		} catch (Exception e) {
+			return "version unknown: " + e;
+		}
+	}
 
-    /// The key in [#FROM_A_FILE], which is what has to survive being read and written back.
-    private static final String FILE_KEY =
-            "dsh-postinstall-probe@file:../../../pkg/dsh-postinstall-probe-1.0.0.tgz";
+	/// Packs a package whose install script leaves a file behind.
+	///
+	/// @param work where to pack it
+	/// @param npm  the npm to pack with
+	/// @return the tarball
+	private static Path packAProbeWithABuildScript(Path work, Path npm) throws Exception {
+		Path source = Files.createDirectories(work.resolve("build-script-probe"));
+		Files.writeString(source.resolve("package.json"), """
+				{
+				  "name": "build-script-probe",
+				  "version": "1.0.0",
+				  "scripts": {
+				    "postinstall": "node -e \\"require('fs').writeFileSync('built.txt','yes')\\""
+				  }
+				}
+				""");
+		Files.writeString(source.resolve("index.js"), "module.exports = 1;\n");
 
-    @Test
-    void aPackageFromTheRegistryIsReadByItsName(@TempDir Path home) throws Exception {
-        DshInstance instance = instance(home, FROM_THE_REGISTRY);
+		DshCommand.Result packed = DshCommand.run(List.of(npm.toString(),
+		                                                  "pack",
+		                                                  "--pack-destination",
+		                                                  work.toString()), source, null);
+		assertEquals(0, packed.exitCode(), packed.text());
+		Path tarball = work.resolve("build-script-probe-1.0.0.tgz");
+		assertTrue(Files.isRegularFile(tarball), "npm pack wrote nothing: " + packed.text());
+		return tarball;
+	}
 
-        assertEquals(List.of("node-pty"), DshBuildScripts.unanswered(instance));
-        assertEquals(List.of(new DshBuildScripts.Pending("node-pty", null)),
-                DshBuildScripts.pending(instance), "a placeholder is not an answer");
-    }
+	/// Creates an instance whose home is the given directory and whose profile holds the given file.
+	///
+	/// A custom home rather than a created instance: what is under test here is the reading of a file,
+	/// and creating an instance needs a Node runtime on the machine to do it — [DshBuildScriptsTest]
+	/// is where the created-instance path is covered.
+	///
+	/// @param home      the home directory
+	/// @param workspace the profile's `pnpm-workspace.yaml`, or `null` to leave it out
+	/// @return the instance
+	private static DshInstance instance(Path home, String workspace) throws Exception {
+		DshInstance instance = new DshInstance("build-scripts-key-test",
+		                                       "0.1.6-alpha.2",
+		                                       PROFILE,
+		                                       home.toString(),
+		                                       null,
+		                                       DshHomeMode.CUSTOM,
+		                                       home.toString(),
+		                                       List.of(),
+		                                       Map.of(),
+		                                       null,
+		                                       null,
+		                                       null,
+		                                       0,
+		                                       0L);
+		if (workspace != null) {
+			Files.createDirectories(profileFile(instance).getParent());
+			Files.writeString(profileFile(instance), workspace);
+		}
+		return instance;
+	}
 
-    @Test
-    void aPackageInstalledFromAFileIsReadByItsWholeId(@TempDir Path home) throws Exception {
-        DshInstance instance = instance(home, FROM_A_FILE);
+	/// Returns an instance's `pnpm-workspace.yaml`.
+	///
+	/// @param instance the instance
+	/// @return the file
+	private static Path profileFile(DshInstance instance) throws Exception {
+		return instance.homeDirectory().resolve("profiles").resolve(instance.profile()).resolve("pnpm-workspace.yaml");
+	}
 
-        assertEquals(List.of(FILE_KEY), DshBuildScripts.unanswered(instance),
-                "the id pnpm wrote is the id it reads back, so it is the whole of what is waiting");
-    }
+	@Test
+	void aPackageFromTheRegistryIsReadByItsName(@TempDir Path home) throws Exception {
+		DshInstance instance = instance(home, FROM_THE_REGISTRY);
 
-    @Test
-    void answeringWritesTheIdBackWhole(@TempDir Path home) throws Exception {
-        DshInstance instance = instance(home, FROM_A_FILE);
+		assertEquals(List.of("node-pty"), DshBuildScripts.unanswered(instance));
+		assertEquals(List.of(new DshBuildScripts.Pending("node-pty", null)),
+		             DshBuildScripts.pending(instance),
+		             "a placeholder is not an answer");
+	}
 
-        assertEquals(1, DshBuildScripts.answer(instance, DshBuildScripts.unanswered(instance), true));
+	@Test
+	void aPackageInstalledFromAFileIsReadByItsWholeId(@TempDir Path home) throws Exception {
+		DshInstance instance = instance(home, FROM_A_FILE);
 
-        assertTrue(Files.readString(profileFile(instance)).contains(FILE_KEY + ": true"),
-                "an answer that renames the package leaves the entry undecided: "
-                        + Files.readString(profileFile(instance)));
-        assertEquals(List.of(), DshBuildScripts.unanswered(instance));
-        assertEquals(List.of(new DshBuildScripts.Pending(FILE_KEY, Boolean.TRUE)),
-                DshBuildScripts.pending(instance));
-    }
+		assertEquals(List.of(FILE_KEY),
+		             DshBuildScripts.unanswered(instance),
+		             "the id pnpm wrote is the id it reads back, so it is the whole of what is waiting");
+	}
 
-    @Test
-    void aFileKeyIsTheOnlyThingAnAnswerChanges(@TempDir Path home) throws Exception {
-        DshInstance instance = instance(home, FROM_A_FILE);
+	@Test
+	void answeringWritesTheIdBackWhole(@TempDir Path home) throws Exception {
+		DshInstance instance = instance(home, FROM_A_FILE);
 
-        DshBuildScripts.answer(instance, List.of(FILE_KEY), false);
+		assertEquals(1, DshBuildScripts.answer(instance, DshBuildScripts.unanswered(instance), true));
 
-        assertEquals(FROM_A_FILE.replace("set this to true or false", "false"),
-                Files.readString(profileFile(instance)));
-    }
+		assertTrue(Files.readString(profileFile(instance)).contains(FILE_KEY + ": true"),
+		           "an answer that renames the package leaves the entry undecided: " +
+		           Files.readString(profileFile(instance)));
+		assertEquals(List.of(), DshBuildScripts.unanswered(instance));
+		assertEquals(List.of(new DshBuildScripts.Pending(FILE_KEY, Boolean.TRUE)), DshBuildScripts.pending(instance));
+	}
 
-    @Test
-    void aRefusedBuildScriptRunsOnceItHasBeenAnswered(@TempDir Path work) throws Exception {
-        Path pnpm = DshNodeRuntime.which("pnpm").orElse(null);
-        Assumptions.assumeTrue(pnpm != null,
-                "pnpm is not on PATH; what this measures is the agreement between it and the launcher");
-        Path npm = DshNodeRuntime.which("npm").orElse(null);
-        Assumptions.assumeTrue(npm != null, "npm is not on PATH, so the probe package cannot be packed");
+	@Test
+	void aFileKeyIsTheOnlyThingAnAnswerChanges(@TempDir Path home) throws Exception {
+		DshInstance instance = instance(home, FROM_A_FILE);
 
-        Path tarball = packAProbeWithABuildScript(work, npm);
-        DshInstance instance = instance(work, null);
-        Path profile = profileFile(instance).getParent();
-        Files.createDirectories(profile);
-        Files.writeString(profile.resolve("package.json"),
-                "{\n  \"name\": \"build-script-probe-profile\",\n  \"private\": true\n}\n");
-        Files.writeString(profileFile(instance),
-                // `strictDepBuilds` is stated here rather than left to the machine: it is what makes
-                // an ignored build fail the run instead of only being mentioned, and whether pnpm
-                // takes it from here, from a global config or from its own default is not something
-                // this test can rely on. Measured: a Windows runner with pnpm 11.24.0 installed the
-                // very same tarball with exit code 0 and no `ERR_PNPM_IGNORED_BUILDS` at all.
-                "packages:\n  - .\n\nnodeLinker: hoisted\nstrictDepBuilds: true\n");
+		DshBuildScripts.answer(instance, List.of(FILE_KEY), false);
 
-        // One: the package manager refuses, and says what is waiting in the file the launcher reads.
-        DshCommand.Result refused = DshCommand.run(
-                List.of(pnpm.toString(), "add", "file:" + tarball), profile, null);
-        // A pnpm that decided this package's build script may run has nothing to refuse, and then
-        // there is no question for a launcher to read: that is the package manager's policy for the
-        // machine it is on, not a defect here. What is asserted below is an agreement between pnpm's
-        // record and this launcher's reader, and an agreement over nothing to record is not a
-        // failure — so it is skipped, naming the pnpm and repeating what it said.
-        Assumptions.assumeTrue(refused.exitCode() != 0
-                        && refused.text().contains("ERR_PNPM_IGNORED_BUILDS"),
-                "the pnpm at " + pnpm + " (" + pnpmVersion(pnpm) + ") did not refuse the build script,"
-                        + " so there is no question to read back. It said: " + refused.text());
+		assertEquals(FROM_A_FILE.replace("set this to true or false", "false"),
+		             Files.readString(profileFile(instance)));
+	}
 
-        // Two: the launcher reads it — the whole id, which is what an answer has to name.
-        //
-        // What was refused is recorded by the package manager itself, in the file read here: pnpm
-        // writes the entry with the placeholder that stands for "nobody has answered yet". **Where**
-        // it records that is the package manager's business, and it has differed between versions —
-        // 11.24.0 writes `allowBuilds` into this file — so the file is read before it is interpreted,
-        // and the two cases are told apart rather than both arriving as an empty answer. A pnpm that
-        // recorded nothing has nothing for any reader to find, and that is not this launcher's
-        // defect; a pnpm that recorded the question and a launcher that cannot read it is exactly
-        // what this test exists for. (The suite says which pnpm it was, so a skip is actionable.)
-        String recorded = Files.readString(profileFile(instance));
-        Assumptions.assumeTrue(recorded.contains("allowBuilds"),
-                "the pnpm at " + pnpm + " (" + pnpmVersion(pnpm) + ") recorded no refused build script "
-                        + "in " + profileFile(instance) + ", so there is nothing for the launcher to "
-                        + "read. It wrote: " + recorded);
-        List<String> waiting = DshBuildScripts.unanswered(instance);
-        assertEquals(1, waiting.size(), "one package is waiting: " + waiting);
-        assertTrue(waiting.get(0).startsWith("build-script-probe@file:"),
-                "the key is the id pnpm wrote, not the part of it before the first colon: " + waiting);
+	@Test
+	void aRefusedBuildScriptRunsOnceItHasBeenAnswered(@TempDir Path work) throws Exception {
+		Path pnpm = DshNodeRuntime.which("pnpm").orElse(null);
+		Assumptions.assumeTrue(pnpm != null,
+		                       "pnpm is not on PATH; what this measures is the agreement between it and the launcher");
+		Path npm = DshNodeRuntime.which("npm").orElse(null);
+		Assumptions.assumeTrue(npm != null, "npm is not on PATH, so the probe package cannot be packed");
 
-        // Three: the answer is written where pnpm reads it.
-        assertEquals(1, DshBuildScripts.answer(instance, waiting, true));
-        assertEquals(List.of(), DshBuildScripts.unanswered(instance));
+		Path tarball = packAProbeWithABuildScript(work, npm);
+		DshInstance instance = instance(work, null);
+		Path profile = profileFile(instance).getParent();
+		Files.createDirectories(profile);
+		Files.writeString(profile.resolve("package.json"),
+		                  "{\n  \"name\": \"build-script-probe-profile\",\n  \"private\": true\n}\n");
+		Files.writeString(profileFile(instance),
+		                  // `strictDepBuilds` is stated here rather than left to the machine: it is what makes
+		                  // an ignored build fail the run instead of only being mentioned, and whether pnpm
+		                  // takes it from here, from a global config or from its own default is not something
+		                  // this test can rely on. Measured: a Windows runner with pnpm 11.24.0 installed the
+		                  // very same tarball with exit code 0 and no `ERR_PNPM_IGNORED_BUILDS` at all.
+		                  "packages:\n  - .\n\nnodeLinker: hoisted\nstrictDepBuilds: true\n");
 
-        // Four: the same install goes through, and the script the question was about has run.
-        DshCommand.Result installed = DshCommand.run(List.of(pnpm.toString(), "install"), profile, null);
-        assertEquals(0, installed.exitCode(), "an answered build is not refused: " + installed.text());
-        assertTrue(Files.isRegularFile(profile.resolve("node_modules").resolve("build-script-probe")
-                        .resolve("built.txt")),
-                "and the script ran: " + installed.text());
-    }
+		// One: the package manager refuses, and says what is waiting in the file the launcher reads.
+		DshCommand.Result refused = DshCommand.run(List.of(pnpm.toString(), "add", "file:" + tarball), profile, null);
+		// A pnpm that decided this package's build script may run has nothing to refuse, and then
+		// there is no question for a launcher to read: that is the package manager's policy for the
+		// machine it is on, not a defect here. What is asserted below is an agreement between pnpm's
+		// record and this launcher's reader, and an agreement over nothing to record is not a
+		// failure — so it is skipped, naming the pnpm and repeating what it said.
+		Assumptions.assumeTrue(refused.exitCode() != 0 && refused.text().contains("ERR_PNPM_IGNORED_BUILDS"),
+		                       "the pnpm at " + pnpm + " (" + pnpmVersion(pnpm) + ") did not refuse the build script," +
+		                       " so there is no question to read back. It said: " + refused.text());
 
-    /// Returns what a pnpm says its version is, so a skipped run names the package manager it saw.
-    ///
-    /// Its version is the whole question when the two disagree about where a refused build script is
-    /// written, and a message saying only "nothing was recorded" leaves that to be guessed.
-    ///
-    /// @param pnpm the pnpm
-    /// @return its version, or what running it said instead
-    private static String pnpmVersion(Path pnpm) {
-        try {
-            return DshCommand.run(List.of(pnpm.toString(), "--version"), null, null).text().trim();
-        } catch (Exception e) {
-            return "version unknown: " + e;
-        }
-    }
+		// Two: the launcher reads it — the whole id, which is what an answer has to name.
+		//
+		// What was refused is recorded by the package manager itself, in the file read here: pnpm
+		// writes the entry with the placeholder that stands for "nobody has answered yet". **Where**
+		// it records that is the package manager's business, and it has differed between versions —
+		// 11.24.0 writes `allowBuilds` into this file — so the file is read before it is interpreted,
+		// and the two cases are told apart rather than both arriving as an empty answer. A pnpm that
+		// recorded nothing has nothing for any reader to find, and that is not this launcher's
+		// defect; a pnpm that recorded the question and a launcher that cannot read it is exactly
+		// what this test exists for. (The suite says which pnpm it was, so a skip is actionable.)
+		String recorded = Files.readString(profileFile(instance));
+		Assumptions.assumeTrue(recorded.contains("allowBuilds"),
+		                       "the pnpm at " + pnpm + " (" + pnpmVersion(pnpm) +
+		                       ") recorded no refused build script " + "in " + profileFile(instance) +
+		                       ", so there is nothing for the launcher to " + "read. It wrote: " + recorded);
+		List<String> waiting = DshBuildScripts.unanswered(instance);
+		assertEquals(1, waiting.size(), "one package is waiting: " + waiting);
+		assertTrue(waiting.get(0).startsWith("build-script-probe@file:"),
+		           "the key is the id pnpm wrote, not the part of it before the first colon: " + waiting);
 
-    /// Packs a package whose install script leaves a file behind.
-    ///
-    /// @param work where to pack it
-    /// @param npm  the npm to pack with
-    /// @return the tarball
-    private static Path packAProbeWithABuildScript(Path work, Path npm) throws Exception {
-        Path source = Files.createDirectories(work.resolve("build-script-probe"));
-        Files.writeString(source.resolve("package.json"), """
-                {
-                  "name": "build-script-probe",
-                  "version": "1.0.0",
-                  "scripts": {
-                    "postinstall": "node -e \\"require('fs').writeFileSync('built.txt','yes')\\""
-                  }
-                }
-                """);
-        Files.writeString(source.resolve("index.js"), "module.exports = 1;\n");
+		// Three: the answer is written where pnpm reads it.
+		assertEquals(1, DshBuildScripts.answer(instance, waiting, true));
+		assertEquals(List.of(), DshBuildScripts.unanswered(instance));
 
-        DshCommand.Result packed = DshCommand.run(
-                List.of(npm.toString(), "pack", "--pack-destination", work.toString()), source, null);
-        assertEquals(0, packed.exitCode(), packed.text());
-        Path tarball = work.resolve("build-script-probe-1.0.0.tgz");
-        assertTrue(Files.isRegularFile(tarball), "npm pack wrote nothing: " + packed.text());
-        return tarball;
-    }
-
-    /// Creates an instance whose home is the given directory and whose profile holds the given file.
-    ///
-    /// A custom home rather than a created instance: what is under test here is the reading of a file,
-    /// and creating an instance needs a Node runtime on the machine to do it — [DshBuildScriptsTest]
-    /// is where the created-instance path is covered.
-    ///
-    /// @param home      the home directory
-    /// @param workspace the profile's `pnpm-workspace.yaml`, or `null` to leave it out
-    /// @return the instance
-    private static DshInstance instance(Path home, String workspace) throws Exception {
-        DshInstance instance = new DshInstance("build-scripts-key-test", "0.1.6-alpha.2", PROFILE,
-                home.toString(), null, DshHomeMode.CUSTOM, home.toString(),
-                List.of(), Map.of(), null, null, null, 0, 0L);
-        if (workspace != null) {
-            Files.createDirectories(profileFile(instance).getParent());
-            Files.writeString(profileFile(instance), workspace);
-        }
-        return instance;
-    }
-
-    /// Returns an instance's `pnpm-workspace.yaml`.
-    ///
-    /// @param instance the instance
-    /// @return the file
-    private static Path profileFile(DshInstance instance) throws Exception {
-        return instance.homeDirectory().resolve("profiles").resolve(instance.profile())
-                .resolve("pnpm-workspace.yaml");
-    }
+		// Four: the same install goes through, and the script the question was about has run.
+		DshCommand.Result installed = DshCommand.run(List.of(pnpm.toString(), "install"), profile, null);
+		assertEquals(0, installed.exitCode(), "an answered build is not refused: " + installed.text());
+		assertTrue(Files.isRegularFile(profile.resolve("node_modules")
+		                                      .resolve("build-script-probe")
+		                                      .resolve("built.txt")), "and the script ran: " + installed.text());
+	}
 }

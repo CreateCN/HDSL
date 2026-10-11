@@ -30,87 +30,89 @@ import java.util.List;
 /// these are values with a reader each rather than a list of addresses of one kind of document.
 @NotNullByDefault
 public enum MarketSource {
-    /// The community's own market: one `plugins.json`, published to its host and to npm.
-    ///
-    /// The npm package carries the same document, and reading it goes through whichever registry the
-    /// machine's `npm` is already configured for — which is the one network path this launcher can
-    /// be sure of, since it installs everything else that way. The host is GitHub Pages, so a network
-    /// that cannot reach GitHub can still reach an npm mirror; the package is therefore read when
-    /// the host does not answer, rather than as well as it.
-    AWESOME_DSH_PLUGIN("awesome-dsh-plugin", "Awesome DSH Plugin",
-            "https://awesome-dsh-plugin.com/plugins.json", "dsh-plugin-catalog");
+	/// The community's own market: one `plugins.json`, published to its host and to npm.
+	///
+	/// The npm package carries the same document, and reading it goes through whichever registry the
+	/// machine's `npm` is already configured for — which is the one network path this launcher can
+	/// be sure of, since it installs everything else that way. The host is GitHub Pages, so a network
+	/// that cannot reach GitHub can still reach an npm mirror; the package is therefore read when
+	/// the host does not answer, rather than as well as it.
+	AWESOME_DSH_PLUGIN("awesome-dsh-plugin",
+	                   "Awesome DSH Plugin",
+	                   "https://awesome-dsh-plugin.com/plugins.json",
+	                   "dsh-plugin-catalog");
 
-    /// The name this market is stored under.
-    private final String id;
+	/// The name this market is stored under.
+	private final String id;
 
-    /// What people see in the list.
-    private final String label;
+	/// What people see in the list.
+	private final String label;
 
-    /// Where this market's document is read from, in the order it is tried.
-    private final List<String> addresses;
+	/// Where this market's document is read from, in the order it is tried.
+	private final List<String> addresses;
 
-    /// What is read when none of the addresses answers: an npm package carrying the same document,
-    /// or `null` for a market with nowhere else to go.
-    private final @Nullable String fallback;
+	/// What is read when none of the addresses answers: an npm package carrying the same document,
+	/// or `null` for a market with nowhere else to go.
+	private final @Nullable String fallback;
 
-    MarketSource(String id, String label, String... addresses) {
-        this.id = id;
-        this.label = label;
-        this.addresses = List.of(addresses);
-        this.fallback = null;
-    }
+	MarketSource(String id, String label, String... addresses) {
+		this.id = id;
+		this.label = label;
+		this.addresses = List.of(addresses);
+		this.fallback = null;
+	}
 
-    MarketSource(String id, String label, String address, String fallback) {
-        this.id = id;
-        this.label = label;
-        this.addresses = List.of(address);
-        this.fallback = fallback;
-    }
+	MarketSource(String id, String label, String address, String fallback) {
+		this.id = id;
+		this.label = label;
+		this.addresses = List.of(address);
+		this.fallback = fallback;
+	}
 
-    /// Returns the name this market is stored under.
-    ///
-    /// @return the id
-    public String id() {
-        return id;
-    }
+	/// Returns the market a stored id names.
+	///
+	/// A setting written by a newer launcher names a market this one does not have, and reading it
+	/// then falls back to the community's rather than to nothing: a plugin list somebody can use is
+	/// a better answer than an empty page.
+	///
+	/// @param id the stored id, or `null`
+	/// @return the market
+	public static MarketSource of(@Nullable String id) {
+		if (id != null) {
+			for (MarketSource source : values()) {
+				if (source.id.equals(id.trim())) {
+					return source;
+				}
+			}
+		}
+		return AWESOME_DSH_PLUGIN;
+	}
 
-    /// Returns what the market is called.
-    ///
-    /// @return the label
-    public String label() {
-        return label;
-    }
+	/// Returns the name this market is stored under.
+	///
+	/// @return the id
+	public String id() {
+		return id;
+	}
 
-    /// Returns where this market's document is read from.
-    ///
-    /// @return the addresses, in the order they are tried
-    public List<String> addresses() {
-        return addresses;
-    }
+	/// Returns what the market is called.
+	///
+	/// @return the label
+	public String label() {
+		return label;
+	}
 
-    /// Returns what is read when none of the addresses answers.
-    ///
-    /// @return the fallback, or `null` when this market has none
-    public @Nullable String fallback() {
-        return fallback;
-    }
+	/// Returns where this market's document is read from.
+	///
+	/// @return the addresses, in the order they are tried
+	public List<String> addresses() {
+		return addresses;
+	}
 
-    /// Returns the market a stored id names.
-    ///
-    /// A setting written by a newer launcher names a market this one does not have, and reading it
-    /// then falls back to the community's rather than to nothing: a plugin list somebody can use is
-    /// a better answer than an empty page.
-    ///
-    /// @param id the stored id, or `null`
-    /// @return the market
-    public static MarketSource of(@Nullable String id) {
-        if (id != null) {
-            for (MarketSource source : values()) {
-                if (source.id.equals(id.trim())) {
-                    return source;
-                }
-            }
-        }
-        return AWESOME_DSH_PLUGIN;
-    }
+	/// Returns what is read when none of the addresses answers.
+	///
+	/// @return the fallback, or `null` when this market has none
+	public @Nullable String fallback() {
+		return fallback;
+	}
 }

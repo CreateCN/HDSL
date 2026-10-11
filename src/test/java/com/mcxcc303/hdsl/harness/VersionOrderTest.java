@@ -19,7 +19,6 @@ package com.mcxcc303.hdsl.harness;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,30 +30,30 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// lockstep package never had a twin for.
 class VersionOrderTest {
 
-    @Test
-    void aNewerNumberSortsAfterAnOlderOne() {
-        assertTrue(VersionOrder.compareVersions("1.2.4", "1.2.3") > 0);
-        assertTrue(VersionOrder.compareVersions("0.1.7-rc.1", "0.1.6") > 0,
-                "the numbers decide before the pre-release part does");
-    }
+	@Test
+	void aNewerNumberSortsAfterAnOlderOne() {
+		assertTrue(VersionOrder.compareVersions("1.2.4", "1.2.3") > 0);
+		assertTrue(VersionOrder.compareVersions("0.1.7-rc.1", "0.1.6") > 0,
+		           "the numbers decide before the pre-release part does");
+	}
 
-    @Test
-    void aReleaseOutranksItsOwnPreReleases() {
-        assertTrue(VersionOrder.compareVersions("1.0.0", "1.0.0-rc.1") > 0);
-        assertTrue(VersionOrder.compareVersions("0.1.5-alpha.2", "0.1.5") < 0);
-    }
+	@Test
+	void aReleaseOutranksItsOwnPreReleases() {
+		assertTrue(VersionOrder.compareVersions("1.0.0", "1.0.0-rc.1") > 0);
+		assertTrue(VersionOrder.compareVersions("0.1.5-alpha.2", "0.1.5") < 0);
+	}
 
-    @Test
-    void aVersionWithoutAnythingToCompareAgainstDoesNotPredateIt() {
-        assertFalse(VersionOrder.predatesLockstep("0.1.0", null),
-                "not knowing the oldest is not the same as being older than it");
-    }
+	@Test
+	void aVersionWithoutAnythingToCompareAgainstDoesNotPredateIt() {
+		assertFalse(VersionOrder.predatesLockstep("0.1.0", null),
+		            "not knowing the oldest is not the same as being older than it");
+	}
 
-    @Test
-    void anOlderHarnessPredatesTheLockstepPackage() {
-        assertTrue(VersionOrder.predatesLockstep("0.0.1", "0.1.1-rc2"));
-        assertFalse(VersionOrder.predatesLockstep("0.2.0", "0.1.1-rc2"));
-        assertFalse(VersionOrder.predatesLockstep("0.1.1-rc2", "0.1.1-rc2"),
-                "the version the package starts at is not older than it");
-    }
+	@Test
+	void anOlderHarnessPredatesTheLockstepPackage() {
+		assertTrue(VersionOrder.predatesLockstep("0.0.1", "0.1.1-rc2"));
+		assertFalse(VersionOrder.predatesLockstep("0.2.0", "0.1.1-rc2"));
+		assertFalse(VersionOrder.predatesLockstep("0.1.1-rc2", "0.1.1-rc2"),
+		            "the version the package starts at is not older than it");
+	}
 }

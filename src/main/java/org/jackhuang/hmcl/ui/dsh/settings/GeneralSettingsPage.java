@@ -30,6 +30,8 @@ import org.jackhuang.hmcl.util.i18n.I18n;
 import org.jackhuang.hmcl.util.i18n.SupportedLocale;
 import org.jetbrains.annotations.NotNullByDefault;
 
+import java.util.Locale;
+
 import static org.jackhuang.hmcl.setting.SettingsManager.settings;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -49,88 +51,87 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// for a number the window already decides.
 @NotNullByDefault
 public final class GeneralSettingsPage extends ScrollPane {
-    /// Creates the general settings tab.
-    public GeneralSettingsPage() {
-        setFitToWidth(true);
-        setFitToHeight(true);
+	/// Creates the general settings tab.
+	public GeneralSettingsPage() {
+		setFitToWidth(true);
+		setFitToHeight(true);
 
-        // One card for the tab's rows, not a card per row: the original's general
-        // tab is one card under each of its section headings, and a section that
-        // holds a single setting reads as a heading repeated beside its own row.
-        ComponentList general = new ComponentList();
-        general.getContent().add(buildLanguageRow());
-        general.getContent().add(buildStorageRow());
+		// One card for the tab's rows, not a card per row: the original's general
+		// tab is one card under each of its section headings, and a section that
+		// holds a single setting reads as a heading repeated beside its own row.
+		ComponentList general = new ComponentList();
+		general.getContent().add(buildLanguageRow());
+		general.getContent().add(buildStorageRow());
 
-        // What installing a pack does, in a card of its own. The original gives a group of settings
-        // that decide one thing its own heading, and these decide how a pack's dependencies are
-        // resolved — which belongs to the general tab because it is a launcher-wide preference and
-        // not a property of any one instance.
-        ComponentList packs = new ComponentList();
-        packs.getContent().add(buildDependencyPolicyRow());
+		// What installing a pack does, in a card of its own. The original gives a group of settings
+		// that decide one thing its own heading, and these decide how a pack's dependencies are
+		// resolved — which belongs to the general tab because it is a launcher-wide preference and
+		// not a property of any one instance.
+		ComponentList packs = new ComponentList();
+		packs.getContent().add(buildDependencyPolicyRow());
 
-        VBox root = new VBox(
-                ComponentList.createComponentListTitle(i18n("settings.launcher.general")),
-                general,
-                ComponentList.createComponentListTitle(i18n("dsh.settings.pack_install")),
-                packs);
-        root.getStyleClass().add("card-list");
-        setContent(root);
+		VBox root = new VBox(ComponentList.createComponentListTitle(i18n("settings.launcher.general")),
+		                     general,
+		                     ComponentList.createComponentListTitle(i18n("dsh.settings.pack_install")),
+		                     packs);
+		root.getStyleClass().add("card-list");
+		setContent(root);
 
-        // Must run after the content is installed: smooth scrolling binds to
-        // the content node and fails on a null content.
-        FXUtils.smoothScrolling(this);
-    }
+		// Must run after the content is installed: smooth scrolling binds to
+		// the content node and fails on a null content.
+		FXUtils.smoothScrolling(this);
+	}
 
-    /// Builds the row that decides how a pack's dependencies are resolved.
-    ///
-    /// @return the row
-    private LineSelectButton<DshDependencyPolicy> buildDependencyPolicyRow() {
-        LineSelectButton<DshDependencyPolicy> row = new LineSelectButton<>();
-        row.setTitle(i18n("dsh.settings.dependency_policy"));
-        row.setItems(DshDependencyPolicy.values());
-        row.setNullSafeConverter(policy -> i18n(
-                "dsh.settings.dependency_policy." + policy.name().toLowerCase(java.util.Locale.ROOT)));
-        row.setValue(settings().dependencyPolicy());
-        row.valueProperty().addListener((observable, was, value) -> {
-            if (value != null && value != was) {
-                settings().dependencyPolicyProperty().set(value);
-                SettingsManager.save();
-            }
-        });
-        return row;
-    }
+	/// Builds the row that decides how a pack's dependencies are resolved.
+	///
+	/// @return the row
+	private LineSelectButton<DshDependencyPolicy> buildDependencyPolicyRow() {
+		LineSelectButton<DshDependencyPolicy> row = new LineSelectButton<>();
+		row.setTitle(i18n("dsh.settings.dependency_policy"));
+		row.setItems(DshDependencyPolicy.values());
+		row.setNullSafeConverter(policy -> i18n(
+				"dsh.settings.dependency_policy." + policy.name().toLowerCase(Locale.ROOT)));
+		row.setValue(settings().dependencyPolicy());
+		row.valueProperty().addListener((observable, was, value) -> {
+			if (value != null && value != was) {
+				settings().dependencyPolicyProperty().set(value);
+				SettingsManager.save();
+			}
+		});
+		return row;
+	}
 
-    /// Builds the language row.
-    ///
-    /// The choice is written to the settings file as well as handed to the string helper:
-    /// the helper keeps its answer in memory, so a language chosen here used to last until
-    /// the launcher was closed.
-    ///
-    /// @return the row
-    private LineSelectButton<SupportedLocale> buildLanguageRow() {
-        LineSelectButton<SupportedLocale> language = new LineSelectButton<>();
-        language.setTitle(i18n("dsh.settings.language"));
-        language.setItems(SupportedLocale.getSupportedLocales());
-        language.setNullSafeConverter(locale -> locale.getDisplayName(I18n.getLocale()));
-        language.setValue(I18n.getLocale());
-        language.valueProperty().addListener((observable, oldValue, newValue) -> {
-            if (newValue != null) {
-                I18n.setLocale(newValue);
-                settings().languageProperty().set(newValue);
-                SettingsManager.save();
-            }
-        });
-        return language;
-    }
+	/// Builds the language row.
+	///
+	/// The choice is written to the settings file as well as handed to the string helper:
+	/// the helper keeps its answer in memory, so a language chosen here used to last until
+	/// the launcher was closed.
+	///
+	/// @return the row
+	private LineSelectButton<SupportedLocale> buildLanguageRow() {
+		LineSelectButton<SupportedLocale> language = new LineSelectButton<>();
+		language.setTitle(i18n("dsh.settings.language"));
+		language.setItems(SupportedLocale.getSupportedLocales());
+		language.setNullSafeConverter(locale -> locale.getDisplayName(I18n.getLocale()));
+		language.setValue(I18n.getLocale());
+		language.valueProperty().addListener((observable, oldValue, newValue) -> {
+			if (newValue != null) {
+				I18n.setLocale(newValue);
+				settings().languageProperty().set(newValue);
+				SettingsManager.save();
+			}
+		});
+		return language;
+	}
 
-    /// Builds the row that opens where the launcher keeps its data.
-    ///
-    /// @return the row
-    private LineButton buildStorageRow() {
-        LineButton home = new LineButton();
-        home.setTitle(i18n("dsh.settings.home"));
-        home.setSubtitle(Metadata.HMCL_USER_HOME.toString());
-        home.setOnAction(event -> FXUtils.showFileInExplorer(Metadata.HMCL_USER_HOME));
-        return home;
-    }
+	/// Builds the row that opens where the launcher keeps its data.
+	///
+	/// @return the row
+	private LineButton buildStorageRow() {
+		LineButton home = new LineButton();
+		home.setTitle(i18n("dsh.settings.home"));
+		home.setSubtitle(Metadata.HMCL_USER_HOME.toString());
+		home.setOnAction(event -> FXUtils.showFileInExplorer(Metadata.HMCL_USER_HOME));
+		return home;
+	}
 }

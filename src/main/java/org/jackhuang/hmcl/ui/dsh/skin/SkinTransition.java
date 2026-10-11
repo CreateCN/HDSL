@@ -10,34 +10,35 @@ import java.util.function.Function;
 
 public class SkinTransition extends Transition {
 
-    protected Function<Double, Double> expression;
-    protected List<WritableValue<Number>> observables;
-    protected boolean fix;
-    protected int count;
+	protected Function<Double, Double> expression;
+	protected List<WritableValue<Number>> observables;
+	protected boolean fix;
+	protected int count;
 
-    public int getCount() {
-        return count;
-    }
+	@SafeVarargs
+	public SkinTransition(Duration duration,
+	                      Function<Double, Double> expression,
+	                      WritableValue<Number>... observables) {
+		setCycleDuration(duration);
+		this.expression = expression;
+		this.observables = Arrays.asList(observables);
+	}
 
-    @SafeVarargs
-    public SkinTransition(Duration duration, Function<Double, Double> expression, WritableValue<Number>... observables) {
-        setCycleDuration(duration);
-        this.expression = expression;
-        this.observables = Arrays.asList(observables);
-    }
+	public int getCount() {
+		return count;
+	}
 
-    @Override
-    protected void interpolate(double frac) {
-        if (frac == 0 || frac == 1)
-            count++;
-        double val = expression.apply(frac);
-        observables.forEach(w -> w.setValue(val));
-    }
+	@Override
+	protected void interpolate(double frac) {
+		if (frac == 0 || frac == 1) count++;
+		double val = expression.apply(frac);
+		observables.forEach(w -> w.setValue(val));
+	}
 
-    @Override
-    public void play() {
-        count = 0;
-        super.play();
-    }
+	@Override
+	public void play() {
+		count = 0;
+		super.play();
+	}
 
 }

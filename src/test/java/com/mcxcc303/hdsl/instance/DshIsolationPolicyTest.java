@@ -17,9 +17,6 @@
  */
 package com.mcxcc303.hdsl.instance;
 
-import com.mcxcc303.hdsl.instance.DshHomeMode;
-import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,36 +27,32 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /// where a profile's plugins and settings live from then on — which is not something to get wrong
 /// quietly, because moving it afterwards means moving an installation.
 class DshIsolationPolicyTest {
-    @Test
-    void theMiddleAnswerIsTheOneThatNeedsNoThought() {
-        assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of(null));
-        assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of("nonsense"));
-        assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of("always"));
-        assertEquals(DshIsolationPolicy.NEVER, DshIsolationPolicy.of("NEVER"));
-    }
+	@Test
+	void theMiddleAnswerIsTheOneThatNeedsNoThought() {
+		assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of(null));
+		assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of("nonsense"));
+		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of("always"));
+		assertEquals(DshIsolationPolicy.NEVER, DshIsolationPolicy.of("NEVER"));
+	}
 
-    @Test
-    void alwaysAndNeverDoNotDependOnWhatIsInstalled() {
-        assertEquals(DshHomeMode.ISOLATED,
-                DshIsolationPolicy.ALWAYS.homeMode(false, DshHomeMode.VERSION_SHARED));
-        assertEquals(DshHomeMode.ISOLATED,
-                DshIsolationPolicy.ALWAYS.homeMode(true, DshHomeMode.VERSION_SHARED));
-        assertEquals(DshHomeMode.VERSION_SHARED,
-                DshIsolationPolicy.NEVER.homeMode(true, DshHomeMode.VERSION_SHARED));
-        assertEquals(DshHomeMode.VERSION_SHARED,
-                DshIsolationPolicy.NEVER.homeMode(false, DshHomeMode.VERSION_SHARED));
-    }
+	@Test
+	void alwaysAndNeverDoNotDependOnWhatIsInstalled() {
+		assertEquals(DshHomeMode.ISOLATED, DshIsolationPolicy.ALWAYS.homeMode(false, DshHomeMode.VERSION_SHARED));
+		assertEquals(DshHomeMode.ISOLATED, DshIsolationPolicy.ALWAYS.homeMode(true, DshHomeMode.VERSION_SHARED));
+		assertEquals(DshHomeMode.VERSION_SHARED, DshIsolationPolicy.NEVER.homeMode(true, DshHomeMode.VERSION_SHARED));
+		assertEquals(DshHomeMode.VERSION_SHARED, DshIsolationPolicy.NEVER.homeMode(false, DshHomeMode.VERSION_SHARED));
+	}
 
-    @Test
-    void theMiddleAnswerLooksAtWhatTheInstallationBrings() {
-        assertEquals(DshHomeMode.ISOLATED,
-                DshIsolationPolicy.WITH_PLUGINS.homeMode(true, DshHomeMode.VERSION_SHARED),
-                "an instance given plugins of its own keeps them to itself");
-        assertEquals(DshHomeMode.VERSION_SHARED,
-                DshIsolationPolicy.WITH_PLUGINS.homeMode(false, DshHomeMode.VERSION_SHARED),
-                "a bare instance shares, which is what the mode below says");
-        assertEquals(DshHomeMode.GLOBAL,
-                DshIsolationPolicy.WITH_PLUGINS.homeMode(false, DshHomeMode.GLOBAL),
-                "and what it shares is whatever the mode below names");
-    }
+	@Test
+	void theMiddleAnswerLooksAtWhatTheInstallationBrings() {
+		assertEquals(DshHomeMode.ISOLATED,
+		             DshIsolationPolicy.WITH_PLUGINS.homeMode(true, DshHomeMode.VERSION_SHARED),
+		             "an instance given plugins of its own keeps them to itself");
+		assertEquals(DshHomeMode.VERSION_SHARED,
+		             DshIsolationPolicy.WITH_PLUGINS.homeMode(false, DshHomeMode.VERSION_SHARED),
+		             "a bare instance shares, which is what the mode below says");
+		assertEquals(DshHomeMode.GLOBAL,
+		             DshIsolationPolicy.WITH_PLUGINS.homeMode(false, DshHomeMode.GLOBAL),
+		             "and what it shares is whatever the mode below names");
+	}
 }

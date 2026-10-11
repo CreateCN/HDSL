@@ -40,60 +40,56 @@ import java.util.List;
 /// @param title    the name to show, from the path, or the slug when there is no path
 /// @param sessions the workspace's sessions, newest first
 @NotNullByDefault
-public record DshWorkspace(
-        String slug,
-        @Nullable String path,
-        String title,
-        List<DshSession> sessions) {
+public record DshWorkspace(String slug, @Nullable String path, String title, List<DshSession> sessions) {
 
-    /// Returns the total size of the workspace's sessions.
-    ///
-    /// @return the size in bytes
-    public long sizeBytes() {
-        long total = 0L;
-        for (DshSession session : sessions) {
-            total += session.sizeBytes();
-        }
-        return total;
-    }
+	/// Returns the name to show for a working directory.
+	///
+	/// The harness calls a workspace by the last segment of its path, and that
+	/// is what a person recognises; the whole path is shown beneath it. A slug
+	/// is shown only when no session ever named a path, which is the one case
+	/// where nothing better exists.
+	///
+	/// @param path the working directory, or `null`
+	/// @param slug the on-disk grouping
+	/// @return the name
+	public static String titleOf(@Nullable String path, String slug) {
+		if (path != null && !path.isBlank()) {
+			Path name = Path.of(path).getFileName();
+			if (name != null && !name.toString().isBlank()) {
+				return name.toString();
+			}
+			return path;
+		}
+		return slug;
+	}
 
-    /// Returns the workspace's last activity.
-    ///
-    /// @return the newest session's modification time, in epoch milliseconds, or `0`
-    public long modifiedAt() {
-        long newest = 0L;
-        for (DshSession session : sessions) {
-            newest = Math.max(newest, session.modifiedAt());
-        }
-        return newest;
-    }
+	/// Returns the total size of the workspace's sessions.
+	///
+	/// @return the size in bytes
+	public long sizeBytes() {
+		long total = 0L;
+		for (DshSession session : sessions) {
+			total += session.sizeBytes();
+		}
+		return total;
+	}
 
-    /// Returns whether a session belongs to this workspace.
-    ///
-    /// @param session the session
-    /// @return whether the session is one of this workspace's
-    public boolean contains(DshSession session) {
-        return slug.equals(session.workspaceSlug());
-    }
+	/// Returns the workspace's last activity.
+	///
+	/// @return the newest session's modification time, in epoch milliseconds, or `0`
+	public long modifiedAt() {
+		long newest = 0L;
+		for (DshSession session : sessions) {
+			newest = Math.max(newest, session.modifiedAt());
+		}
+		return newest;
+	}
 
-    /// Returns the name to show for a working directory.
-    ///
-    /// The harness calls a workspace by the last segment of its path, and that
-    /// is what a person recognises; the whole path is shown beneath it. A slug
-    /// is shown only when no session ever named a path, which is the one case
-    /// where nothing better exists.
-    ///
-    /// @param path the working directory, or `null`
-    /// @param slug the on-disk grouping
-    /// @return the name
-    public static String titleOf(@Nullable String path, String slug) {
-        if (path != null && !path.isBlank()) {
-            Path name = Path.of(path).getFileName();
-            if (name != null && !name.toString().isBlank()) {
-                return name.toString();
-            }
-            return path;
-        }
-        return slug;
-    }
+	/// Returns whether a session belongs to this workspace.
+	///
+	/// @param session the session
+	/// @return whether the session is one of this workspace's
+	public boolean contains(DshSession session) {
+		return slug.equals(session.workspaceSlug());
+	}
 }

@@ -17,12 +17,11 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshInstance;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -74,310 +73,305 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// prefix of another's.
 @NotNullByDefault
 public final class DshLocalPluginPaths {
-    /// The profile manifest, which is what a person and the harness read.
-    private static final String MANIFEST = "package.json";
+	/// The profile manifest, which is what a person and the harness read.
+	private static final String MANIFEST = "package.json";
 
-    /// The records a profile keeps of a local installation.
-    ///
-    /// The manifest is the one the launcher writes and reads. The two lockfiles are the
-    /// package manager's own account of the same installation: its lockfile, and the copy
-    /// it keeps under `node_modules/.pnpm`, which it refreshes on its next run — but until
-    /// then it names a file that is not there, which is the thing this exists to avoid.
-    ///
-    /// The workspace state beside them is deliberately not here. It is a cache keyed by
-    /// directory, and a package manager that does not find its project in it validates the
-    /// project again and writes the file out itself; rewriting a cache would be writing for
-    /// no effect, on a file this launcher has no other business in.
-    private static final List<String> RECORDS = List.of(
-            MANIFEST,
-            "pnpm-lock.yaml",
-            "node_modules/.pnpm/lock.yaml");
+	/// The records a profile keeps of a local installation.
+	///
+	/// The manifest is the one the launcher writes and reads. The two lockfiles are the
+	/// package manager's own account of the same installation: its lockfile, and the copy
+	/// it keeps under `node_modules/.pnpm`, which it refreshes on its next run — but until
+	/// then it names a file that is not there, which is the thing this exists to avoid.
+	///
+	/// The workspace state beside them is deliberately not here. It is a cache keyed by
+	/// directory, and a package manager that does not find its project in it validates the
+	/// project again and writes the file out itself; rewriting a cache would be writing for
+	/// no effect, on a file this launcher has no other business in.
+	private static final List<String> RECORDS = List.of(MANIFEST, "pnpm-lock.yaml", "node_modules/.pnpm/lock.yaml");
 
-    private DshLocalPluginPaths() {
-    }
+	private DshLocalPluginPaths() {
+	}
 
-    /// Rewrites what the instance's profiles recorded inside the instance's old directory.
-    ///
-    /// Every profile under the instance's home is read, not only the one the instance
-    /// boots: a path that names the directory which just moved is stale whichever profile
-    /// it is written in, and a home shared with other instances is exactly where that is
-    /// easiest to leave behind. A record that names nothing inside the old directory is not
-    /// written at all.
-    ///
-    /// @param instance the instance, under the id it now has
-    /// @param from     the instance directory the paths were recorded against
-    /// @param to       the instance directory they belong to now
-    /// @return the names of the packages whose recorded paths moved, in the order found
-    /// @throws DshException when a record cannot be read or written; every record already
-    ///                      rewritten is put back first, so a failure leaves them as they were
-    public static List<String> relocate(DshInstance instance, Path from, Path to) throws DshException {
-        Path oldDirectory = from.toAbsolutePath().normalize();
-        Path newDirectory = to.toAbsolutePath().normalize();
-        if (oldDirectory.equals(newDirectory)) {
-            return List.of();
-        }
+	/// Rewrites what the instance's profiles recorded inside the instance's old directory.
+	///
+	/// Every profile under the instance's home is read, not only the one the instance
+	/// boots: a path that names the directory which just moved is stale whichever profile
+	/// it is written in, and a home shared with other instances is exactly where that is
+	/// easiest to leave behind. A record that names nothing inside the old directory is not
+	/// written at all.
+	///
+	/// @param instance the instance, under the id it now has
+	/// @param from     the instance directory the paths were recorded against
+	/// @param to       the instance directory they belong to now
+	/// @return the names of the packages whose recorded paths moved, in the order found
+	/// @throws DshException when a record cannot be read or written; every record already
+	///                      rewritten is put back first, so a failure leaves them as they were
+	public static List<String> relocate(DshInstance instance, Path from, Path to) throws DshException {
+		Path oldDirectory = from.toAbsolutePath().normalize();
+		Path newDirectory = to.toAbsolutePath().normalize();
+		if (oldDirectory.equals(newDirectory)) {
+			return List.of();
+		}
 
-        Path home;
-        try {
-            home = instance.homeDirectory();
-        } catch (DshException e) {
-            // An instance that cannot name its home has no profile this could find, so
-            // there is nothing recorded to move. Renaming it must not fail for that.
-            LOG.warning("Could not locate the home of " + instance.id()
-                    + " to move the paths it recorded for local plugins", e);
-            return List.of();
-        }
+		Path home;
+		try {
+			home = instance.homeDirectory();
+		} catch (DshException e) {
+			// An instance that cannot name its home has no profile this could find, so
+			// there is nothing recorded to move. Renaming it must not fail for that.
+			LOG.warning("Could not locate the home of " + instance.id() +
+			            " to move the paths it recorded for local plugins", e);
+			return List.of();
+		}
 
-        List<Record> written = new ArrayList<>();
-        Set<String> moved = new LinkedHashSet<>();
-        try {
-            for (Path profile : profilesIn(home)) {
-                for (String name : RECORDS) {
-                    Path file = profile.resolve(name);
-                    if (!Files.isRegularFile(file)) {
-                        continue;
-                    }
-                    String text = Files.readString(file, StandardCharsets.UTF_8);
-                    String rewritten = rewritePaths(text, oldDirectory, newDirectory);
-                    if (rewritten.equals(text)) {
-                        continue;
-                    }
-                    if (name.equals(MANIFEST)) {
-                        moved.addAll(changedDependencies(text, rewritten));
-                    }
-                    Set<PosixFilePermission> permissions = permissionsOf(file);
-                    written.add(new Record(file, text, permissions));
-                    write(file, rewritten, permissions);
-                }
-            }
-        } catch (IOException | RuntimeException e) {
-            restore(written);
-            throw new DshException("Failed to move the local plugin paths recorded in " + home
-                    + " to " + newDirectory, e);
-        }
+		List<Record> written = new ArrayList<>();
+		Set<String> moved = new LinkedHashSet<>();
+		try {
+			for (Path profile : profilesIn(home)) {
+				for (String name : RECORDS) {
+					Path file = profile.resolve(name);
+					if (!Files.isRegularFile(file)) {
+						continue;
+					}
+					String text = Files.readString(file, StandardCharsets.UTF_8);
+					String rewritten = rewritePaths(text, oldDirectory, newDirectory);
+					if (rewritten.equals(text)) {
+						continue;
+					}
+					if (name.equals(MANIFEST)) {
+						moved.addAll(changedDependencies(text, rewritten));
+					}
+					Set<PosixFilePermission> permissions = permissionsOf(file);
+					written.add(new Record(file, text, permissions));
+					write(file, rewritten, permissions);
+				}
+			}
+		} catch (IOException | RuntimeException e) {
+			restore(written);
+			throw new DshException("Failed to move the local plugin paths recorded in " + home + " to " + newDirectory,
+			                       e);
+		}
 
-        if (!moved.isEmpty()) {
-            LOG.info("Moved the recorded paths of " + String.join(", ", moved)
-                    + " into " + newDirectory);
-        }
-        return List.copyOf(moved);
-    }
+		if (!moved.isEmpty()) {
+			LOG.info("Moved the recorded paths of " + String.join(", ", moved) + " into " + newDirectory);
+		}
+		return List.copyOf(moved);
+	}
 
-    /// Lists the profiles a home holds.
-    ///
-    /// @param home the `DSH_HOME`
-    /// @return the profile directories, or none when the home has not been used yet
-    /// @throws IOException when the home cannot be listed
-    private static List<Path> profilesIn(Path home) throws IOException {
-        Path profiles = home.resolve("profiles");
-        if (!Files.isDirectory(profiles)) {
-            return List.of();
-        }
-        try (Stream<Path> entries = Files.list(profiles)) {
-            return entries.filter(Files::isDirectory).sorted().toList();
-        }
-    }
+	/// Lists the profiles a home holds.
+	///
+	/// @param home the `DSH_HOME`
+	/// @return the profile directories, or none when the home has not been used yet
+	/// @throws IOException when the home cannot be listed
+	private static List<Path> profilesIn(Path home) throws IOException {
+		Path profiles = home.resolve("profiles");
+		if (!Files.isDirectory(profiles)) {
+			return List.of();
+		}
+		try (Stream<Path> entries = Files.list(profiles)) {
+			return entries.filter(Files::isDirectory).sorted().toList();
+		}
+	}
 
-    /// Replaces the directory an instance used to live in with the one it lives in now,
-    /// in every form a record may hold it.
-    ///
-    /// A JSON manifest escapes a backslash, so on Windows the directory appears there
-    /// doubled (`C:\\…\\id`); a lockfile quotes it plainly (`C:\…\id`); and a tool that
-    /// normalises separators writes it with forward slashes (`C:/…/id`). All three are
-    /// the same directory, and a rewrite that reaches only one of them leaves a renamed
-    /// Windows instance exactly as stuck as an unrenamed one.
-    ///
-    /// @param text the record
-    /// @param from the directory the paths were recorded against
-    /// @param to   the directory they belong to now
-    /// @return the record, with those paths moved
-    private static String rewritePaths(String text, Path from, Path to) {
-        String moved = rewrite(text, from.toString(), to.toString());
-        String escapedFrom = jsonEscaped(from.toString());
-        if (!escapedFrom.equals(from.toString())) {
-            moved = rewrite(moved, escapedFrom, jsonEscaped(to.toString()));
-        }
-        String slashedFrom = from.toString().replace('\\', '/');
-        if (!slashedFrom.equals(from.toString())) {
-            moved = rewrite(moved, slashedFrom, to.toString().replace('\\', '/'));
-        }
-        return moved;
-    }
+	/// Replaces the directory an instance used to live in with the one it lives in now,
+	/// in every form a record may hold it.
+	///
+	/// A JSON manifest escapes a backslash, so on Windows the directory appears there
+	/// doubled (`C:\\…\\id`); a lockfile quotes it plainly (`C:\…\id`); and a tool that
+	/// normalises separators writes it with forward slashes (`C:/…/id`). All three are
+	/// the same directory, and a rewrite that reaches only one of them leaves a renamed
+	/// Windows instance exactly as stuck as an unrenamed one.
+	///
+	/// @param text the record
+	/// @param from the directory the paths were recorded against
+	/// @param to   the directory they belong to now
+	/// @return the record, with those paths moved
+	private static String rewritePaths(String text, Path from, Path to) {
+		String moved = rewrite(text, from.toString(), to.toString());
+		String escapedFrom = jsonEscaped(from.toString());
+		if (!escapedFrom.equals(from.toString())) {
+			moved = rewrite(moved, escapedFrom, jsonEscaped(to.toString()));
+		}
+		String slashedFrom = from.toString().replace('\\', '/');
+		if (!slashedFrom.equals(from.toString())) {
+			moved = rewrite(moved, slashedFrom, to.toString().replace('\\', '/'));
+		}
+		return moved;
+	}
 
-    /// Escapes a path the way a JSON document holds it.
-    ///
-    /// @param path the path, in the platform's own separators
-    /// @return the path as JSON text, with its backslashes and quotes doubled
-    private static String jsonEscaped(String path) {
-        return path.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
+	/// Escapes a path the way a JSON document holds it.
+	///
+	/// @param path the path, in the platform's own separators
+	/// @return the path as JSON text, with its backslashes and quotes doubled
+	private static String jsonEscaped(String path) {
+		return path.replace("\\", "\\\\").replace("\"", "\\\"");
+	}
 
-    /// Replaces the directory an instance used to live in with the one it lives in now.
-    ///
-    /// An occurrence counts only where the recorded directory is a whole path segment —
-    /// followed by a separator, or ending the value — because a record holds a path and not
-    /// a string. Renaming `a` must not rewrite a record that names `a-b`, for the same
-    /// reason [DshPluginBundle] will not let `dsh-a` take `dsh-ab`'s files.
-    ///
-    /// @param text the record
-    /// @param from the directory the paths were recorded against
-    /// @param to   the directory they belong to now
-    /// @return the record, with those paths moved
-    static String rewrite(String text, String from, String to) {
-        if (from.isEmpty() || text.isEmpty()) {
-            return text;
-        }
-        StringBuilder rewritten = new StringBuilder(text.length());
-        int index = 0;
-        while (true) {
-            int at = text.indexOf(from, index);
-            if (at < 0) {
-                return rewritten.append(text, index, text.length()).toString();
-            }
-            int end = at + from.length();
-            if (end == text.length() || isSegmentEnd(text.charAt(end))) {
-                rewritten.append(text, index, at).append(to);
-            } else {
-                rewritten.append(text, index, end);
-            }
-            index = end;
-        }
-    }
+	/// Replaces the directory an instance used to live in with the one it lives in now.
+	///
+	/// An occurrence counts only where the recorded directory is a whole path segment —
+	/// followed by a separator, or ending the value — because a record holds a path and not
+	/// a string. Renaming `a` must not rewrite a record that names `a-b`, for the same
+	/// reason [DshPluginBundle] will not let `dsh-a` take `dsh-ab`'s files.
+	///
+	/// @param text the record
+	/// @param from the directory the paths were recorded against
+	/// @param to   the directory they belong to now
+	/// @return the record, with those paths moved
+	static String rewrite(String text, String from, String to) {
+		if (from.isEmpty() || text.isEmpty()) {
+			return text;
+		}
+		StringBuilder rewritten = new StringBuilder(text.length());
+		int index = 0;
+		while (true) {
+			int at = text.indexOf(from, index);
+			if (at < 0) {
+				return rewritten.append(text, index, text.length()).toString();
+			}
+			int end = at + from.length();
+			if (end == text.length() || isSegmentEnd(text.charAt(end))) {
+				rewritten.append(text, index, at).append(to);
+			} else {
+				rewritten.append(text, index, end);
+			}
+			index = end;
+		}
+	}
 
-    /// Reports whether a character ends the directory in a recorded path.
-    ///
-    /// @param character the character after the directory
-    /// @return whether the directory is a whole segment there
-    private static boolean isSegmentEnd(char character) {
-        return character == '/' || character == '\\' || character == '"' || character == '\''
-                || Character.isWhitespace(character);
-    }
+	/// Reports whether a character ends the directory in a recorded path.
+	///
+	/// @param character the character after the directory
+	/// @return whether the directory is a whole segment there
+	private static boolean isSegmentEnd(char character) {
+		return character == '/' || character == '\\' || character == '"' || character == '\'' ||
+		       Character.isWhitespace(character);
+	}
 
-    /// Returns the dependencies whose recorded specification a rewrite changed.
-    ///
-    /// The manifest is read as JSON here so that the answer names packages rather than
-    /// counting occurrences — what the log has to say is which plugins moved. It is
-    /// *written* as text rather than by serialising this: everything else in the file,
-    /// including the fields a harness version adds and the order they are written in, has
-    /// to come back exactly as it was.
-    ///
-    /// @param before the manifest as it was
-    /// @param after  the manifest as it will be written
-    /// @return the dependency names, or none when the manifest cannot be read
-    private static List<String> changedDependencies(String before, String after) {
-        JsonObject was = dependenciesOf(before);
-        JsonObject is = dependenciesOf(after);
-        if (was == null || is == null) {
-            return List.of();
-        }
-        List<String> changed = new ArrayList<>();
-        for (var entry : was.entrySet()) {
-            JsonElement now = is.get(entry.getKey());
-            if (now == null || !now.equals(entry.getValue())) {
-                changed.add(entry.getKey());
-            }
-        }
-        return changed;
-    }
+	/// Returns the dependencies whose recorded specification a rewrite changed.
+	///
+	/// The manifest is read as JSON here so that the answer names packages rather than
+	/// counting occurrences — what the log has to say is which plugins moved. It is
+	/// *written* as text rather than by serialising this: everything else in the file,
+	/// including the fields a harness version adds and the order they are written in, has
+	/// to come back exactly as it was.
+	///
+	/// @param before the manifest as it was
+	/// @param after  the manifest as it will be written
+	/// @return the dependency names, or none when the manifest cannot be read
+	private static List<String> changedDependencies(String before, String after) {
+		JsonObject was = dependenciesOf(before);
+		JsonObject is = dependenciesOf(after);
+		if (was == null || is == null) {
+			return List.of();
+		}
+		List<String> changed = new ArrayList<>();
+		for (var entry : was.entrySet()) {
+			JsonElement now = is.get(entry.getKey());
+			if (now == null || !now.equals(entry.getValue())) {
+				changed.add(entry.getKey());
+			}
+		}
+		return changed;
+	}
 
-    /// Reads every field a profile may declare a direct dependency in.
-    ///
-    /// A package manager installs through any of them, so a local plugin can be recorded
-    /// in any of them.
-    ///
-    /// @param manifest the manifest's text
-    /// @return the declared dependencies, or `null` when the manifest cannot be read
-    private static @Nullable JsonObject dependenciesOf(String manifest) {
-        try {
-            JsonElement parsed = JsonParser.parseString(manifest);
-            if (!parsed.isJsonObject()) {
-                return null;
-            }
-            JsonObject root = parsed.getAsJsonObject();
-            JsonObject all = new JsonObject();
-            for (String field : List.of("dependencies", "devDependencies", "optionalDependencies")) {
-                JsonElement element = root.get(field);
-                if (element != null && element.isJsonObject()) {
-                    for (var entry : element.getAsJsonObject().entrySet()) {
-                        all.add(entry.getKey(), entry.getValue());
-                    }
-                }
-            }
-            return all;
-        } catch (RuntimeException e) {
-            return null;
-        }
-    }
+	/// Reads every field a profile may declare a direct dependency in.
+	///
+	/// A package manager installs through any of them, so a local plugin can be recorded
+	/// in any of them.
+	///
+	/// @param manifest the manifest's text
+	/// @return the declared dependencies, or `null` when the manifest cannot be read
+	private static @Nullable JsonObject dependenciesOf(String manifest) {
+		try {
+			JsonElement parsed = JsonParser.parseString(manifest);
+			if (!parsed.isJsonObject()) {
+				return null;
+			}
+			JsonObject root = parsed.getAsJsonObject();
+			JsonObject all = new JsonObject();
+			for (String field : List.of("dependencies", "devDependencies", "optionalDependencies")) {
+				JsonElement element = root.get(field);
+				if (element != null && element.isJsonObject()) {
+					for (var entry : element.getAsJsonObject().entrySet()) {
+						all.add(entry.getKey(), entry.getValue());
+					}
+				}
+			}
+			return all;
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
 
-    /// Writes a record, keeping the mode it had.
-    ///
-    /// Written beside itself and moved into place: a half-written lockfile is a profile
-    /// that cannot be resolved at all, which is worse than the stale path being replaced.
-    ///
-    /// @param file        the file to write
-    /// @param text        what to put in it
-    /// @param permissions the mode to keep, or `null` when its filesystem has none
-    /// @throws IOException when the file cannot be written
-    private static void write(Path file, String text, @Nullable Set<PosixFilePermission> permissions)
-            throws IOException {
-        Path staging = file.resolveSibling(file.getFileName() + ".local-paths");
-        try {
-            Files.writeString(staging, text, StandardCharsets.UTF_8);
-            if (permissions != null) {
-                // The harness writes its manifest private, and rewriting a file must not be
-                // what loosens it.
-                Files.setPosixFilePermissions(staging, permissions);
-            }
-            Files.move(staging, file, StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            // A move that went through left nothing behind. One that did not must not leave
-            // half a record beside the record still in place.
-            deleteQuietly(staging);
-        }
-    }
+	/// Writes a record, keeping the mode it had.
+	///
+	/// Written beside itself and moved into place: a half-written lockfile is a profile
+	/// that cannot be resolved at all, which is worse than the stale path being replaced.
+	///
+	/// @param file        the file to write
+	/// @param text        what to put in it
+	/// @param permissions the mode to keep, or `null` when its filesystem has none
+	/// @throws IOException when the file cannot be written
+	private static void write(Path file, String text, @Nullable Set<PosixFilePermission> permissions)
+	throws IOException {
+		Path staging = file.resolveSibling(file.getFileName() + ".local-paths");
+		try {
+			Files.writeString(staging, text, StandardCharsets.UTF_8);
+			if (permissions != null) {
+				// The harness writes its manifest private, and rewriting a file must not be
+				// what loosens it.
+				Files.setPosixFilePermissions(staging, permissions);
+			}
+			Files.move(staging, file, StandardCopyOption.REPLACE_EXISTING);
+		} finally {
+			// A move that went through left nothing behind. One that did not must not leave
+			// half a record beside the record still in place.
+			deleteQuietly(staging);
+		}
+	}
 
-    /// Removes a file, ignoring anything that goes wrong.
-    ///
-    /// @param path the file
-    private static void deleteQuietly(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException e) {
-            LOG.warning("Failed to remove " + path, e);
-        }
-    }
+	/// Removes a file, ignoring anything that goes wrong.
+	///
+	/// @param path the file
+	private static void deleteQuietly(Path path) {
+		try {
+			Files.deleteIfExists(path);
+		} catch (IOException e) {
+			LOG.warning("Failed to remove " + path, e);
+		}
+	}
 
-    /// Reads a file's mode, when its filesystem has one.
-    ///
-    /// @param file the file
-    /// @return the permissions, or `null` when they cannot be read
-    private static @Nullable Set<PosixFilePermission> permissionsOf(Path file) {
-        try {
-            return Files.getPosixFilePermissions(file);
-        } catch (IOException | UnsupportedOperationException e) {
-            return null;
-        }
-    }
+	/// Reads a file's mode, when its filesystem has one.
+	///
+	/// @param file the file
+	/// @return the permissions, or `null` when they cannot be read
+	private static @Nullable Set<PosixFilePermission> permissionsOf(Path file) {
+		try {
+			return Files.getPosixFilePermissions(file);
+		} catch (IOException | UnsupportedOperationException e) {
+			return null;
+		}
+	}
 
-    /// Puts back the records a failed move had already rewritten.
-    ///
-    /// @param written the records as they were
-    private static void restore(List<Record> written) {
-        for (Record record : written) {
-            try {
-                write(record.file(), record.text(), record.permissions());
-            } catch (IOException e) {
-                LOG.warning("Failed to put " + record.file() + " back", e);
-            }
-        }
-    }
+	/// Puts back the records a failed move had already rewritten.
+	///
+	/// @param written the records as they were
+	private static void restore(List<Record> written) {
+		for (Record record : written) {
+			try {
+				write(record.file(), record.text(), record.permissions());
+			} catch (IOException e) {
+				LOG.warning("Failed to put " + record.file() + " back", e);
+			}
+		}
+	}
 
-    /// One record of a local installation, as it was before the rewrite.
-    ///
-    /// @param file        the file
-    /// @param text        its text
-    /// @param permissions its mode, or `null` when its filesystem has none
-    private record Record(Path file, String text,
-                          @Nullable Set<PosixFilePermission> permissions) {
-    }
+	/// One record of a local installation, as it was before the rewrite.
+	///
+	/// @param file        the file
+	/// @param text        its text
+	/// @param permissions its mode, or `null` when its filesystem has none
+	private record Record(Path file, String text, @Nullable Set<PosixFilePermission> permissions) {
+	}
 }

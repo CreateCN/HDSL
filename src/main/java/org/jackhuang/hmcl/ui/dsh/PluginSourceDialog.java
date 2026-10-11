@@ -20,21 +20,12 @@ package org.jackhuang.hmcl.ui.dsh;
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXDialogLayout;
 import com.jfoenix.controls.JFXTextField;
+import com.mcxcc303.hdsl.plugin.DshPluginSources;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
-import javafx.scene.layout.ColumnConstraints;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.plugin.DshPluginSources;
+import javafx.scene.layout.*;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.construct.DialogAware;
-import org.jackhuang.hmcl.ui.construct.DialogCloseEvent;
-import org.jackhuang.hmcl.ui.construct.RequiredValidator;
-import org.jackhuang.hmcl.ui.construct.SpinnerPane;
-import org.jackhuang.hmcl.ui.construct.Validator;
+import org.jackhuang.hmcl.ui.construct.*;
 import org.jackhuang.hmcl.util.FutureCallback;
 import org.jetbrains.annotations.NotNullByDefault;
 
@@ -60,142 +51,139 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// a row left over for a message keeps its height with nothing in it.
 @NotNullByDefault
 public final class PluginSourceDialog extends JFXDialogLayout implements DialogAware {
-    /// What the two fields hold.
-    ///
-    /// @param repository the repository the plugin is in
-    /// @param reference  the branch, tag or commit, or an empty string for the default branch
-    public record Source(String repository, String reference) {
-    }
+	/// The value the dialog finishes with.
+	private final CompletableFuture<Source> future = new CompletableFuture<>();
+	/// The repository the plugin is in.
+	private final JFXTextField repository = new JFXTextField();
+	/// The revision to install, which may be left empty.
+	private final JFXTextField reference = new JFXTextField();
+	/// Says why a submission was refused, in the caller's words.
+	private final Label warning = new Label();
+	/// Covers the accept button while the caller decides.
+	private final SpinnerPane acceptPane = new SpinnerPane();
+	/// Accepts what was typed, once both fields are usable.
+	private final JFXButton acceptButton = new JFXButton(i18n("button.ok"));
 
-    /// The value the dialog finishes with.
-    private final CompletableFuture<Source> future = new CompletableFuture<>();
+	/// Creates the dialog.
+	///
+	/// @param onResult asked whether what was typed can be installed, and answers by resolving
+	///                 or by rejecting with a reason to show
+	public PluginSourceDialog(FutureCallback<Source> onResult) {
+		setHeading(new Label(i18n("dsh.instance.plugins.add.url")));
 
-    /// The repository the plugin is in.
-    private final JFXTextField repository = new JFXTextField();
+		// The account dialog's own arrangement for telling somebody a field is wrong: a validator on
+		// the field plus validate-as-you-type, which paints the underline red and prints the message
+		// under the box **as it is typed**. Which of the two may be left alone is then a fact about
+		// the field rather than a line of prose above it — the one that is required says so when it
+		// is empty, and the one that is not is never painted red for being empty.
+		repository.setValidators(new RequiredValidator());
 
-    /// The revision to install, which may be left empty.
-    private final JFXTextField reference = new JFXTextField();
+		// What a revision may not hold is the other half of that: a space, a '#', or a leading
+		// hyphen are refused when the specification is built, and refusing them here means saying so
+		// before a repository is cloned rather than after.
+		reference.setValidators(new Validator(i18n("dsh.plugin.source.reference_unusable"),
+		                                      DshPluginSources::isUsableReference));
 
-    /// Says why a submission was refused, in the caller's words.
-    private final Label warning = new Label();
+		FXUtils.setValidateWhileTextChanged(repository, true);
+		FXUtils.setValidateWhileTextChanged(reference, true);
+		// Either box being wrong is enough to stop the button: the account dialog binds the field it
+		// requires, and both of these are answered before the installation is asked for.
+		acceptButton.disableProperty()
+		            .bind(repository.activeValidatorProperty()
+		                            .isNotNull()
+		                            .or(reference.activeValidatorProperty().isNotNull()));
 
-    /// Covers the accept button while the caller decides.
-    private final SpinnerPane acceptPane = new SpinnerPane();
+		// A message only when there is one: a label that is merely invisible keeps its height, which
+		// is the strip of nothing under a form that has nothing to say.
+		warning.setWrapText(true);
+		warning.visibleProperty().bind(warning.textProperty().isNotEmpty());
+		warning.managedProperty().bind(warning.visibleProperty());
 
-    /// Accepts what was typed, once both fields are usable.
-    private final JFXButton acceptButton = new JFXButton(i18n("button.ok"));
+		setBody(new VBox(10, buildForm(), warning));
 
-    /// Creates the dialog.
-    ///
-    /// @param onResult asked whether what was typed can be installed, and answers by resolving
-    ///                 or by rejecting with a reason to show
-    public PluginSourceDialog(FutureCallback<Source> onResult) {
-        setHeading(new Label(i18n("dsh.instance.plugins.add.url")));
+		acceptPane.getStyleClass().add("small-spinner-pane");
+		acceptButton.getStyleClass().add("dialog-accept");
+		acceptPane.setContent(acceptButton);
 
-        // The account dialog's own arrangement for telling somebody a field is wrong: a validator on
-        // the field plus validate-as-you-type, which paints the underline red and prints the message
-        // under the box **as it is typed**. Which of the two may be left alone is then a fact about
-        // the field rather than a line of prose above it — the one that is required says so when it
-        // is empty, and the one that is not is never painted red for being empty.
-        repository.setValidators(new RequiredValidator());
+		JFXButton cancelButton = new JFXButton(i18n("button.cancel"));
+		cancelButton.getStyleClass().add("dialog-cancel");
+		cancelButton.setOnAction(event -> fireEvent(new DialogCloseEvent()));
 
-        // What a revision may not hold is the other half of that: a space, a '#', or a leading
-        // hyphen are refused when the specification is built, and refusing them here means saying so
-        // before a repository is cloned rather than after.
-        reference.setValidators(new Validator(i18n("dsh.plugin.source.reference_unusable"),
-                DshPluginSources::isUsableReference));
+		HBox actions = new HBox(8, acceptPane, cancelButton);
+		actions.setAlignment(Pos.CENTER_RIGHT);
+		setActions(actions);
 
-        FXUtils.setValidateWhileTextChanged(repository, true);
-        FXUtils.setValidateWhileTextChanged(reference, true);
-        // Either box being wrong is enough to stop the button: the account dialog binds the field it
-        // requires, and both of these are answered before the installation is asked for.
-        acceptButton.disableProperty().bind(repository.activeValidatorProperty().isNotNull()
-                .or(reference.activeValidatorProperty().isNotNull()));
+		acceptButton.setOnAction(event -> accept(onResult));
+		repository.setOnAction(event -> reference.requestFocus());
+		reference.setOnAction(event -> acceptButton.fire());
+		onEscPressed(this, cancelButton::fire);
+	}
 
-        // A message only when there is one: a label that is merely invisible keeps its height, which
-        // is the strip of nothing under a form that has nothing to say.
-        warning.setWrapText(true);
-        warning.visibleProperty().bind(warning.textProperty().isNotEmpty());
-        warning.managedProperty().bind(warning.visibleProperty());
+	/// Builds the form.
+	///
+	/// @return the form
+	private GridPane buildForm() {
+		GridPane grid = new GridPane();
+		grid.setVgap(22);
+		grid.setHgap(15);
+		grid.setAlignment(Pos.CENTER);
 
-        setBody(new VBox(10, buildForm(), warning));
+		ColumnConstraints nameColumn = new ColumnConstraints();
+		nameColumn.setMinWidth(Region.USE_PREF_SIZE);
+		ColumnConstraints fieldColumn = new ColumnConstraints();
+		fieldColumn.setHgrow(Priority.ALWAYS);
+		grid.getColumnConstraints().addAll(nameColumn, fieldColumn);
 
-        acceptPane.getStyleClass().add("small-spinner-pane");
-        acceptButton.getStyleClass().add("dialog-accept");
-        acceptPane.setContent(acceptButton);
+		// The boxes fill the column beside the names, rather than being given a width of their own
+		// that the dialog then has to be wide enough for.
+		repository.setMaxWidth(Double.MAX_VALUE);
+		reference.setMaxWidth(Double.MAX_VALUE);
 
-        JFXButton cancelButton = new JFXButton(i18n("button.cancel"));
-        cancelButton.getStyleClass().add("dialog-cancel");
-        cancelButton.setOnAction(event -> fireEvent(new DialogCloseEvent()));
+		grid.add(new Label(i18n("dsh.plugin.source.repository")), 0, 0);
+		grid.add(repository, 1, 0);
+		grid.add(new Label(i18n("dsh.plugin.source.reference")), 0, 1);
+		grid.add(reference, 1, 1);
+		return grid;
+	}
 
-        HBox actions = new HBox(8, acceptPane, cancelButton);
-        actions.setAlignment(Pos.CENTER_RIGHT);
-        setActions(actions);
+	/// Hands what was typed to the caller, and finishes when it is accepted.
+	///
+	/// @param onResult the caller's question
+	private void accept(FutureCallback<Source> onResult) {
+		Source source = new Source(repository.getText(), reference.getText());
+		acceptPane.showSpinner();
+		onResult.call(source, new FutureCallback.ResultHandler() {
+			@Override
+			public void resolve() {
+				acceptPane.hideSpinner();
+				future.complete(source);
+				fireEvent(new DialogCloseEvent());
+			}
 
-        acceptButton.setOnAction(event -> accept(onResult));
-        repository.setOnAction(event -> reference.requestFocus());
-        reference.setOnAction(event -> acceptButton.fire());
-        onEscPressed(this, cancelButton::fire);
-    }
+			@Override
+			public void reject(String reason) {
+				acceptPane.hideSpinner();
+				warning.setText(reason);
+			}
+		});
+	}
 
-    /// Builds the form.
-    ///
-    /// @return the form
-    private GridPane buildForm() {
-        GridPane grid = new GridPane();
-        grid.setVgap(22);
-        grid.setHgap(15);
-        grid.setAlignment(Pos.CENTER);
+	@Override
+	public void onDialogShown() {
+		repository.requestFocus();
+	}
 
-        ColumnConstraints nameColumn = new ColumnConstraints();
-        nameColumn.setMinWidth(Region.USE_PREF_SIZE);
-        ColumnConstraints fieldColumn = new ColumnConstraints();
-        fieldColumn.setHgrow(Priority.ALWAYS);
-        grid.getColumnConstraints().addAll(nameColumn, fieldColumn);
+	/// The value the dialog finishes with.
+	///
+	/// @return a future completed with what was accepted, or completed exceptionally on cancel
+	public CompletableFuture<Source> getCompletableFuture() {
+		return future;
+	}
 
-        // The boxes fill the column beside the names, rather than being given a width of their own
-        // that the dialog then has to be wide enough for.
-        repository.setMaxWidth(Double.MAX_VALUE);
-        reference.setMaxWidth(Double.MAX_VALUE);
-
-        grid.add(new Label(i18n("dsh.plugin.source.repository")), 0, 0);
-        grid.add(repository, 1, 0);
-        grid.add(new Label(i18n("dsh.plugin.source.reference")), 0, 1);
-        grid.add(reference, 1, 1);
-        return grid;
-    }
-
-    /// Hands what was typed to the caller, and finishes when it is accepted.
-    ///
-    /// @param onResult the caller's question
-    private void accept(FutureCallback<Source> onResult) {
-        Source source = new Source(repository.getText(), reference.getText());
-        acceptPane.showSpinner();
-        onResult.call(source, new FutureCallback.ResultHandler() {
-            @Override
-            public void resolve() {
-                acceptPane.hideSpinner();
-                future.complete(source);
-                fireEvent(new DialogCloseEvent());
-            }
-
-            @Override
-            public void reject(String reason) {
-                acceptPane.hideSpinner();
-                warning.setText(reason);
-            }
-        });
-    }
-
-    @Override
-    public void onDialogShown() {
-        repository.requestFocus();
-    }
-
-    /// The value the dialog finishes with.
-    ///
-    /// @return a future completed with what was accepted, or completed exceptionally on cancel
-    public CompletableFuture<Source> getCompletableFuture() {
-        return future;
-    }
+	/// What the two fields hold.
+	///
+	/// @param repository the repository the plugin is in
+	/// @param reference  the branch, tag or commit, or an empty string for the default branch
+	public record Source(String repository, String reference) {
+	}
 }

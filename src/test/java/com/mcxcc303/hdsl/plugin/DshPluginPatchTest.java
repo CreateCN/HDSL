@@ -17,20 +17,16 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.plugin.DshPluginPatch;
-
+import org.jetbrains.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies that a plugin is switched off in the profile's patch layer, not in
 /// the package.
@@ -42,102 +38,99 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// that block — the template's empty-list placeholder goes back when the last
 /// one leaves.
 class DshPluginPatchTest {
-    /// A home to build profiles in.
-    @TempDir
-    Path home;
+	/// The profile every case installs into.
+	private static final String PROFILE = "web";
+	/// A home to build profiles in.
+	@TempDir
+	Path home;
 
-    /// The profile every case installs into.
-    private static final String PROFILE = "web";
+	/// Writes a package with a bundle patch.
+	///
+	/// @param name          the package name
+	/// @param declaredPatch the path the manifest declares, or `null`
+	/// @param patchText     the package's own patch
+	private void writePackage(String name, @Nullable String declaredPatch, String patchText) throws Exception {
+		Path directory = home.resolve("profiles").resolve(PROFILE).resolve("node_modules").resolve(name);
+		Files.createDirectories(directory);
+		String manifest = declaredPatch == null
+		                  ? "{\"name\":\"" + name + "\"}"
+		                  : "{\"name\":\"" + name + "\",\"dsh\":{\"bundle\":{\"patch\":\"" + declaredPatch + "\"}}}";
+		Files.writeString(directory.resolve("package.json"), manifest);
+		Files.writeString(directory.resolve("cordis.patch.yml"), patchText);
+	}
 
-    /// Writes a package with a bundle patch.
-    ///
-    /// @param name          the package name
-    /// @param declaredPatch the path the manifest declares, or `null`
-    /// @param patchText     the package's own patch
-    private void writePackage(String name, @Nullable String declaredPatch, String patchText) throws Exception {
-        Path directory = home.resolve("profiles").resolve(PROFILE).resolve("node_modules").resolve(name);
-        Files.createDirectories(directory);
-        String manifest = declaredPatch == null
-                ? "{\"name\":\"" + name + "\"}"
-                : "{\"name\":\"" + name + "\",\"dsh\":{\"bundle\":{\"patch\":\""
-                        + declaredPatch + "\"}}}";
-        Files.writeString(directory.resolve("package.json"), manifest);
-        Files.writeString(directory.resolve("cordis.patch.yml"), patchText);
-    }
+	/// Writes the profile's own patch layer.
+	///
+	/// @param text the patch text
+	private void writeProfilePatch(String text) throws Exception {
+		Path file = DshPluginPatch.patchFile(home, PROFILE);
+		Files.createDirectories(file.getParent());
+		Files.writeString(file, text);
+	}
 
-    /// Writes the profile's own patch layer.
-    ///
-    /// @param text the patch text
-    private void writeProfilePatch(String text) throws Exception {
-        Path file = DshPluginPatch.patchFile(home, PROFILE);
-        Files.createDirectories(file.getParent());
-        Files.writeString(file, text);
-    }
+	@Test
+	void onlyRowsUnderAnInsertBlockBelongToThePackage() {
+		String text = """
+				- insert:
+				    - id: own-row
+				      name: 'dsh-demo'
+				- id: neighbour
+				  disabled: true
+				- id: tuned
+				  config:
+				    value: 1
+				""";
 
-    @Test
-    void onlyRowsUnderAnInsertBlockBelongToThePackage() {
-        String text = """
-                - insert:
-                    - id: own-row
-                      name: 'dsh-demo'
-                - id: neighbour
-                  disabled: true
-                - id: tuned
-                  config:
-                    value: 1
-                """;
+		assertEquals(List.of("own-row"), DshPluginPatch.insertedIdsIn(text));
+	}
 
-        assertEquals(List.of("own-row"), DshPluginPatch.insertedIdsIn(text));
-    }
+	@Test
+	void disablingAndEnablingRestoresTheTemplate() throws Exception {
+		writePackage("dsh-demo", "./cordis.patch.yml", """
+				- insert:
+				    - id: demo
+				      name: 'dsh-demo'
+				      disabled: !!js "some expression"
+				""");
+		writeProfilePatch("# A header the person wrote\n[]\n");
 
-    @Test
-    void disablingAndEnablingRestoresTheTemplate() throws Exception {
-        writePackage("dsh-demo", "./cordis.patch.yml", """
-                - insert:
-                    - id: demo
-                      name: 'dsh-demo'
-                      disabled: !!js "some expression"
-                """);
-        writeProfilePatch("# A header the person wrote\n[]\n");
+		DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", false);
 
-        DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", false);
+		String disabled = Files.readString(DshPluginPatch.patchFile(home, PROFILE));
+		assertTrue(disabled.contains("- id: demo\n  disabled: true\n"), disabled);
+		assertTrue(disabled.contains("# A header"), "the header survives");
+		assertEquals(Set.of("demo"), DshPluginPatch.disabledIds(home, PROFILE));
 
-        String disabled = Files.readString(DshPluginPatch.patchFile(home, PROFILE));
-        assertTrue(disabled.contains("- id: demo\n  disabled: true\n"), disabled);
-        assertTrue(disabled.contains("# A header"), "the header survives");
-        assertEquals(Set.of("demo"), DshPluginPatch.disabledIds(home, PROFILE));
+		// Idempotent: a second disable is a no-op, not a second block.
+		DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", false);
+		assertEquals(1, Files.readString(DshPluginPatch.patchFile(home, PROFILE)).split("- id: demo", -1).length - 1);
 
-        // Idempotent: a second disable is a no-op, not a second block.
-        DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", false);
-        assertEquals(1, Files.readString(DshPluginPatch.patchFile(home, PROFILE))
-                .split("- id: demo", -1).length - 1);
+		DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", true);
 
-        DshPluginPatch.setEnabled(home, PROFILE, "dsh-demo", true);
+		assertEquals("# A header the person wrote\n[]\n",
+		             Files.readString(DshPluginPatch.patchFile(home, PROFILE)),
+		             "the placeholder goes back, or the profile would refuse to boot");
+		assertTrue(DshPluginPatch.disabledIds(home, PROFILE).isEmpty());
+	}
 
-        assertEquals("# A header the person wrote\n[]\n",
-                Files.readString(DshPluginPatch.patchFile(home, PROFILE)),
-                "the placeholder goes back, or the profile would refuse to boot");
-        assertTrue(DshPluginPatch.disabledIds(home, PROFILE).isEmpty());
-    }
+	@Test
+	void aPackageWithoutADeclaredPatchIsStillRead() throws Exception {
+		writePackage("dsh-conventional", null, """
+				- insert:
+				    - id: conventional
+				""");
 
-    @Test
-    void aPackageWithoutADeclaredPatchIsStillRead() throws Exception {
-        writePackage("dsh-conventional", null, """
-                - insert:
-                    - id: conventional
-                """);
+		assertEquals(List.of("conventional"), DshPluginPatch.insertedIds(home, PROFILE, "dsh-conventional"));
+	}
 
-        assertEquals(List.of("conventional"), DshPluginPatch.insertedIds(home, PROFILE, "dsh-conventional"));
-    }
+	@Test
+	void aForeignDisableRowIsNotClaimed() {
+		String text = """
+				- id: someone-elses
+				  disabled: true
+				""";
 
-    @Test
-    void aForeignDisableRowIsNotClaimed() {
-        String text = """
-                - id: someone-elses
-                  disabled: true
-                """;
-
-        assertTrue(DshPluginPatch.insertedIdsIn(text).isEmpty());
-        assertFalse(DshPluginPatch.disabledIdsIn(text).isEmpty());
-    }
+		assertTrue(DshPluginPatch.insertedIdsIn(text).isEmpty());
+		assertFalse(DshPluginPatch.disabledIdsIn(text).isEmpty());
+	}
 }

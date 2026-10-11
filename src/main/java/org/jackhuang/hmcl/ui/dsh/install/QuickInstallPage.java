@@ -17,38 +17,33 @@
  */
 package org.jackhuang.hmcl.ui.dsh.install;
 
-import com.mcxcc303.hdsl.harness.AppBootPin;
-import com.mcxcc303.hdsl.harness.ReleaseQueries;
-
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXTextField;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.core.DshPaths;
+import com.mcxcc303.hdsl.harness.AppBootPin;
+import com.mcxcc303.hdsl.harness.DshPreset;
+import com.mcxcc303.hdsl.harness.DshPresetCatalog;
+import com.mcxcc303.hdsl.harness.ReleaseQueries;
+import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import javafx.beans.binding.Bindings;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
-import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.core.DshException;
+import javafx.scene.layout.*;
 import org.jackhuang.hmcl.theme.Themes;
-import com.mcxcc303.hdsl.core.DshPaths;
-import com.mcxcc303.hdsl.instance.DshInstanceIcon;
-import com.mcxcc303.hdsl.harness.DshPreset;
-import com.mcxcc303.hdsl.harness.DshPresetCatalog;
 import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
-import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.SVG;
+import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LineTextPane;
+import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jackhuang.hmcl.ui.wizard.WizardController;
 import org.jackhuang.hmcl.ui.wizard.WizardPage;
 import org.jackhuang.hmcl.util.SettingsMap;
@@ -70,408 +65,403 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// installation most often wants.
 @NotNullByDefault
 public final class QuickInstallPage extends BorderPane implements WizardPage {
-    /// The wizard controller used to finish.
-    private final WizardController controller;
+	/// The wizard controller used to finish.
+	private final WizardController controller;
 
-    /// The instance name field.
-    private final JFXTextField nameField = new JFXTextField();
+	/// The instance name field.
+	private final JFXTextField nameField = new JFXTextField();
+	/// The preset cards, in catalogue order.
+	///
+	/// The selection is read straight from the controls rather than mirrored
+	/// into a map: a parallel copy can drift from what the user sees.
+	private final List<PluginCard> presetCards = new ArrayList<>();
 
-    /// Whether the name was typed by hand.
-    ///
-    /// The suggested name follows the choices until someone writes their own,
-    /// and stops following them afterwards. Recomputing it on every change would
-    /// take away a name that was chosen deliberately, which is worse than a name
-    /// that no longer describes the instance.
-    private boolean nameWrittenByHand;
+	/// The workspace chooser.
 
-    /// The workspace chooser.
+	/// The home policy selector.
 
+	/// The Node runtime selector.
+	/// The state shown on the boot library card.
+	///
+	/// A property rather than a label the card writes to, because the card is
+	/// built before the version it reports on is known to it.
+	private final StringProperty appBootStatus = new SimpleStringProperty();
+	/// Whether the name was typed by hand.
+	///
+	/// The suggested name follows the choices until someone writes their own,
+	/// and stops following them afterwards. Recomputing it on every change would
+	/// take away a name that was chosen deliberately, which is worse than a name
+	/// that no longer describes the instance.
+	private boolean nameWrittenByHand;
 
-    /// The home policy selector.
+	/// Creates the quick-install page.
+	///
+	/// @param controller the wizard controller
+	public QuickInstallPage(WizardController controller) {
+		this.controller = controller;
 
+		setPadding(new Insets(16));
 
-    /// The Node runtime selector.
+		// Seed the recommendations before the cards are built, so they render the
+		// same state the wizard will install.
+		seedDefaultChoices();
 
+		// The original's arrangement: what scrolls in the middle, and the install
+		// button on the border rather than under whatever the content ends at. As
+		// a scroll pane this page sized itself to its content, so a button at the
+		// end of the content sat wherever the cards stopped.
+		VBox content = new VBox(10, buildInstanceList(), buildPresetList());
 
-    /// The preset cards, in catalogue order.
-    ///
-    /// The selection is read straight from the controls rather than mirrored
-    /// into a map: a parallel copy can drift from what the user sees.
-    private final List<PluginCard> presetCards = new ArrayList<>();
+		ScrollPane scroll = new ScrollPane(content);
+		scroll.setFitToWidth(true);
+		FXUtils.smoothScrolling(scroll);
 
-    /// The state shown on the boot library card.
-    ///
-    /// A property rather than a label the card writes to, because the card is
-    /// built before the version it reports on is known to it.
-    private final StringProperty appBootStatus = new SimpleStringProperty();
+		setCenter(scroll);
+		setBottom(buildFooter());
 
-    /// Creates the quick-install page.
-    ///
-    /// @param controller the wizard controller
-    public QuickInstallPage(WizardController controller) {
-        this.controller = controller;
+		applyDefaults();
+	}
 
-        setPadding(new Insets(16));
+	/// Returns the boot library's mark for the current theme.
+	///
+	/// @return the mark, white on a dark surface and black on a light one
+	private static Image appBootMark() {
+		return (Themes.darkModeProperty().get() ? DshInstanceIcon.DSH_WHITE : DshInstanceIcon.DSH_BLACK).load();
+	}
 
-        // Seed the recommendations before the cards are built, so they render the
-        // same state the wizard will install.
-        seedDefaultChoices();
+	/// Leaves every plugin unchosen.
+	///
+	/// The map is the single source of truth the wizard finishes from; the cards
+	/// only render it. Nothing is put in it, so a new instance installs the
+	/// runtime and nothing else until something is asked for — the marketplace
+	/// among them, which is offered rather than assumed.
+	private void seedDefaultChoices() {
+		// Nothing to seed.
+	}
 
-        // The original's arrangement: what scrolls in the middle, and the install
-        // button on the border rather than under whatever the content ends at. As
-        // a scroll pane this page sized itself to its content, so a button at the
-        // end of the content sat wherever the cards stopped.
-        VBox content = new VBox(10, buildInstanceList(), buildPresetList());
+	/// Builds the instance identity section.
+	///
+	/// @return the assembled component list
+	private ComponentList buildInstanceList() {
+		nameField.setPromptText(i18n("dsh.instance.name"));
+		nameField.textProperty().addListener((observable, was, now) -> nameWrittenByHand = true);
 
-        ScrollPane scroll = new ScrollPane(content);
-        scroll.setFitToWidth(true);
-        FXUtils.smoothScrolling(scroll);
+		// Clear and reset, as the original puts beside its name field.
+		JFXButton clear = new JFXButton();
+		clear.setGraphic(SVG.CLOSE.createIcon(20));
+		clear.getStyleClass().add("toggle-icon4");
+		clear.setOnAction(event -> nameField.setText(""));
 
-        setCenter(scroll);
-        setBottom(buildFooter());
+		JFXButton reset = new JFXButton();
+		reset.setGraphic(SVG.REFRESH.createIcon(20));
+		reset.getStyleClass().add("toggle-icon4");
+		reset.setOnAction(event -> {
+			nameWrittenByHand = false;
+			refreshSuggestedName();
+		});
 
-        applyDefaults();
-    }
+		HBox trailing = new HBox(8, nameField, clear, reset);
+		trailing.setAlignment(Pos.CENTER_LEFT);
+		HBox.setHgrow(nameField, Priority.ALWAYS);
 
-    /// Leaves every plugin unchosen.
-    ///
-    /// The map is the single source of truth the wizard finishes from; the cards
-    /// only render it. Nothing is put in it, so a new instance installs the
-    /// runtime and nothing else until something is asked for — the marketplace
-    /// among them, which is offered rather than assumed.
-    private void seedDefaultChoices() {
-        // Nothing to seed.
-    }
+		LineTextPane nameRow = new LineTextPane();
+		nameRow.setTitle(i18n("dsh.instance.name"));
+		nameRow.setTitleTrailing(trailing);
 
-    /// Builds the instance identity section.
-    ///
-    /// @return the assembled component list
-    private ComponentList buildInstanceList() {
-        nameField.setPromptText(i18n("dsh.instance.name"));
-        nameField.textProperty().addListener((observable, was, now) -> nameWrittenByHand = true);
+		ComponentList list = new ComponentList();
+		list.getContent().add(nameRow);
+		return list;
+	}
 
-        // Clear and reset, as the original puts beside its name field.
-        JFXButton clear = new JFXButton();
-        clear.setGraphic(SVG.CLOSE.createIcon(20));
-        clear.getStyleClass().add("toggle-icon4");
-        clear.setOnAction(event -> nameField.setText(""));
+	/// Returns the version chosen on the page before this one.
+	///
+	/// @return the version, or `null` when none was chosen
+	private String currentVersion() {
+		String version = controller.getSettings().get(DshInstallWizardProvider.VERSION);
+		return version == null || version.isBlank() ? null : version;
+	}
 
-        JFXButton reset = new JFXButton();
-        reset.setGraphic(SVG.REFRESH.createIcon(20));
-        reset.getStyleClass().add("toggle-icon4");
-        reset.setOnAction(event -> {
-            nameWrittenByHand = false;
-            refreshSuggestedName();
-        });
+	/// Builds the card choosing the application boot library.
+	///
+	/// It starts on the version that matches the launcher, which is the only
+	/// combination that is known to work — the two are published together and a
+	/// release whose libraries disagree with it fails at import rather than
+	/// degrading. Choosing another is allowed because a user may know something
+	/// this launcher does not, but it is a deliberate step with a warning rather
+	/// than a default.
+	///
+	/// @return the card
+	private Node buildAppBootCard() {
+		appBootStatus.set(i18n("dsh.install.app_boot.matched", currentAppBoot()));
 
-        HBox trailing = new HBox(8, nameField, clear, reset);
-        trailing.setAlignment(Pos.CENTER_LEFT);
-        HBox.setHgrow(nameField, Priority.ALWAYS);
+		// The mark is white or black and the card's surface follows the theme, so
+		// the picture follows it too: the white one on a light card is a mark
+		// nobody can see, which is what the light theme showed. Bound rather than
+		// chosen once, because the theme can be changed while the page is open.
+		ImageView mark = new ImageView();
+		mark.imageProperty()
+		    .bind(Bindings.createObjectBinding(QuickInstallPage::appBootMark, Themes.darkModeProperty()));
 
-        LineTextPane nameRow = new LineTextPane();
-        nameRow.setTitle(i18n("dsh.instance.name"));
-        nameRow.setTitleTrailing(trailing);
+		InstallerCard card = new InstallerCard(mark,
+		                                       i18n("dsh.install.app_boot"),
+		                                       appBootStatus.get(),
+		                                       () -> chooseAppBoot());
+		card.statusProperty().bind(appBootStatus);
+		FXUtils.installFastTooltip(card, i18n("dsh.install.app_boot.hint"));
+		return card;
+	}
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(nameRow);
-        return list;
-    }
+	/// Returns the boot library version that pairs with the chosen launcher.
+	///
+	/// @return the version
+	private String currentAppBoot() {
+		String chosen = controller.getSettings().get(DshInstallWizardProvider.APP_BOOT);
+		return chosen == null || chosen.isBlank() ? currentVersion() : chosen;
+	}
 
-    /// Returns the version chosen on the page before this one.
-    ///
-    /// @return the version, or `null` when none was chosen
-    private String currentVersion() {
-        String version = controller.getSettings().get(DshInstallWizardProvider.VERSION);
-        return version == null || version.isBlank() ? null : version;
-    }
+	/// Offers the published boot library versions.
+	///
+	/// Choosing one that is not the launcher's own version is what the warning
+	/// is for: the pairing is not a preference, and a mismatch is discovered at
+	/// start-up. The warning also states the scope, because the choice belongs
+	/// to the installed version rather than to this instance — every instance
+	/// running that version shares it.
+	///
+	/// @param card the card to update after a choice
+	/// Opens the boot library chooser.
+	///
+	/// The chooser is a page of its own, as the original's is, rather than a
+	/// dropdown in a dialog: a dropdown cannot be left without choosing, has
+	/// nowhere to put a list longer than the screen, and gives the versions no
+	/// room to say what they are.
+	private void chooseAppBoot() {
+		Controllers.getDecorator().startWizard(new AppBootWizardProvider(currentVersion(), chosen -> {
+			                                       if (chosen == null) {
+				                                       controller.getSettings().remove(DshInstallWizardProvider.APP_BOOT);
+				                                       appBootStatus.set(i18n("dsh.install.app_boot.matched", currentAppBoot()));
+			                                       } else {
+				                                       controller.getSettings().put(DshInstallWizardProvider.APP_BOOT, chosen);
+				                                       appBootStatus.set(i18n("dsh.install.app_boot.chosen", chosen));
+			                                       }
+			                                       refreshSuggestedName();
+		                                       }),
+		                                       // The wizard's category names the task, its page names the step,
+		                                       // as the original's "安装新游戏 - 选择 Fabric API 版本" does.
+		                                       i18n("dsh.instance.create"));
+	}
 
-    /// Builds the card choosing the application boot library.
-    ///
-    /// It starts on the version that matches the launcher, which is the only
-    /// combination that is known to work — the two are published together and a
-    /// release whose libraries disagree with it fails at import rather than
-    /// degrading. Choosing another is allowed because a user may know something
-    /// this launcher does not, but it is a deliberate step with a warning rather
-    /// than a default.
-    ///
-    /// @return the card
-    private Node buildAppBootCard() {
-        appBootStatus.set(i18n("dsh.install.app_boot.matched", currentAppBoot()));
+	/// Lists the published boot library versions.
+	///
+	/// The launcher's own version leads, so the safe choice is the first one
+	/// offered rather than something to go looking for.
+	///
+	/// @return the versions, newest first
+	private List<String> availableAppBootVersions() {
+		try {
+			List<String> versions = new ArrayList<>();
+			String launcherVersion = currentVersion();
+			if (launcherVersion != null) {
+				versions.add(launcherVersion);
+			}
+			for (String version : ReleaseQueries.fetchPackageVersions(AppBootPin.APP_BOOT_PACKAGE)) {
+				if (!versions.contains(version)) {
+					versions.add(version);
+				}
+			}
+			return versions;
+		} catch (DshException e) {
+			LOG.warning("Failed to list application boot versions", e);
+			return List.of();
+		}
+	}
 
-        // The mark is white or black and the card's surface follows the theme, so
-        // the picture follows it too: the white one on a light card is a mark
-        // nobody can see, which is what the light theme showed. Bound rather than
-        // chosen once, because the theme can be changed while the page is open.
-        ImageView mark = new ImageView();
-        mark.imageProperty().bind(Bindings.createObjectBinding(
-                QuickInstallPage::appBootMark, Themes.darkModeProperty()));
+	/// Builds the card stating which version is being installed.
+	///
+	/// @return the card
+	private Node buildVersionCard() {
+		// The launcher's own mark, as every list of versions carries, and the
+		// name of the thing rather than the word "version": the card states which
+		// DeepSeek Harness the instance will run. No arrow — the version was
+		// settled on the page before this one, so there is nothing to open.
+		return new InstallerCard(DshInstanceIcon.DSH_APPLICATION.load(),
+		                         i18n("dsh.install.version.name"),
+		                         currentVersion() == null ? i18n("dsh.install.version.none") : currentVersion(),
+		                         null);
+	}
 
-        InstallerCard card = new InstallerCard(mark, i18n("dsh.install.app_boot"),
-                appBootStatus.get(), () -> chooseAppBoot());
-        card.statusProperty().bind(appBootStatus);
-        FXUtils.installFastTooltip(card, i18n("dsh.install.app_boot.hint"));
-        return card;
-    }
+	/// Builds the quick-install preset section as a grid of cards.
+	///
+	/// The grid mirrors HMCL's installer list: one card per thing that can be
+	/// installed, showing at a glance whether it will be. A card is toggled by
+	/// clicking it, because the description is the only extra information a
+	/// plugin has and it does not need a page of its own.
+	///
+	/// @return the assembled section
+	private VBox buildPresetList() {
+		// The original's section heading, not a label styled to look like one:
+		// the class carries the size, colour and padding the interface uses for
+		// a heading, and a hand-styled label matches none of them exactly.
+		Node header = ComponentList.createComponentListTitle(i18n("dsh.install.presets"));
 
-    /// Returns the boot library's mark for the current theme.
-    ///
-    /// @return the mark, white on a dark surface and black on a light one
-    private static Image appBootMark() {
-        return (Themes.darkModeProperty().get() ? DshInstanceIcon.DSH_WHITE : DshInstanceIcon.DSH_BLACK).load();
-    }
+		// Cards sit twelve apart with nothing around the grid; the surrounding
+		// spacing is the page's, not the grid's.
+		FlowPane grid = new FlowPane();
+		grid.setHgap(12);
+		grid.setVgap(12);
 
-    /// Returns the boot library version that pairs with the chosen launcher.
-    ///
-    /// @return the version
-    private String currentAppBoot() {
-        String chosen = controller.getSettings().get(DshInstallWizardProvider.APP_BOOT);
-        return chosen == null || chosen.isBlank() ? currentVersion() : chosen;
-    }
+		Map<String, String> choices = choices();
+		// The version leads the grid, as the game does in the original. It is
+		// not a control: HMCL's vanilla card is not one either, because the
+		// version was settled on the page before this one.
+		grid.getChildren().add(buildVersionCard());
 
-    /// Offers the published boot library versions.
-    ///
-    /// Choosing one that is not the launcher's own version is what the warning
-    /// is for: the pairing is not a preference, and a mismatch is discovered at
-    /// start-up. The warning also states the scope, because the choice belongs
-    /// to the installed version rather than to this instance — every instance
-    /// running that version shares it.
-    ///
-    /// @param card the card to update after a choice
-    /// Opens the boot library chooser.
-    ///
-    /// The chooser is a page of its own, as the original's is, rather than a
-    /// dropdown in a dialog: a dropdown cannot be left without choosing, has
-    /// nowhere to put a list longer than the screen, and gives the versions no
-    /// room to say what they are.
-    private void chooseAppBoot() {
-        Controllers.getDecorator().startWizard(
-                new AppBootWizardProvider(currentVersion(), chosen -> {
-                    if (chosen == null) {
-                        controller.getSettings().remove(DshInstallWizardProvider.APP_BOOT);
-                        appBootStatus.set(i18n("dsh.install.app_boot.matched", currentAppBoot()));
-                    } else {
-                        controller.getSettings().put(DshInstallWizardProvider.APP_BOOT, chosen);
-                        appBootStatus.set(i18n("dsh.install.app_boot.chosen", chosen));
-                    }
-                    refreshSuggestedName();
-                }),
-                // The wizard's category names the task, its page names the step,
-                // as the original's "安装新游戏 - 选择 Fabric API 版本" does.
-                i18n("dsh.instance.create"));
-    }
+		// The boot library sits beside the version it belongs with. It is not a
+		// plugin and is not installed as one: it is a dependency of DeepSeek
+		// Harness, and the card states the pairing the manifest will record.
+		grid.getChildren().add(buildAppBootCard());
 
-    /// Lists the published boot library versions.
-    ///
-    /// The launcher's own version leads, so the safe choice is the first one
-    /// offered rather than something to go looking for.
-    ///
-    /// @return the versions, newest first
-    private List<String> availableAppBootVersions() {
-        try {
-            List<String> versions = new ArrayList<>();
-            String launcherVersion = currentVersion();
-            if (launcherVersion != null) {
-                versions.add(launcherVersion);
-            }
-            for (String version : ReleaseQueries.fetchPackageVersions(AppBootPin.APP_BOOT_PACKAGE)) {
-                if (!versions.contains(version)) {
-                    versions.add(version);
-                }
-            }
-            return versions;
-        } catch (DshException e) {
-            LOG.warning("Failed to list application boot versions", e);
-            return List.of();
-        }
-    }
+		for (DshPreset preset : DshPresetCatalog.builtin()) {
+			PluginCard card = new PluginCard(preset, preset.recommended());
+			card.setChosenVersion(choices.get(preset.id()));
+			card.setOnConfigure(() -> controller.onNext(new PresetChoicePage(controller, preset)));
+			// The cross on the card is how a plugin is left out; the chooser's
+			// list holds versions and nothing else.
+			card.setOnClear(() -> {
+				choices.remove(preset.id());
+				card.setChosenVersion(null);
+			});
+			FXUtils.installFastTooltip(card, preset.description());
+			presetCards.add(card);
+			grid.getChildren().add(card);
+		}
 
-    /// Builds the card stating which version is being installed.
-    ///
-    /// @return the card
-    private Node buildVersionCard() {
-        // The launcher's own mark, as every list of versions carries, and the
-        // name of the thing rather than the word "version": the card states which
-        // DeepSeek Harness the instance will run. No arrow — the version was
-        // settled on the page before this one, so there is nothing to open.
-        return new InstallerCard(DshInstanceIcon.DSH_APPLICATION.load(),
-                i18n("dsh.install.version.name"),
-                currentVersion() == null ? i18n("dsh.install.version.none") : currentVersion(),
-                null);
-    }
-    /// Builds the quick-install preset section as a grid of cards.
-    ///
-    /// The grid mirrors HMCL's installer list: one card per thing that can be
-    /// installed, showing at a glance whether it will be. A card is toggled by
-    /// clicking it, because the description is the only extra information a
-    /// plugin has and it does not need a page of its own.
-    ///
-    /// @return the assembled section
-    private VBox buildPresetList() {
-        // The original's section heading, not a label styled to look like one:
-        // the class carries the size, colour and padding the interface uses for
-        // a heading, and a hand-styled label matches none of them exactly.
-        Node header = ComponentList.createComponentListTitle(i18n("dsh.install.presets"));
+		return new VBox(4, header, grid);
+	}
 
-        // Cards sit twelve apart with nothing around the grid; the surrounding
-        // spacing is the page's, not the grid's.
-        FlowPane grid = new FlowPane();
-        grid.setHgap(12);
-        grid.setVgap(12);
+	/// Builds the page footer.
+	///
+	/// @return the footer
+	private HBox buildFooter() {
+		JFXButton back = new JFXButton(i18n("button.previous"));
+		back.setOnAction(event -> controller.onPrev(false));
 
-        Map<String, String> choices = choices();
-        // The version leads the grid, as the game does in the original. It is
-        // not a control: HMCL's vanilla card is not one either, because the
-        // version was settled on the page before this one.
-        grid.getChildren().add(buildVersionCard());
+		// The original's install button: raised, and sized rather than left to
+		// its text.
+		JFXButton finish = FXUtils.newRaisedButton(i18n("dsh.install.start"));
+		finish.setPrefWidth(100);
+		finish.setPrefHeight(40);
+		finish.setOnAction(event -> {
+			// Only what the page still asks for. The environment comes from the
+			// launcher's settings, and the working directory from the user's
+			// home; writing them here from controls that are no longer on the
+			// page would record values nobody chose.
+			SettingsMap settings = controller.getSettings();
+			settings.put(DshInstallWizardProvider.NAME, nameField.getText());
+			if (!validate(settings)) {
+				return;
+			}
+			controller.onFinish();
+		});
 
-        // The boot library sits beside the version it belongs with. It is not a
-        // plugin and is not installed as one: it is a dependency of DeepSeek
-        // Harness, and the card states the pairing the manifest will record.
-        grid.getChildren().add(buildAppBootCard());
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        for (DshPreset preset : DshPresetCatalog.builtin()) {
-            PluginCard card = new PluginCard(preset, preset.recommended());
-            card.setChosenVersion(choices.get(preset.id()));
-            card.setOnConfigure(() -> controller.onNext(new PresetChoicePage(controller, preset)));
-            // The cross on the card is how a plugin is left out; the chooser's
-            // list holds versions and nothing else.
-            card.setOnClear(() -> {
-                choices.remove(preset.id());
-                card.setChosenVersion(null);
-            });
-            FXUtils.installFastTooltip(card, preset.description());
-            presetCards.add(card);
-            grid.getChildren().add(card);
-        }
+		HBox footer = new HBox(8, back, spacer, finish);
+		footer.setAlignment(Pos.CENTER_RIGHT);
+		footer.setPadding(new Insets(0, 10, 10, 10));
+		return footer;
+	}
 
-        return new VBox(4, header, grid);
-    }
+	/// Applies sensible starting values.
+	private void applyDefaults() {
+		seedDefaultChoices();
+		nameWrittenByHand = false;
+		refreshSuggestedName();
+	}
 
-    /// Builds the page footer.
-    ///
-    /// @return the footer
-    private HBox buildFooter() {
-        JFXButton back = new JFXButton(i18n("button.previous"));
-        back.setOnAction(event -> controller.onPrev(false));
+	/// Suggests a name for the instance about to be made.
+	///
+	/// The version, with anything chosen away from its default appended: the
+	/// original names an instance after the game version and appends the loaders
+	/// that were selected, and the DeepSeek Harness version with the boot library
+	/// beside it is the same idea. A duplicate is left to the validator rather
+	/// than numbered here, which is also what the original does.
+	///
+	/// @return the suggested name
+	private String suggestName() {
+		StringBuilder name = new StringBuilder(currentVersion());
 
-        // The original's install button: raised, and sized rather than left to
-        // its text.
-        JFXButton finish = FXUtils.newRaisedButton(i18n("dsh.install.start"));
-        finish.setPrefWidth(100);
-        finish.setPrefHeight(40);
-        finish.setOnAction(event -> {
-            // Only what the page still asks for. The environment comes from the
-            // launcher's settings, and the working directory from the user's
-            // home; writing them here from controls that are no longer on the
-            // page would record values nobody chose.
-            SettingsMap settings = controller.getSettings();
-            settings.put(DshInstallWizardProvider.NAME, nameField.getText());
-            if (!validate(settings)) {
-                return;
-            }
-            controller.onFinish();
-        });
+		String appBoot = controller.getSettings().get(DshInstallWizardProvider.APP_BOOT);
+		if (appBoot != null && !appBoot.isBlank() && !appBoot.equals(currentVersion())) {
+			name.append("-boot").append(appBoot);
+		}
 
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
+		return name.toString();
+	}
 
-        HBox footer = new HBox(8, back, spacer, finish);
-        footer.setAlignment(Pos.CENTER_RIGHT);
-        footer.setPadding(new Insets(0, 10, 10, 10));
-        return footer;
-    }
+	/// Puts the suggested name back, if the choices have moved on from it.
+	///
+	/// The flag is cleared after the text is set, not before: writing the field
+	/// fires the listener that raises it, so clearing it first would have the
+	/// suggestion count as something the user typed and it would never follow the
+	/// choices again. The original clears its flag in the same order.
+	private void refreshSuggestedName() {
+		if (nameWrittenByHand) {
+			return;
+		}
+		nameField.setText(suggestName());
+		nameWrittenByHand = false;
+	}
 
-    /// Applies sensible starting values.
-    private void applyDefaults() {
-        seedDefaultChoices();
-        nameWrittenByHand = false;
-        refreshSuggestedName();
-    }
+	/// Returns the presets the user ticked.
+	///
+	/// @param settings the collected settings
+	/// @return the selected presets
+	/// Checks the collected values before the wizard commits.
+	/// @return whether the page may finish
+	private boolean validate(SettingsMap settings) {
+		String name = settings.get(DshInstallWizardProvider.NAME);
+		if (name == null || name.isBlank()) {
+			Controllers.dialog(i18n("dsh.instance.name.empty"),
+			                   i18n("dsh.install.step.quick"),
+			                   MessageDialogPane.MessageType.WARNING);
+			return false;
+		}
+		// The name becomes a directory name, so the original's "malformed" check
+		// has a counterpart here: what a path cannot hold cannot be an instance.
+		if (!DshPaths.isUsableSegment(name)) {
+			Controllers.dialog(i18n("dsh.instance.name.malformed", name.trim()),
+			                   i18n("dsh.install.step.quick"),
+			                   MessageDialogPane.MessageType.WARNING);
+			return false;
+		}
+		if (DshInstanceManager.exists(name.trim())) {
+			Controllers.dialog(i18n("dsh.install.name.taken", name.trim()),
+			                   i18n("dsh.install.step.quick"),
+			                   MessageDialogPane.MessageType.WARNING);
+			return false;
+		}
+		return true;
+	}
 
-    /// Suggests a name for the instance about to be made.
-    ///
-    /// The version, with anything chosen away from its default appended: the
-    /// original names an instance after the game version and appends the loaders
-    /// that were selected, and the DeepSeek Harness version with the boot library
-    /// beside it is the same idea. A duplicate is left to the validator rather
-    /// than numbered here, which is also what the original does.
-    ///
-    /// @return the suggested name
-    private String suggestName() {
-        StringBuilder name = new StringBuilder(currentVersion());
+	@Override
+	public void onNavigate(SettingsMap settings) {
+		// Returning from a plugin's choice page must show the new selection.
+		Map<String, String> choices = choices();
+		for (PluginCard card : presetCards) {
+			card.setChosenVersion(choices.get(card.preset().id()));
+		}
+	}
 
-        String appBoot = controller.getSettings().get(DshInstallWizardProvider.APP_BOOT);
-        if (appBoot != null && !appBoot.isBlank() && !appBoot.equals(currentVersion())) {
-            name.append("-boot").append(appBoot);
-        }
+	/// Returns the wizard's per-preset choice map.
+	///
+	/// @return the mutable choice map
+	private Map<String, String> choices() {
+		return DshInstallWizardProvider.presetChoices(controller.getSettings());
+	}
 
-        return name.toString();
-    }
-
-    /// Puts the suggested name back, if the choices have moved on from it.
-    ///
-    /// The flag is cleared after the text is set, not before: writing the field
-    /// fires the listener that raises it, so clearing it first would have the
-    /// suggestion count as something the user typed and it would never follow the
-    /// choices again. The original clears its flag in the same order.
-    private void refreshSuggestedName() {
-        if (nameWrittenByHand) {
-            return;
-        }
-        nameField.setText(suggestName());
-        nameWrittenByHand = false;
-    }
-
-    /// Returns the presets the user ticked.
-    ///
-    /// @return the selected presets
-    /// Checks the collected values before the wizard commits.
-    ///
-    /// @param settings the collected settings
-    /// @return whether the page may finish
-    private boolean validate(SettingsMap settings) {
-        String name = settings.get(DshInstallWizardProvider.NAME);
-        if (name == null || name.isBlank()) {
-            org.jackhuang.hmcl.ui.Controllers.dialog(i18n("dsh.instance.name.empty"),
-                    i18n("dsh.install.step.quick"),
-                    org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.WARNING);
-            return false;
-        }
-        // The name becomes a directory name, so the original's "malformed" check
-        // has a counterpart here: what a path cannot hold cannot be an instance.
-        if (!DshPaths.isUsableSegment(name)) {
-            org.jackhuang.hmcl.ui.Controllers.dialog(i18n("dsh.instance.name.malformed", name.trim()),
-                    i18n("dsh.install.step.quick"),
-                    org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.WARNING);
-            return false;
-        }
-        if (DshInstanceManager.exists(name.trim())) {
-            org.jackhuang.hmcl.ui.Controllers.dialog(i18n("dsh.install.name.taken", name.trim()),
-                    i18n("dsh.install.step.quick"),
-                    org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType.WARNING);
-            return false;
-        }
-        return true;
-    }
-
-    @Override
-    public void onNavigate(SettingsMap settings) {
-        // Returning from a plugin's choice page must show the new selection.
-        Map<String, String> choices = choices();
-        for (PluginCard card : presetCards) {
-            card.setChosenVersion(choices.get(card.preset().id()));
-        }
-    }
-
-    /// Returns the wizard's per-preset choice map.
-    ///
-    /// @return the mutable choice map
-    private Map<String, String> choices() {
-        return DshInstallWizardProvider.presetChoices(controller.getSettings());
-    }
-
-    @Override
-    public String getTitle() {
-        return i18n("dsh.install.step.quick");
-    }
+	@Override
+	public String getTitle() {
+		return i18n("dsh.install.step.quick");
+	}
 }

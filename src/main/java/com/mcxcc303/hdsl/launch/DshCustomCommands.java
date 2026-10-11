@@ -48,91 +48,97 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// command sees what the instance would.
 @NotNullByDefault
 public final class DshCustomCommands {
-    private DshCustomCommands() {
-    }
+	private DshCustomCommands() {
+	}
 
-    /// Runs a command, if there is one.
-    ///
-    /// @param instance the instance the command is about
-    /// @param command  the command, or `null` or blank for none
-    /// @param phase    what the command is, for the message
-    /// @param onLine   receives the command's output, or `null`
-    /// @throws DshException when the command cannot be run or exits non-zero
-    public static void run(DshInstance instance, @Nullable String command, String phase,
-                           @Nullable Consumer<String> onLine) throws DshException {
-        if (command == null || command.isBlank()) {
-            return;
-        }
+	/// Runs a command, if there is one.
+	///
+	/// @param instance the instance the command is about
+	/// @param command  the command, or `null` or blank for none
+	/// @param phase    what the command is, for the message
+	/// @param onLine   receives the command's output, or `null`
+	/// @throws DshException when the command cannot be run or exits non-zero
+	public static void run(DshInstance instance,
+	                       @Nullable String command,
+	                       String phase,
+	                       @Nullable Consumer<String> onLine) throws DshException {
+		if (command == null || command.isBlank()) {
+			return;
+		}
 
-        LOG.info("Running the " + phase + " command of " + instance.id() + ": " + command);
-        Map<String, String> environment = new LinkedHashMap<>();
-        // The same three values the launch states, and the same refusal of a `DSH_HOME` typed into
-        // an environment box — read through [DshEnvironment#of], which is where that refusal lives.
-        // A command written to prepare or back up "the instance's home" has to operate on the
-        // instance's own home, and measured before this, it operated on whatever a variable named
-        // `DSH_HOME` said.
-        environment.put("DSH_INSTANCE", instance.id());
-        environment.put("DSH_VERSION", instance.version());
-        environment.putAll(DshEnvironment.of(instance));
-        environment.put(DshEnvironment.HOMEDIRECTORY_VARIABLE, instance.homeDirectory().toString());
+		LOG.info("Running the " + phase + " command of " + instance.id() + ": " + command);
+		Map<String, String> environment = new LinkedHashMap<>();
+		// The same three values the launch states, and the same refusal of a `DSH_HOME` typed into
+		// an environment box — read through [DshEnvironment#of], which is where that refusal lives.
+		// A command written to prepare or back up "the instance's home" has to operate on the
+		// instance's own home, and measured before this, it operated on whatever a variable named
+		// `DSH_HOME` said.
+		environment.put("DSH_INSTANCE", instance.id());
+		environment.put("DSH_VERSION", instance.version());
+		environment.putAll(DshEnvironment.of(instance));
+		environment.put(DshEnvironment.HOMEDIRECTORY_VARIABLE, instance.homeDirectory().toString());
 
-        try {
-            // A command is a shell line, not a program and its arguments: that is what a
-            // person types into the box, and splitting it here would take away the pipes,
-            // redirections and quoting they wrote. The shell that reads it is the system's
-            // own: `/bin/sh` where that is a thing, and `cmd.exe` — named by `ComSpec`,
-            // which Windows keeps pointed at it even when it has moved — where it is not.
-            DshCommand.Result result = DshCommand.run(
-                    shellCommand(command), instance.workspacePath(), environment, onLine);
-            if (result.exitCode() != 0) {
-                throw new DshException("The " + phase + " command exited with code "
-                        + result.exitCode() + ": " + command);
-            }
-        } catch (IOException e) {
-            throw new DshException("Failed to run the " + phase + " command: " + command, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new DshException("The " + phase + " command was interrupted: " + command, e);
-        }
-    }
+		try {
+			// A command is a shell line, not a program and its arguments: that is what a
+			// person types into the box, and splitting it here would take away the pipes,
+			// redirections and quoting they wrote. The shell that reads it is the system's
+			// own: `/bin/sh` where that is a thing, and `cmd.exe` — named by `ComSpec`,
+			// which Windows keeps pointed at it even when it has moved — where it is not.
+			DshCommand.Result result = DshCommand.run(shellCommand(command),
+			                                          instance.workspacePath(),
+			                                          environment,
+			                                          onLine);
+			if (result.exitCode() != 0) {
+				throw new DshException(
+						"The " + phase + " command exited with code " + result.exitCode() + ": " + command);
+			}
+		} catch (IOException e) {
+			throw new DshException("Failed to run the " + phase + " command: " + command, e);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw new DshException("The " + phase + " command was interrupted: " + command, e);
+		}
+	}
 
-    /// Runs a command and reports a failure instead of raising it.
-    ///
-    /// Used after an instance has ended: there is nothing left to stop, so a failing command
-    /// is something to say rather than something to refuse.
-    ///
-    /// @param instance the instance the command is about
-    /// @param command  the command, or `null` or blank for none
-    /// @param phase    what the command is, for the message
-    /// @param onLine   receives the command's output, or `null`
-    public static void runQuietly(DshInstance instance, @Nullable String command, String phase,
-                                  @Nullable Consumer<String> onLine) {
-        try {
-            run(instance, command, phase, onLine);
-        } catch (DshException e) {
-            LOG.warning(e.getMessage());
-        }
-    }
+	/// Runs a command and reports a failure instead of raising it.
+	///
+	/// Used after an instance has ended: there is nothing left to stop, so a failing command
+	/// is something to say rather than something to refuse.
+	///
+	/// @param instance the instance the command is about
+	/// @param command  the command, or `null` or blank for none
+	/// @param phase    what the command is, for the message
+	/// @param onLine   receives the command's output, or `null`
+	public static void runQuietly(DshInstance instance,
+	                              @Nullable String command,
+	                              String phase,
+	                              @Nullable Consumer<String> onLine) {
+		try {
+			run(instance, command, phase, onLine);
+		} catch (DshException e) {
+			LOG.warning(e.getMessage());
+		}
+	}
 
-    /// Builds the command that hands a shell line to the system's shell.
-    ///
-    /// `/bin/sh -c` is the Linux spelling. Windows has no `/bin`, but its
-    /// command interpreter runs a line just as well: `cmd.exe /d /s /c` — `/d`
-    /// so no startup script of the machine's runs first, `/s` so the whole line
-    /// after `/c` is taken as it was typed, however it is quoted — and the
-    /// interpreter is named by `ComSpec` because that is where Windows itself
-    /// records which one to use.
-    ///
-    /// @param command the shell line
-    /// @return the program and its arguments
-    static List<String> shellCommand(String command) {
-        if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-            String interpreter = System.getenv("ComSpec");
-            if (interpreter == null || interpreter.isBlank()) {
-                interpreter = "cmd.exe";
-            }
-            return List.of(interpreter, "/d", "/s", "/c", command);
-        }
-        return List.of("/bin/sh", "-c", command);
-    }
+	/// Builds the command that hands a shell line to the system's shell.
+	///
+	/// `/bin/sh -c` is the Linux spelling. Windows has no `/bin`, but its
+	/// command interpreter runs a line just as well: `cmd.exe /d /s /c` — `/d`
+	/// so no startup script of the machine's runs first, `/s` so the whole line
+	/// after `/c` is taken as it was typed, however it is quoted — and the
+	/// interpreter is named by `ComSpec` because that is where Windows itself
+	/// records which one to use.
+	///
+	/// @param command the shell line
+	/// @return the program and its arguments
+	static List<String> shellCommand(String command) {
+		if (OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+			String interpreter = System.getenv("ComSpec");
+			if (interpreter == null || interpreter.isBlank()) {
+				interpreter = "cmd.exe";
+			}
+			return List.of(interpreter, "/d", "/s", "/c", command);
+		}
+		return List.of("/bin/sh", "-c", command);
+	}
 }

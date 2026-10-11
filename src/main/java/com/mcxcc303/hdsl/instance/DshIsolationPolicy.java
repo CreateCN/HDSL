@@ -29,57 +29,57 @@ import org.jetbrains.annotations.Nullable;
 /// default, because that is the one that needs no thought.
 @NotNullByDefault
 public enum DshIsolationPolicy {
-    /// Every new instance keeps its own home.
-    ALWAYS("always"),
+	/// Every new instance keeps its own home.
+	ALWAYS("always"),
 
-    /// A new instance keeps its own home when it is given plugins of its own.
-    WITH_PLUGINS("modded"),
+	/// A new instance keeps its own home when it is given plugins of its own.
+	WITH_PLUGINS("modded"),
 
-    /// New instances share one home unless somebody says otherwise.
-    NEVER("never");
+	/// New instances share one home unless somebody says otherwise.
+	NEVER("never");
 
-    /// The value the setting is stored as.
-    private final String id;
+	/// The value the setting is stored as.
+	private final String id;
 
-    /// Creates a policy.
-    ///
-    /// @param id the stored value
-    DshIsolationPolicy(String id) {
-        this.id = id;
-    }
+	/// Creates a policy.
+	///
+	/// @param id the stored value
+	DshIsolationPolicy(String id) {
+		this.id = id;
+	}
 
-    /// Returns the value the setting is stored as.
-    ///
-    /// @return the id
-    public String id() {
-        return id;
-    }
+	/// Reads a stored value.
+	///
+	/// @param value the stored value, or `null`
+	/// @return the policy, or [DshIsolationPolicy#WITH_PLUGINS] when it is not one
+	public static DshIsolationPolicy of(@Nullable String value) {
+		if (value != null) {
+			for (DshIsolationPolicy policy : values()) {
+				if (policy.id.equalsIgnoreCase(value.trim())) {
+					return policy;
+				}
+			}
+		}
+		return WITH_PLUGINS;
+	}
 
-    /// Reads a stored value.
-    ///
-    /// @param value the stored value, or `null`
-    /// @return the policy, or [DshIsolationPolicy#WITH_PLUGINS] when it is not one
-    public static DshIsolationPolicy of(@Nullable String value) {
-        if (value != null) {
-            for (DshIsolationPolicy policy : values()) {
-                if (policy.id.equalsIgnoreCase(value.trim())) {
-                    return policy;
-                }
-            }
-        }
-        return WITH_PLUGINS;
-    }
+	/// Returns the value the setting is stored as.
+	///
+	/// @return the id
+	public String id() {
+		return id;
+	}
 
-    /// Decides how a new instance keeps its state.
-    ///
-    /// @param carriesItsOwn whether the installation brings plugins or presets of its own
-    /// @param shared        the mode used when the instance does not keep a home of its own
-    /// @return the mode to create the instance with
-    public DshHomeMode homeMode(boolean carriesItsOwn, DshHomeMode shared) {
-        return switch (this) {
-            case ALWAYS -> DshHomeMode.ISOLATED;
-            case NEVER -> shared;
-            case WITH_PLUGINS -> carriesItsOwn ? DshHomeMode.ISOLATED : shared;
-        };
-    }
+	/// Decides how a new instance keeps its state.
+	///
+	/// @param carriesItsOwn whether the installation brings plugins or presets of its own
+	/// @param shared        the mode used when the instance does not keep a home of its own
+	/// @return the mode to create the instance with
+	public DshHomeMode homeMode(boolean carriesItsOwn, DshHomeMode shared) {
+		return switch (this) {
+			case ALWAYS -> DshHomeMode.ISOLATED;
+			case NEVER -> shared;
+			case WITH_PLUGINS -> carriesItsOwn ? DshHomeMode.ISOLATED : shared;
+		};
+	}
 }

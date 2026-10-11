@@ -19,14 +19,15 @@ package com.mcxcc303.hdsl.account;
 
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.YamlScalar;
-
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -53,284 +54,281 @@ import java.util.regex.Pattern;
 /// invented model name would turn a helpful default into a launch that fails.
 @NotNullByDefault
 public final class DshDefaultModel {
-    /// The file, inside a `DSH_HOME`.
-    private static final String FILE = "settings.yaml";
+	/// The file, inside a `DSH_HOME`.
+	private static final String FILE = "settings.yaml";
 
-    /// The section that records what the harness starts with.
-    private static final String SECTION = "agent-default-model";
+	/// The section that records what the harness starts with.
+	private static final String SECTION = "agent-default-model";
 
-    /// A line feed, named rather than written.
-    ///
-    /// `"\n"` in Java source is one character, but a newline typed *into* the literal is a real
-    /// newline and makes the string two characters long — a mistake that does not fail to compile
-    /// and does not throw, it just makes every comparison quietly false.
-    private static final String NEWLINE = "\n";
+	/// A line feed, named rather than written.
+	///
+	/// `"\n"` in Java source is one character, but a newline typed *into* the literal is a real
+	/// newline and makes the string two characters long — a mistake that does not fail to compile
+	/// and does not throw, it just makes every comparison quietly false.
+	private static final String NEWLINE = "\n";
 
-    private DshDefaultModel() {
-    }
+	private DshDefaultModel() {
+	}
 
-    /// Points a home's default model at a route, unless it already says so.
-    ///
-    /// @param home     the `DSH_HOME`
-    /// @param provider the route name
-    /// @param model    the model id, or `null`/blank to leave the file alone
-    /// @return whether the file now names this provider and model
-    /// @throws DshException when the file cannot be read or written
-    public static boolean apply(Path home, String provider, @Nullable String model) throws DshException {
-        if (model == null || model.isBlank()) {
-            // Which model a route should default to is the vendor's answer or the person's, not a
-            // guess: the harness refuses to start on a default it cannot resolve.
-            return false;
-        }
-        Path file = home.resolve(FILE);
-        String text;
-        try {
-            text = Files.exists(file) ? Files.readString(file, StandardCharsets.UTF_8) : "";
-            String updated = setSection(text, provider, model.trim());
-            if (updated.equals(text)) {
-                return true;
-            }
-            Files.createDirectories(home);
-            // Written beside the file and moved over it, so a reader never sees half a document and
-            // an interrupted write cannot leave the settings truncated. The harness writes its own
-            // copy the same way, for the same reason.
-            Path staging = file.resolveSibling(file.getFileName() + ".hdsl-writing");
-            Files.writeString(staging, updated, StandardCharsets.UTF_8);
-            try {
-                Files.move(staging, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
-                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-            } catch (java.nio.file.AtomicMoveNotSupportedException e) {
-                Files.move(staging, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                // Leaving a half-written neighbour behind would be worse than the failure itself:
-                // the next run would find it and have to decide what it was.
-                try {
-                    Files.deleteIfExists(staging);
-                } catch (IOException ignored) {
-                    // Reported by the throw below, which is the failure that matters.
-                }
-                throw e;
-            }
-            return true;
-        } catch (IOException e) {
-            throw new DshException("Failed to set the default model in " + file, e);
-        }
-    }
+	/// Points a home's default model at a route, unless it already says so.
+	///
+	/// @param home     the `DSH_HOME`
+	/// @param provider the route name
+	/// @param model    the model id, or `null`/blank to leave the file alone
+	/// @return whether the file now names this provider and model
+	/// @throws DshException when the file cannot be read or written
+	public static boolean apply(Path home, String provider, @Nullable String model) throws DshException {
+		if (model == null || model.isBlank()) {
+			// Which model a route should default to is the vendor's answer or the person's, not a
+			// guess: the harness refuses to start on a default it cannot resolve.
+			return false;
+		}
+		Path file = home.resolve(FILE);
+		String text;
+		try {
+			text = Files.exists(file) ? Files.readString(file, StandardCharsets.UTF_8) : "";
+			String updated = setSection(text, provider, model.trim());
+			if (updated.equals(text)) {
+				return true;
+			}
+			Files.createDirectories(home);
+			// Written beside the file and moved over it, so a reader never sees half a document and
+			// an interrupted write cannot leave the settings truncated. The harness writes its own
+			// copy the same way, for the same reason.
+			Path staging = file.resolveSibling(file.getFileName() + ".hdsl-writing");
+			Files.writeString(staging, updated, StandardCharsets.UTF_8);
+			try {
+				Files.move(staging, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+			} catch (AtomicMoveNotSupportedException e) {
+				Files.move(staging, file, StandardCopyOption.REPLACE_EXISTING);
+			} catch (IOException e) {
+				// Leaving a half-written neighbour behind would be worse than the failure itself:
+				// the next run would find it and have to decide what it was.
+				try {
+					Files.deleteIfExists(staging);
+				} catch (IOException ignored) {
+					// Reported by the throw below, which is the failure that matters.
+				}
+				throw e;
+			}
+			return true;
+		} catch (IOException e) {
+			throw new DshException("Failed to set the default model in " + file, e);
+		}
+	}
 
-    /// Returns the provider a home's settings name, or `null`.
-    ///
-    /// @param home the `DSH_HOME`
-    /// @return the provider name
-    /// @throws DshException when the file cannot be read
-    public static @Nullable String providerOf(Path home) throws DshException {
-        Path file = home.resolve(FILE);
-        if (!Files.isRegularFile(file)) {
-            return null;
-        }
-        try {
-            String section = sectionOf(Files.readString(file, StandardCharsets.UTF_8));
-            if (section == null) {
-                return null;
-            }
-            // `\\s*$` rather than `\\s*$` after a literal newline: an entry on the file's last line has
-            // no line ending to match, and requiring one would fail to read back a value the writer
-            // had just written.
-            Matcher matcher = Pattern.compile("^[ \\t]*provider:[ \\t]*(\\S+)[ \\t]*$", Pattern.MULTILINE)
-                    .matcher(section);
-            return matcher.find() ? matcher.group(1) : null;
-        } catch (IOException e) {
-            throw new DshException("Failed to read " + file, e);
-        }
-    }
+	/// Returns the provider a home's settings name, or `null`.
+	///
+	/// @param home the `DSH_HOME`
+	/// @return the provider name
+	/// @throws DshException when the file cannot be read
+	public static @Nullable String providerOf(Path home) throws DshException {
+		Path file = home.resolve(FILE);
+		if (!Files.isRegularFile(file)) {
+			return null;
+		}
+		try {
+			String section = sectionOf(Files.readString(file, StandardCharsets.UTF_8));
+			if (section == null) {
+				return null;
+			}
+			// `\\s*$` rather than `\\s*$` after a literal newline: an entry on the file's last line has
+			// no line ending to match, and requiring one would fail to read back a value the writer
+			// had just written.
+			Matcher matcher = Pattern.compile("^[ \\t]*provider:[ \\t]*(\\S+)[ \\t]*$", Pattern.MULTILINE)
+			                         .matcher(section);
+			return matcher.find() ? matcher.group(1) : null;
+		} catch (IOException e) {
+			throw new DshException("Failed to read " + file, e);
+		}
+	}
 
-    /// Rewrites the two scalar keys of the section, leaving every other line alone.
-    ///
-    /// @param text     the file's contents
-    /// @param provider the route name
-    /// @param model    the model id
-    /// @return the contents it should have
-    /// @throws DshException when the file is not one this can edit safely
-    static String setSection(String text, String provider, String model) throws DshException {
-        // Work on line indices rather than on a rebuilt document: the point of this edit is that
-        // every byte it was not asked about stays where it was, and the surest way to guarantee
-        // that is to change at most two lines and never re-serialise the rest.
-        String newline = text.contains("\r\n") ? "\r\n" : "\n";
-        List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
+	/// Rewrites the two scalar keys of the section, leaving every other line alone.
+	///
+	/// @param text     the file's contents
+	/// @param provider the route name
+	/// @param model    the model id
+	/// @return the contents it should have
+	/// @throws DshException when the file is not one this can edit safely
+	static String setSection(String text, String provider, String model) throws DshException {
+		// Work on line indices rather than on a rebuilt document: the point of this edit is that
+		// every byte it was not asked about stays where it was, and the surest way to guarantee
+		// that is to change at most two lines and never re-serialise the rest.
+		String newline = text.contains("\r\n") ? "\r\n" : "\n";
+		List<String> lines = new ArrayList<>(List.of(text.split("\n", -1)));
 
-        // `split(..., -1)` leaves one element per line plus a final empty one when the text ends in
-        // a newline. Dropping that element makes `lines` a one-to-one list of the file's lines —
-        // including a file of a single line, which is why the test is on the element being empty
-        // rather than on the text's last character.
-        boolean endedWithNewline = text.endsWith("\n");
-        if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
-            lines.remove(lines.size() - 1);
-        }
-        for (int i = 0; i < lines.size(); i++) {
-            if (lines.get(i).endsWith("\r")) {
-                lines.set(i, lines.get(i).substring(0, lines.get(i).length() - 1));
-            }
-        }
+		// `split(..., -1)` leaves one element per line plus a final empty one when the text ends in
+		// a newline. Dropping that element makes `lines` a one-to-one list of the file's lines —
+		// including a file of a single line, which is why the test is on the element being empty
+		// rather than on the text's last character.
+		boolean endedWithNewline = text.endsWith("\n");
+		if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
+			lines.remove(lines.size() - 1);
+		}
+		for (int i = 0; i < lines.size(); i++) {
+			if (lines.get(i).endsWith("\r")) {
+				lines.set(i, lines.get(i).substring(0, lines.get(i).length() - 1));
+			}
+		}
 
-        int header = -1;
-        int headers = 0;
-        for (int i = 0; i < lines.size(); i++) {
-            if (isSectionHeader(lines.get(i))) {
-                headers++;
-                if (header < 0) {
-                    header = i;
-                }
-            }
-        }
-        if (headers > 1) {
-            // A file with the section twice is a file whose author meant something this code cannot
-            // guess at, and it is already malformed for the harness. Changing one of the two would
-            // leave it malformed and would make this edit look like it had succeeded.
-            throw new DshException("The settings file has \"" + SECTION + "\" more than once, "
-                    + "so the default model was left alone");
-        }
+		int header = -1;
+		int headers = 0;
+		for (int i = 0; i < lines.size(); i++) {
+			if (isSectionHeader(lines.get(i))) {
+				headers++;
+				if (header < 0) {
+					header = i;
+				}
+			}
+		}
+		if (headers > 1) {
+			// A file with the section twice is a file whose author meant something this code cannot
+			// guess at, and it is already malformed for the harness. Changing one of the two would
+			// leave it malformed and would make this edit look like it had succeeded.
+			throw new DshException("The settings file has \"" + SECTION + "\" more than once, " +
+			                       "so the default model was left alone");
+		}
 
-        if (header < 0) {
-            // No section: append one. A file whose last line has no newline gets one first, so the
-            // header is not run into it.
-            if (!lines.isEmpty() && !endedWithNewline) {
-                lines.add("");
-            }
-            lines.add(SECTION + ":");
-            lines.add("  provider: " + YamlScalar.of(provider));
-            lines.add("  model: " + YamlScalar.of(model));
-            return String.join(newline, lines) + newline;
-        }
+		if (header < 0) {
+			// No section: append one. A file whose last line has no newline gets one first, so the
+			// header is not run into it.
+			if (!lines.isEmpty() && !endedWithNewline) {
+				lines.add("");
+			}
+			lines.add(SECTION + ":");
+			lines.add("  provider: " + YamlScalar.of(provider));
+			lines.add("  model: " + YamlScalar.of(model));
+			return String.join(newline, lines) + newline;
+		}
 
-        // The section's children: every following line that is indented. A blank line inside them is
-        // kept as a child — it is not a line at column zero, so it does not end the section.
-        int first = header + 1;
-        int last = header;          // the index of the last child, or the header when it has none
-        String pad = null;
-        int atProvider = -1;
-        int atModel = -1;
-        for (int i = first; i < lines.size(); i++) {
-            String line = lines.get(i);
-            if (line.isBlank()) {
-                continue;
-            }
-            if (!Character.isWhitespace(line.charAt(0))) {
-                break;
-            }
-            String linePad = line.substring(0, line.length() - line.stripLeading().length());
-            if (pad == null) {
-                pad = linePad;
-            }
-            // Only the section's own children are candidates. `model:` nested one level deeper is
-            // part of some object the user wrote, and writing a scalar over it would delete that
-            // object — so a key at a different indentation is treated as one this section does not
-            // have, and a correct one is added beside it.
-            if (linePad.equals(pad)) {
-                String body = line.strip();
-                if (body.startsWith("provider:")) {
-                    atProvider = i;
-                } else if (body.startsWith("model:")) {
-                    atModel = i;
-                }
-            }
-            last = i;
-        }
-        String indent = pad == null ? "  " : pad;
+		// The section's children: every following line that is indented. A blank line inside them is
+		// kept as a child — it is not a line at column zero, so it does not end the section.
+		int first = header + 1;
+		int last = header;          // the index of the last child, or the header when it has none
+		String pad = null;
+		int atProvider = -1;
+		int atModel = -1;
+		for (int i = first; i < lines.size(); i++) {
+			String line = lines.get(i);
+			if (line.isBlank()) {
+				continue;
+			}
+			if (!Character.isWhitespace(line.charAt(0))) {
+				break;
+			}
+			String linePad = line.substring(0, line.length() - line.stripLeading().length());
+			if (pad == null) {
+				pad = linePad;
+			}
+			// Only the section's own children are candidates. `model:` nested one level deeper is
+			// part of some object the user wrote, and writing a scalar over it would delete that
+			// object — so a key at a different indentation is treated as one this section does not
+			// have, and a correct one is added beside it.
+			if (linePad.equals(pad)) {
+				String body = line.strip();
+				if (body.startsWith("provider:")) {
+					atProvider = i;
+				} else if (body.startsWith("model:")) {
+					atModel = i;
+				}
+			}
+			last = i;
+		}
+		String indent = pad == null ? "  " : pad;
 
-        // The value is replaced, the line's own trailing comment is not. Somebody who wrote
-        // `provider: old   # the one I picked` wrote that comment about the choice, and it is still
-        // about the choice after the launcher changes it.
-        if (atProvider >= 0) {
-            lines.set(atProvider, indent + "provider: " + YamlScalar.of(provider)
-                    + commentOf(lines.get(atProvider)));
-        }
-        if (atModel >= 0) {
-            lines.set(atModel, indent + "model: " + YamlScalar.of(model)
-                    + commentOf(lines.get(atModel)));
-        }
-        // A key the section does not have goes directly after the last child it does have, so it
-        // ends up inside the section rather than after a blank line or after the next section.
-        int insert = last + 1;
-        if (atProvider < 0) {
-            lines.add(insert, indent + "provider: " + YamlScalar.of(provider));
-            insert++;
-        }
-        if (atModel < 0) {
-            lines.add(insert, indent + "model: " + YamlScalar.of(model));
-        }
+		// The value is replaced, the line's own trailing comment is not. Somebody who wrote
+		// `provider: old   # the one I picked` wrote that comment about the choice, and it is still
+		// about the choice after the launcher changes it.
+		if (atProvider >= 0) {
+			lines.set(atProvider, indent + "provider: " + YamlScalar.of(provider) + commentOf(lines.get(atProvider)));
+		}
+		if (atModel >= 0) {
+			lines.set(atModel, indent + "model: " + YamlScalar.of(model) + commentOf(lines.get(atModel)));
+		}
+		// A key the section does not have goes directly after the last child it does have, so it
+		// ends up inside the section rather than after a blank line or after the next section.
+		int insert = last + 1;
+		if (atProvider < 0) {
+			lines.add(insert, indent + "provider: " + YamlScalar.of(provider));
+			insert++;
+		}
+		if (atModel < 0) {
+			lines.add(insert, indent + "model: " + YamlScalar.of(model));
+		}
 
-        // The file gets a final newline either way: one line ending per line, and no line left open.
-        return String.join(newline, lines) + newline;
-    }
+		// The file gets a final newline either way: one line ending per line, and no line left open.
+		return String.join(newline, lines) + newline;
+	}
 
-    /// Returns the trailing comment of a line, with the space before it, or the empty string.
-    ///
-    /// A `#` only starts a comment when it is at the start of the line or after whitespace, and it
-    /// is not inside quotes — which is what makes this worth doing rather than splitting on the
-    /// first `#`: a value may legitimately contain one.
-    ///
-    /// @param line the line
-    /// @return the comment, including the whitespace that separates it
-    private static String commentOf(String line) {
-        boolean quoted = false;
-        char quote = 0;
-        for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (quote != 0) {
-                if (c == quote) {
-                    quote = 0;
-                }
-                continue;
-            }
-            if (c == '"' || c == '\'') {
-                quote = c;
-                continue;
-            }
-            if (c == '#' && (i == 0 || Character.isWhitespace(line.charAt(i - 1)))) {
-                int from = i;
-                while (from > 0 && Character.isWhitespace(line.charAt(from - 1))) {
-                    from--;
-                }
-                return line.substring(from);
-            }
-        }
-        return "";
-    }
+	/// Returns the trailing comment of a line, with the space before it, or the empty string.
+	///
+	/// A `#` only starts a comment when it is at the start of the line or after whitespace, and it
+	/// is not inside quotes — which is what makes this worth doing rather than splitting on the
+	/// first `#`: a value may legitimately contain one.
+	///
+	/// @param line the line
+	/// @return the comment, including the whitespace that separates it
+	private static String commentOf(String line) {
+		boolean quoted = false;
+		char quote = 0;
+		for (int i = 0; i < line.length(); i++) {
+			char c = line.charAt(i);
+			if (quote != 0) {
+				if (c == quote) {
+					quote = 0;
+				}
+				continue;
+			}
+			if (c == '"' || c == '\'') {
+				quote = c;
+				continue;
+			}
+			if (c == '#' && (i == 0 || Character.isWhitespace(line.charAt(i - 1)))) {
+				int from = i;
+				while (from > 0 && Character.isWhitespace(line.charAt(from - 1))) {
+					from--;
+				}
+				return line.substring(from);
+			}
+		}
+		return "";
+	}
 
-    /// Reports whether a line is the section's header.
-    ///
-    /// The one test used everywhere the header is looked for, so the writer and the reader cannot
-    /// disagree about whether a section is there. A header is the name, a colon, and either nothing
-    /// or a space — `agent-default-modelish:` is a different key.
-    ///
-    /// @param line the line
-    /// @return whether it opens the section
-    private static boolean isSectionHeader(String line) {
-        if (!line.startsWith(SECTION + ":") || line.length() == SECTION.length() + 1) {
-            return line.equals(SECTION + ":");
-        }
-        return Character.isWhitespace(line.charAt(SECTION.length() + 1));
-    }
+	/// Reports whether a line is the section's header.
+	///
+	/// The one test used everywhere the header is looked for, so the writer and the reader cannot
+	/// disagree about whether a section is there. A header is the name, a colon, and either nothing
+	/// or a space — `agent-default-modelish:` is a different key.
+	///
+	/// @param line the line
+	/// @return whether it opens the section
+	private static boolean isSectionHeader(String line) {
+		if (!line.startsWith(SECTION + ":") || line.length() == SECTION.length() + 1) {
+			return line.equals(SECTION + ":");
+		}
+		return Character.isWhitespace(line.charAt(SECTION.length() + 1));
+	}
 
-    /// Returns the section's own lines, or `null` when the file has no such section.
-    ///
-    /// @param text the file's contents
-    /// @return the lines belonging to the section
-    private static @Nullable String sectionOf(String text) {
-        StringBuilder section = new StringBuilder();
-        boolean inside = false;
-        for (String line : text.split("\n", -1)) {
-            if (!inside) {
-                if (isSectionHeader(line)) {
-                    inside = true;
-                    section.append(line).append('\n');
-                }
-                continue;
-            }
-            if (!line.isBlank() && !Character.isWhitespace(line.charAt(0))) {
-                break;
-            }
-            section.append(line).append('\n');
-        }
-        return inside ? section.toString() : null;
-    }
+	/// Returns the section's own lines, or `null` when the file has no such section.
+	///
+	/// @param text the file's contents
+	/// @return the lines belonging to the section
+	private static @Nullable String sectionOf(String text) {
+		StringBuilder section = new StringBuilder();
+		boolean inside = false;
+		for (String line : text.split("\n", -1)) {
+			if (!inside) {
+				if (isSectionHeader(line)) {
+					inside = true;
+					section.append(line).append('\n');
+				}
+				continue;
+			}
+			if (!line.isBlank() && !Character.isWhitespace(line.charAt(0))) {
+				break;
+			}
+			section.append(line).append('\n');
+		}
+		return inside ? section.toString() : null;
+	}
 }

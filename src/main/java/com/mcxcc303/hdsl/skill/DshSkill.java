@@ -38,25 +38,19 @@ import java.nio.file.Path;
 /// @param sizeBytes      what the pack occupies on disk
 /// @param modifiedAt     when the instructions were last written, in epoch milliseconds
 @NotNullByDefault
-public record DshSkill(Path entry,
-                       Path instructions,
-                       String name,
-                       String description,
-                       boolean bundle,
-                       boolean modelInvocable,
-                       long sizeBytes,
-                       long modifiedAt) {
-    /// Returns whether the agent can see and invoke this skill.
-    ///
-    /// @return whether the frontmatter leaves `disable-model-invocation` unset or false
-    public boolean enabled() {
-        return modelInvocable;
-    }
+public record DshSkill(Path entry, Path instructions, String name, String description, boolean bundle,
+                       boolean modelInvocable, long sizeBytes, long modifiedAt) {
+	/// Returns whether the agent can see and invoke this skill.
+	///
+	/// @return whether the frontmatter leaves `disable-model-invocation` unset or false
+	public boolean enabled() {
+		return modelInvocable;
+	}
 
-    /// Returns the entry's own name, which is what a file manager shows.
-    ///
-    /// @return the last segment of [#entry]
-    public String fileName() {
-        return entry.getFileName().toString();
-    }
+	/// Returns the entry's own name, which is what a file manager shows.
+	///
+	/// @return the last segment of [#entry]
+	public String fileName() {
+		return entry.getFileName().toString();
+	}
 }

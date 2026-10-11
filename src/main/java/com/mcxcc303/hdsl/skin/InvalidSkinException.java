@@ -19,17 +19,17 @@ package com.mcxcc303.hdsl.skin;
 
 public class InvalidSkinException extends Exception {
 
-    public InvalidSkinException() {}
+	public InvalidSkinException() {}
 
-    public InvalidSkinException(String message) {
-        super(message);
-    }
+	public InvalidSkinException(String message) {
+		super(message);
+	}
 
-    public InvalidSkinException(Throwable cause) {
-        super(cause);
-    }
+	public InvalidSkinException(Throwable cause) {
+		super(cause);
+	}
 
-    public InvalidSkinException(String message, Throwable cause) {
-        super(message, cause);
-    }
+	public InvalidSkinException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

@@ -19,11 +19,11 @@ package com.mcxcc303.hdsl.instance;
 
 import com.mcxcc303.hdsl.core.DshException;
 import org.jetbrains.annotations.NotNullByDefault;
+
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// Every instance the launcher knows, across every folder it looks in.
@@ -32,60 +32,58 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// folders both hold is keep the one in the folder being shown and say so once in the log.
 @NotNullByDefault
 public final class InstanceListing {
-    public static List<DshInstance> list() {
-        List<DshInstance> instances = new ArrayList<>();
-        java.util.Map<String, Path> taken = new java.util.HashMap<>();
-        for (Path root : InstanceFolders.folders()) {
-            for (DshInstance instance : InstanceStore.listIn(root)) {
-                Path directory;
-                try {
-                    directory = instance.instanceDirectory();
-                } catch (DshException e) {
-                    continue;
-                }
-                Path previous = taken.get(instance.id());
-                if (previous == null) {
-                    taken.put(instance.id(), directory);
-                    instances.add(instance);
-                } else if (!previous.equals(directory)) {
-                    warnAboutASharedName(instance.id(), previous, directory);
-                }
-            }
-        }
-        instances.sort(Comparator.comparingLong(DshInstance::createdAt).reversed());
-        return instances;
-    }
+	/// The names whose two folders have already been reported, so a lookup that happens on every
+	/// frame says it once rather than every time.
+	private static final Set<String> REPORTED_SHARED_NAMES = ConcurrentHashMap.newKeySet();
 
-    /// Says, once per run, that one name is held by two folders.
-    ///
-    /// A name is meant to be one instance — [#create] refuses a second one — but a folder can be
-    /// copied, a backup can be unpacked beside the original, and a folder the user adds can hold a
-    /// copy of an instance the launcher already knows. What that leaves is two folders answering to
-    /// one name, and every lookup and every removal then acts on whichever folder comes first: the
-    /// list would show the same instance twice while managing one of them.
-    ///
-    /// So the first folder wins — [#folders] puts the folder being shown first — and the copies it
-    /// shadows are named in the log rather than in the list, because what a person needs is one row
-    /// per name and one line saying which folder was left out and what to do about it.
-    ///
-    /// @param id      the name both folders answer to
-    /// @param used    the folder the launcher uses
-    /// @param ignored the folder it leaves alone
-    static void warnAboutASharedName(String id, Path used, Path ignored) {
-        if (!REPORTED_SHARED_NAMES.add(id)) {
-            return;
-        }
-        LOG.warning("Instance \"" + id + "\" is in two InstanceFolders.folders: " + used
-                + " is used, because the folder being shown comes first, and " + ignored
-                + " is left alone. Rename or remove one of them: one name is one instance.");
-    }
+	private InstanceListing() {
+	}
 
-    /// The names whose two folders have already been reported, so a lookup that happens on every
-    /// frame says it once rather than every time.
-    private static final java.util.Set<String> REPORTED_SHARED_NAMES =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
+	public static List<DshInstance> list() {
+		List<DshInstance> instances = new ArrayList<>();
+		Map<String, Path> taken = new HashMap<>();
+		for (Path root : InstanceFolders.folders()) {
+			for (DshInstance instance : InstanceStore.listIn(root)) {
+				Path directory;
+				try {
+					directory = instance.instanceDirectory();
+				} catch (DshException e) {
+					continue;
+				}
+				Path previous = taken.get(instance.id());
+				if (previous == null) {
+					taken.put(instance.id(), directory);
+					instances.add(instance);
+				} else if (!previous.equals(directory)) {
+					warnAboutASharedName(instance.id(), previous, directory);
+				}
+			}
+		}
+		instances.sort(Comparator.comparingLong(DshInstance::createdAt).reversed());
+		return instances;
+	}
 
-
-    private InstanceListing() {
-    }
+	/// Says, once per run, that one name is held by two folders.
+	///
+	/// A name is meant to be one instance — [#create] refuses a second one — but a folder can be
+	/// copied, a backup can be unpacked beside the original, and a folder the user adds can hold a
+	/// copy of an instance the launcher already knows. What that leaves is two folders answering to
+	/// one name, and every lookup and every removal then acts on whichever folder comes first: the
+	/// list would show the same instance twice while managing one of them.
+	///
+	/// So the first folder wins — [#folders] puts the folder being shown first — and the copies it
+	/// shadows are named in the log rather than in the list, because what a person needs is one row
+	/// per name and one line saying which folder was left out and what to do about it.
+	///
+	/// @param id      the name both folders answer to
+	/// @param used    the folder the launcher uses
+	/// @param ignored the folder it leaves alone
+	static void warnAboutASharedName(String id, Path used, Path ignored) {
+		if (!REPORTED_SHARED_NAMES.add(id)) {
+			return;
+		}
+		LOG.warning("Instance \"" + id + "\" is in two InstanceFolders.folders: " + used +
+		            " is used, because the folder being shown comes first, and " + ignored +
+		            " is left alone. Rename or remove one of them: one name is one instance.");
+	}
 }

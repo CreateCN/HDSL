@@ -39,67 +39,67 @@ import java.util.Locale;
 /// either.
 @NotNullByDefault
 public enum NodeSource {
-    /// The distribution the Node.js project publishes.
-    OFFICIAL("official", "https://nodejs.org/dist/"),
+	/// The distribution the Node.js project publishes.
+	OFFICIAL("official", "https://nodejs.org/dist/"),
 
-    /// The mirror the npm registry the launcher already reaches is run beside.
-    MIRROR("mirror", "https://npmmirror.com/mirrors/node/");
+	/// The mirror the npm registry the launcher already reaches is run beside.
+	MIRROR("mirror", "https://npmmirror.com/mirrors/node/");
 
-    /// The name used in settings files.
-    private final String id;
+	/// The name used in settings files.
+	private final String id;
 
-    /// The base URL the index and the archives live under.
-    private final String base;
+	/// The base URL the index and the archives live under.
+	private final String base;
 
-    NodeSource(String id, String base) {
-        this.id = id;
-        this.base = base;
-    }
+	NodeSource(String id, String base) {
+		this.id = id;
+		this.base = base;
+	}
 
-    /// Returns the name used in settings files.
-    ///
-    /// @return the identifier
-    public String id() {
-        return id;
-    }
+	/// Resolves a source from its stored name.
+	///
+	/// @param value the stored name, possibly `null` or of the wrong case
+	/// @return the matching source, or [NodeSource#OFFICIAL] when unrecognised
+	public static NodeSource of(@Nullable String value) {
+		if (value != null) {
+			for (NodeSource source : values()) {
+				if (source.id.equals(value.trim().toLowerCase(Locale.ROOT))) {
+					return source;
+				}
+			}
+		}
+		return OFFICIAL;
+	}
 
-    /// Returns the host the source fetches from, for messages.
-    ///
-    /// @return the host
-    public String host() {
-        String withoutScheme = base.substring(base.indexOf("//") + 2);
-        int slash = withoutScheme.indexOf('/');
-        return slash < 0 ? withoutScheme : withoutScheme.substring(0, slash);
-    }
+	/// Returns the name used in settings files.
+	///
+	/// @return the identifier
+	public String id() {
+		return id;
+	}
 
-    /// Returns the URL of the release index.
-    ///
-    /// @return the URL
-    public String indexUrl() {
-        return base + "index.json";
-    }
+	/// Returns the host the source fetches from, for messages.
+	///
+	/// @return the host
+	public String host() {
+		String withoutScheme = base.substring(base.indexOf("//") + 2);
+		int slash = withoutScheme.indexOf('/');
+		return slash < 0 ? withoutScheme : withoutScheme.substring(0, slash);
+	}
 
-    /// Returns the URL of one release's archive.
-    ///
-    /// @param version  the version without its leading `v`
-    /// @param fileName the archive's file name
-    /// @return the URL
-    public String archiveUrl(String version, String fileName) {
-        return base + "v" + version + "/" + fileName;
-    }
+	/// Returns the URL of the release index.
+	///
+	/// @return the URL
+	public String indexUrl() {
+		return base + "index.json";
+	}
 
-    /// Resolves a source from its stored name.
-    ///
-    /// @param value the stored name, possibly `null` or of the wrong case
-    /// @return the matching source, or [NodeSource#OFFICIAL] when unrecognised
-    public static NodeSource of(@Nullable String value) {
-        if (value != null) {
-            for (NodeSource source : values()) {
-                if (source.id.equals(value.trim().toLowerCase(Locale.ROOT))) {
-                    return source;
-                }
-            }
-        }
-        return OFFICIAL;
-    }
+	/// Returns the URL of one release's archive.
+	///
+	/// @param version  the version without its leading `v`
+	/// @param fileName the archive's file name
+	/// @return the URL
+	public String archiveUrl(String version, String fileName) {
+		return base + "v" + version + "/" + fileName;
+	}
 }

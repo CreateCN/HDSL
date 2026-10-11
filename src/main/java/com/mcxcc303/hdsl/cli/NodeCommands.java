@@ -25,6 +25,7 @@ import com.mcxcc303.hdsl.runtime.NodeRuntime;
 import com.mcxcc303.hdsl.runtime.NodeRuntimeManager;
 import com.mcxcc303.hdsl.runtime.NodeSource;
 import org.jetbrains.annotations.NotNullByDefault;
+
 import java.io.PrintStream;
 import java.util.List;
 
@@ -33,45 +34,45 @@ import java.util.List;
 @NotNullByDefault
 public final class NodeCommands {
 
-    /// Runs the `LIST_RUNTIMES` command.
-    static int listRuntimes(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-        List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
-        if (runtimes.isEmpty()) {
-            out.println("(no managed Node runtimes)");
-        }
-        for (NodeRuntime runtime : runtimes) {
-            out.println(runtime.version() + "\t" + runtime.directory());
-        }
-        return 0;
-    }
+	private NodeCommands() {
+	}
 
-    /// Runs the `LIST_NODE_VERSIONS` command.
-    static int listNodeVersions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-        for (NodeRelease release : NodeRuntimeManager.fetchReleases(
-                NodeSource.of(invocation.options().get("node-source")))) {
-            out.println(release.version()
-                    + (release.isLts() ? "\t" + release.label() : "")
-                    + (release.isSupported() ? "" : "\tunsupported"));
-        }
-        return 0;
-    }
+	/// Runs the `LIST_RUNTIMES` command.
+	static int listRuntimes(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
+		if (runtimes.isEmpty()) {
+			out.println("(no managed Node runtimes)");
+		}
+		for (NodeRuntime runtime : runtimes) {
+			out.println(runtime.version() + "\t" + runtime.directory());
+		}
+		return 0;
+	}
 
-    /// Runs the `INSTALL_NODE` command.
-    static int installNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-        out.println("Installing Node.js " + invocation.subject() + " ...");
-        NodeRuntime runtime = NodeRuntimeManager.install(invocation.subject(),
-                NodeSource.of(invocation.options().get("node-source")), out::println);
-        out.println("Installed Node.js " + runtime.version() + " into " + runtime.directory());
-        return 0;
-    }
+	/// Runs the `LIST_NODE_VERSIONS` command.
+	static int listNodeVersions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		for (NodeRelease release : NodeRuntimeManager.fetchReleases(NodeSource.of(invocation.options()
+		                                                                                    .get("node-source")))) {
+			out.println(release.version() + (release.isLts() ? "\t" + release.label() : "") +
+			            (release.isSupported() ? "" : "\tunsupported"));
+		}
+		return 0;
+	}
 
-    /// Runs the `UNINSTALL_NODE` command.
-    static int uninstallNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
-        NodeRuntimeManager.uninstall(invocation.subject());
-        out.println("Removed Node.js " + invocation.subject());
-        return 0;
-    }
+	/// Runs the `INSTALL_NODE` command.
+	static int installNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		out.println("Installing Node.js " + invocation.subject() + " ...");
+		NodeRuntime runtime = NodeRuntimeManager.install(invocation.subject(),
+		                                                 NodeSource.of(invocation.options().get("node-source")),
+		                                                 out::println);
+		out.println("Installed Node.js " + runtime.version() + " into " + runtime.directory());
+		return 0;
+	}
 
-    private NodeCommands() {
-    }
+	/// Runs the `UNINSTALL_NODE` command.
+	static int uninstallNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		NodeRuntimeManager.uninstall(invocation.subject());
+		out.println("Removed Node.js " + invocation.subject());
+		return 0;
+	}
 }

@@ -17,12 +17,20 @@
  */
 package org.jackhuang.hmcl.ui.dsh;
 
+import com.jfoenix.controls.JFXButton;
+import com.jfoenix.controls.JFXTextArea;
+import com.jfoenix.controls.JFXTextField;
+import com.mcxcc303.hdsl.instance.DshInstance;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.instance.DshInstance;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LinePane;
@@ -45,181 +53,182 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// for — which is what somebody receiving it sees before installing anything.
 @NotNullByDefault
 public final class ModpackInfoPage extends VBox implements WizardPage {
-    /// The wizard this page belongs to.
-    private final WizardController controller;
+	/// The wizard this page belongs to.
+	private final WizardController controller;
 
-    /// The instance being exported.
-    private final DshInstance instance;
+	/// The instance being exported.
+	private final DshInstance instance;
 
-    /// The wizard's settings.
-    private final SettingsMap settings;
+	/// The wizard's settings.
+	private final SettingsMap settings;
 
-    /// What the pack is called.
-    private final SimpleStringProperty name = new SimpleStringProperty();
+	/// What the pack is called.
+	private final SimpleStringProperty name = new SimpleStringProperty();
 
-    /// The pack's own version.
-    private final SimpleStringProperty packVersion = new SimpleStringProperty();
+	/// The pack's own version.
+	private final SimpleStringProperty packVersion = new SimpleStringProperty();
 
-    /// Who made it.
-    private final SimpleStringProperty author = new SimpleStringProperty();
+	/// Who made it.
+	private final SimpleStringProperty author = new SimpleStringProperty();
 
-    /// What it is for.
-    private final SimpleStringProperty description = new SimpleStringProperty();
+	/// What it is for.
+	private final SimpleStringProperty description = new SimpleStringProperty();
 
-    /// The prefix a pack's own downloads hang off, or empty.
-    private final SimpleStringProperty url = new SimpleStringProperty();
+	/// The prefix a pack's own downloads hang off, or empty.
+	private final SimpleStringProperty url = new SimpleStringProperty();
 
-    /// Where the pack came from, or empty.
-    private final SimpleStringProperty referenceUrl = new SimpleStringProperty();
+	/// Where the pack came from, or empty.
+	private final SimpleStringProperty referenceUrl = new SimpleStringProperty();
 
-    /// Creates the page.
-    ///
-    /// @param controller the wizard controller
-    /// @param instance   the instance being exported
-    /// @param settings   the wizard's settings
-    public ModpackInfoPage(WizardController controller, DshInstance instance, SettingsMap settings) {
-        this.controller = controller;
-        this.instance = instance;
-        this.settings = settings;
+	/// Creates the page.
+	///
+	/// @param controller the wizard controller
+	/// @param instance   the instance being exported
+	/// @param settings   the wizard's settings
+	public ModpackInfoPage(WizardController controller, DshInstance instance, SettingsMap settings) {
+		this.controller = controller;
+		this.instance = instance;
+		this.settings = settings;
 
-        name.set(string(ModpackExportWizardProvider.NAME, instance.id()));
-        packVersion.set(string(ModpackExportWizardProvider.VERSION, "1.0"));
-        author.set(string(ModpackExportWizardProvider.AUTHOR, ""));
-        description.set(string(ModpackExportWizardProvider.DESCRIPTION, ""));
-        url.set(string(ModpackExportWizardProvider.URL, ""));
-        referenceUrl.set(string(ModpackExportWizardProvider.REFERENCE_URL, ""));
+		name.set(string(ModpackExportWizardProvider.NAME, instance.id()));
+		packVersion.set(string(ModpackExportWizardProvider.VERSION, "1.0"));
+		author.set(string(ModpackExportWizardProvider.AUTHOR, ""));
+		description.set(string(ModpackExportWizardProvider.DESCRIPTION, ""));
+		url.set(string(ModpackExportWizardProvider.URL, ""));
+		referenceUrl.set(string(ModpackExportWizardProvider.REFERENCE_URL, ""));
 
-        setSpacing(10);
-        setPadding(new Insets(10));
+		setSpacing(10);
+		setPadding(new Insets(10));
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(instanceRow());
-        list.getContent().add(textRow(i18n("modpack.name"), name));
-        list.getContent().add(textRow(i18n("archive.version"), packVersion));
-        list.getContent().add(textRow(i18n("archive.author"), author));
-        // The original's two origin rows, in its order: where the pack's files are published, and
-        // where the pack itself is announced. Both are optional, and both are written into the
-        // manifest — a pack that says where it came from can be checked against that place, and a
-        // market that collects packs reads the download prefix.
-        list.getContent().add(textRow(i18n("modpack.export.url"), url));
-        list.getContent().add(textRow(i18n("modpack.export.reference_url"), referenceUrl));
-        // The description row is the height of its own block, like every other row. It used to be
-        // given the card's leftover height and told to take it, and since the card was told to fill
-        // the scroll pane, every extra pixel of window became another pixel of text area: the row
-        // grew without bound and the fields above it drifted up the page. The original's block is
-        // the same shape and does the same thing — a label, then an area of its own height.
-        list.getContent().add(descriptionRow());
+		ComponentList list = new ComponentList();
+		list.getContent().add(instanceRow());
+		list.getContent().add(textRow(i18n("modpack.name"), name));
+		list.getContent().add(textRow(i18n("archive.version"), packVersion));
+		list.getContent().add(textRow(i18n("archive.author"), author));
+		// The original's two origin rows, in its order: where the pack's files are published, and
+		// where the pack itself is announced. Both are optional, and both are written into the
+		// manifest — a pack that says where it came from can be checked against that place, and a
+		// market that collects packs reads the download prefix.
+		list.getContent().add(textRow(i18n("modpack.export.url"), url));
+		list.getContent().add(textRow(i18n("modpack.export.reference_url"), referenceUrl));
+		// The description row is the height of its own block, like every other row. It used to be
+		// given the card's leftover height and told to take it, and since the card was told to fill
+		// the scroll pane, every extra pixel of window became another pixel of text area: the row
+		// grew without bound and the fields above it drifted up the page. The original's block is
+		// the same shape and does the same thing — a label, then an area of its own height.
+		list.getContent().add(descriptionRow());
 
-        list.setMaxHeight(Double.MAX_VALUE);
-        ScrollPane scroll = new ScrollPane(list);
-        scroll.setFitToWidth(true);
-        VBox.setVgrow(scroll, javafx.scene.layout.Priority.ALWAYS);
-        // Width only. Filling the height as well would make the card as tall as the scroll pane,
-        // and the card's rows then share that extra height out — the description row, being the one
-        // with no height of its own to insist on, took all of it, so every pixel the window grew by
-        // became another pixel of text area. The card is as tall as its rows, which is what its
-        // rows add up to.
-        scroll.setFitToWidth(true);
-        getChildren().add(scroll);
+		list.setMaxHeight(Double.MAX_VALUE);
+		ScrollPane scroll = new ScrollPane(list);
+		scroll.setFitToWidth(true);
+		VBox.setVgrow(scroll, Priority.ALWAYS);
+		// Width only. Filling the height as well would make the card as tall as the scroll pane,
+		// and the card's rows then share that extra height out — the description row, being the one
+		// with no height of its own to insist on, took all of it, so every pixel the window grew by
+		// became another pixel of text area. The card is as tall as its rows, which is what its
+		// rows add up to.
+		scroll.setFitToWidth(true);
+		getChildren().add(scroll);
 
-        // This launcher's wizards carry no footer of their own — the create page
-        // has its own install button, the boot library's chooser applies its choice
-        // on the row — so each step carries the button that leaves it.
-        javafx.scene.layout.HBox buttons = new javafx.scene.layout.HBox(8);
-        buttons.setAlignment(javafx.geometry.Pos.CENTER_RIGHT);
-        com.jfoenix.controls.JFXButton next = new com.jfoenix.controls.JFXButton(i18n("button.next"));
-        next.getStyleClass().add("jfx-button-raised");
-        next.setOnAction(event -> {
-            cleanup(settings);
-            controller.onNext();
-        });
-        buttons.getChildren().add(next);
-        getChildren().add(buttons);
-    }
+		// This launcher's wizards carry no footer of their own — the create page
+		// has its own install button, the boot library's chooser applies its choice
+		// on the row — so each step carries the button that leaves it.
+		HBox buttons = new HBox(8);
+		buttons.setAlignment(Pos.CENTER_RIGHT);
+		JFXButton next = new JFXButton(i18n("button.next"));
+		next.getStyleClass().add("jfx-button-raised");
+		next.setOnAction(event -> {
+			cleanup(settings);
+			controller.onNext();
+		});
+		buttons.getChildren().add(next);
+		getChildren().add(buttons);
+	}
 
-    /// Builds the row that says which instance is being written out.
-    ///
-    /// @return the row
-    private javafx.scene.Node instanceRow() {
-        LineTextPane pane = new LineTextPane();
-        pane.setTitle(i18n("modpack.wizard.step.initialization.exported_version"));
-        pane.setText(instance.id().equals(instance.version())
-                ? instance.id() : instance.id() + " · " + instance.version());
-        return pane;
-    }
+	/// Builds the row that says which instance is being written out.
+	///
+	/// @return the row
+	private Node instanceRow() {
+		LineTextPane pane = new LineTextPane();
+		pane.setTitle(i18n("modpack.wizard.step.initialization.exported_version"));
+		pane.setText(instance.id().equals(instance.version())
+		             ? instance.id()
+		             : instance.id() + " · " + instance.version());
+		return pane;
+	}
 
-    /// Builds a row holding one editable line.
-    ///
-    /// @param title    the row's label
-    /// @param property what is typed into it
-    /// @return the row
-    private javafx.scene.Node textRow(String title, SimpleStringProperty property) {
-        // A line with the field on it, which is the shape the original's
-        // information page has: a label and what is typed beside it, not a
-        // collapsible section that has to be opened before anything can be read.
-        LinePane pane = new LinePane();
-        pane.setTitle(title);
+	/// Builds a row holding one editable line.
+	///
+	/// @param title    the row's label
+	/// @param property what is typed into it
+	/// @return the row
+	private Node textRow(String title, SimpleStringProperty property) {
+		// A line with the field on it, which is the shape the original's
+		// information page has: a label and what is typed beside it, not a
+		// collapsible section that has to be opened before anything can be read.
+		LinePane pane = new LinePane();
+		pane.setTitle(title);
 
-        com.jfoenix.controls.JFXTextField field = new com.jfoenix.controls.JFXTextField();
-        field.setMinWidth(420);
-        pane.setRight(field);
-        field.textProperty().bindBidirectional(property);
-        return pane;
-    }
+		JFXTextField field = new JFXTextField();
+		field.setMinWidth(420);
+		pane.setRight(field);
+		field.textProperty().bindBidirectional(property);
+		return pane;
+	}
 
-    /// Builds the row for what the pack is for.
-    ///
-    /// @return the row
-    private javafx.scene.Node descriptionRow() {
-        // The original's spacing for this block, and its arrangement: the name above the box rather
-        // than beside it, because a description is a paragraph and a paragraph beside a label would
-        // be a column two words wide.
-        VBox box = new VBox(8);
+	/// Builds the row for what the pack is for.
+	///
+	/// @return the row
+	private Node descriptionRow() {
+		// The original's spacing for this block, and its arrangement: the name above the box rather
+		// than beside it, because a description is a paragraph and a paragraph beside a label would
+		// be a column two words wide.
+		VBox box = new VBox(8);
 
-        Label label = new Label(i18n("modpack.description"));
-        com.jfoenix.controls.JFXTextArea area = new com.jfoenix.controls.JFXTextArea();
-        area.setPrefRowCount(6);
-        // Six lines' worth, stated in pixels as well as in rows: a row count is a preference the
-        // surrounding layout does not consult, so a box sized only by `setPrefRowCount` grows to
-        // whatever height it is offered. That is what made the edit area unbounded — the card was
-        // as tall as the wizard, and this box, being the only thing in it with no height to insist
-        // on, took every pixel the window gained.
-        FXUtils.setLimitHeight(area, 132);
-        area.setWrapText(true);
-        area.textProperty().bindBidirectional(description);
-        box.getChildren().addAll(label, area);
-        // And the block itself is its own height, so the row cannot be stretched even if the card
-        // around it is taller than its rows.
-        box.setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
-        return box;
-    }
+		Label label = new Label(i18n("modpack.description"));
+		JFXTextArea area = new JFXTextArea();
+		area.setPrefRowCount(6);
+		// Six lines' worth, stated in pixels as well as in rows: a row count is a preference the
+		// surrounding layout does not consult, so a box sized only by `setPrefRowCount` grows to
+		// whatever height it is offered. That is what made the edit area unbounded — the card was
+		// as tall as the wizard, and this box, being the only thing in it with no height to insist
+		// on, took every pixel the window gained.
+		FXUtils.setLimitHeight(area, 132);
+		area.setWrapText(true);
+		area.textProperty().bindBidirectional(description);
+		box.getChildren().addAll(label, area);
+		// And the block itself is its own height, so the row cannot be stretched even if the card
+		// around it is taller than its rows.
+		box.setMaxHeight(Region.USE_PREF_SIZE);
+		return box;
+	}
 
-    /// Reads a setting.
-    ///
-    /// @param key      the key
-    /// @param fallback what to use when it holds nothing
-    /// @return the value
-    private String string(String key, String fallback) {
-        Object value = settings.get(key);
-        return value == null || value.toString().isBlank() ? fallback : value.toString();
-    }
+	/// Reads a setting.
+	///
+	/// @param key      the key
+	/// @param fallback what to use when it holds nothing
+	/// @return the value
+	private String string(String key, String fallback) {
+		Object value = settings.get(key);
+		return value == null || value.toString().isBlank() ? fallback : value.toString();
+	}
 
-    @Override
-    public void onNavigate(SettingsMap settings) {
-        // The page seeded its fields when it was built, and the wizard keeps what
-        // was typed into them, so returning to this step shows what was left there.
-    }
+	@Override
+	public void onNavigate(SettingsMap settings) {
+		// The page seeded its fields when it was built, and the wizard keeps what
+		// was typed into them, so returning to this step shows what was left there.
+	}
 
-    @Override
-    public void cleanup(SettingsMap settings) {
-        settings.put(ModpackExportWizardProvider.NAME, name.get());
-        settings.put(ModpackExportWizardProvider.VERSION, packVersion.get());
-        settings.put(ModpackExportWizardProvider.AUTHOR, author.get());
-        settings.put(ModpackExportWizardProvider.DESCRIPTION, description.get());
-    }
+	@Override
+	public void cleanup(SettingsMap settings) {
+		settings.put(ModpackExportWizardProvider.NAME, name.get());
+		settings.put(ModpackExportWizardProvider.VERSION, packVersion.get());
+		settings.put(ModpackExportWizardProvider.AUTHOR, author.get());
+		settings.put(ModpackExportWizardProvider.DESCRIPTION, description.get());
+	}
 
-    @Override
-    public String getTitle() {
-        return i18n("modpack.wizard.step.1.title");
-    }
+	@Override
+	public String getTitle() {
+		return i18n("modpack.wizard.step.1.title");
+	}
 }

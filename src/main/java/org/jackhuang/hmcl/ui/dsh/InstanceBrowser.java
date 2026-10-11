@@ -26,6 +26,8 @@ import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.construct.MessageDialogPane;
 import org.jetbrains.annotations.NotNullByDefault;
 
+import java.util.Optional;
+
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 /// Opens an instance's browser interface.
@@ -43,22 +45,22 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// not there, and the second one leaves the person wondering whether they misremembered.
 @NotNullByDefault
 public final class InstanceBrowser {
-    private InstanceBrowser() {
-    }
+	private InstanceBrowser() {
+	}
 
-    /// Opens an instance's interface in the browser.
-    ///
-    /// @param instance the instance
-    public static void open(DshInstance instance) {
-        if (instance.portOrDefault() <= 0) {
-            // A surface that serves nothing has no address to open, and inventing one would open a
-            // page that is somebody else's.
-            Controllers.dialog(i18n("dsh.instance.port.auto.none"), i18n("message.error"),
-                    MessageDialogPane.MessageType.ERROR);
-            return;
-        }
-        java.util.Optional<DshProcess> running = DshProcessManager.find(instance.id());
-        FXUtils.openLink(DshPorts.openAddress(instance,
-                running.flatMap(DshProcess::webUrl).orElse(null)).toString());
-    }
+	/// Opens an instance's interface in the browser.
+	///
+	/// @param instance the instance
+	public static void open(DshInstance instance) {
+		if (instance.portOrDefault() <= 0) {
+			// A surface that serves nothing has no address to open, and inventing one would open a
+			// page that is somebody else's.
+			Controllers.dialog(i18n("dsh.instance.port.auto.none"),
+			                   i18n("message.error"),
+			                   MessageDialogPane.MessageType.ERROR);
+			return;
+		}
+		Optional<DshProcess> running = DshProcessManager.find(instance.id());
+		FXUtils.openLink(DshPorts.openAddress(instance, running.flatMap(DshProcess::webUrl).orElse(null)).toString());
+	}
 }

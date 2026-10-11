@@ -17,15 +17,8 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.instance.InstanceStore;
-
-import com.mcxcc303.hdsl.plugin.DshBuildScriptPolicy;
-import com.mcxcc303.hdsl.plugin.DshBuildScripts;
-import com.mcxcc303.hdsl.instance.DshHomeMode;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.instance.DshInstanceSettings;
-
+import com.mcxcc303.hdsl.instance.*;
+import org.jackhuang.hmcl.setting.SettingsManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -34,10 +27,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies what the launcher reads out of a profile's package-manager settings, and
 /// what it writes back.
@@ -47,199 +37,204 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// say: an entry nobody has answered is reported as waiting, answering one leaves the
 /// others alone, and nothing else in the file moves.
 class DshBuildScriptsTest {
-    /// The instance the tests work in.
-    private static final String ID = "build-scripts-test";
+	/// The instance the tests work in.
+	private static final String ID = "build-scripts-test";
 
-    /// Removes the instance the tests made.
-    @AfterEach
-    void removeInstance() {
-        try {
-            if (InstanceStore.find(ID) != null) {
-                DshInstanceManager.delete(ID);
-            }
-        } catch (Exception ignored) {
-            // The test's own cleanup: a failure here would hide the real one.
-        }
-    }
+	/// Returns an instance's `pnpm-workspace.yaml`.
+	///
+	/// @param instance the instance
+	/// @return the file
+	private static Path profileFile(DshInstance instance) throws Exception {
+		return instance.homeDirectory().resolve("profiles").resolve(instance.profile()).resolve("pnpm-workspace.yaml");
+	}
 
-    @Test
-    void anUnansweredEntryIsReportedAsWaiting() throws Exception {
-        DshInstance instance = makeInstance("""
-                packages:
-                  - .
+	/// Removes the instance the tests made.
+	@AfterEach
+	void removeInstance() {
+		try {
+			if (InstanceStore.find(ID) != null) {
+				DshInstanceManager.delete(ID);
+			}
+		} catch (Exception ignored) {
+			// The test's own cleanup: a failure here would hide the real one.
+		}
+	}
 
-                nodeLinker: hoisted
-                allowBuilds:
-                  cloudflared: set this to true or false
-                  node-pty: set this to true or false
-                """);
+	@Test
+	void anUnansweredEntryIsReportedAsWaiting() throws Exception {
+		DshInstance instance = makeInstance("""
+				                                    packages:
+				                                      - .
+				                                    
+				                                    nodeLinker: hoisted
+				                                    allowBuilds:
+				                                      cloudflared: set this to true or false
+				                                      node-pty: set this to true or false
+				                                    """);
 
-        List<DshBuildScripts.Pending> pending = DshBuildScripts.pending(instance);
+		List<DshBuildScripts.Pending> pending = DshBuildScripts.pending(instance);
 
-        assertEquals(List.of("cloudflared", "node-pty"),
-                pending.stream().map(DshBuildScripts.Pending::name).toList());
-        assertNull(pending.get(0).allowed(), "a placeholder is not an answer");
-        assertEquals(List.of("cloudflared", "node-pty"), DshBuildScripts.unanswered(instance));
-    }
+		assertEquals(List.of("cloudflared", "node-pty"), pending.stream().map(DshBuildScripts.Pending::name).toList());
+		assertNull(pending.get(0).allowed(), "a placeholder is not an answer");
+		assertEquals(List.of("cloudflared", "node-pty"), DshBuildScripts.unanswered(instance));
+	}
 
-    @Test
-    void answeringOneLeavesTheOtherAndTheRestOfTheFileAlone() throws Exception {
-        DshInstance instance = makeInstance("""
-                packages:
-                  - .
+	@Test
+	void answeringOneLeavesTheOtherAndTheRestOfTheFileAlone() throws Exception {
+		DshInstance instance = makeInstance("""
+				                                    packages:
+				                                      - .
+				                                    
+				                                    nodeLinker: hoisted
+				                                    autoInstallPeers: false
+				                                    minimumReleaseAgeExclude:
+				                                      - dshmarket@1.53.0
+				                                    allowBuilds:
+				                                      cloudflared: set this to true or false
+				                                      node-pty: set this to true or false
+				                                    """);
 
-                nodeLinker: hoisted
-                autoInstallPeers: false
-                minimumReleaseAgeExclude:
-                  - dshmarket@1.53.0
-                allowBuilds:
-                  cloudflared: set this to true or false
-                  node-pty: set this to true or false
-                """);
+		assertEquals(1, DshBuildScripts.answer(instance, List.of("node-pty"), true));
 
-        assertEquals(1, DshBuildScripts.answer(instance, List.of("node-pty"), true));
+		String written = Files.readString(profileFile(instance));
+		assertTrue(written.contains("node-pty: true"), written);
+		assertTrue(written.contains("cloudflared: set this to true or false"),
+		           "an entry nobody answered stays a question");
+		assertTrue(written.contains("minimumReleaseAgeExclude:"), "the rest of the file is untouched");
+		assertTrue(written.contains("autoInstallPeers: false"));
+		assertEquals(List.of("cloudflared"), DshBuildScripts.unanswered(instance));
+	}
 
-        String written = Files.readString(profileFile(instance));
-        assertTrue(written.contains("node-pty: true"), written);
-        assertTrue(written.contains("cloudflared: set this to true or false"),
-                "an entry nobody answered stays a question");
-        assertTrue(written.contains("minimumReleaseAgeExclude:"), "the rest of the file is untouched");
-        assertTrue(written.contains("autoInstallPeers: false"));
-        assertEquals(List.of("cloudflared"), DshBuildScripts.unanswered(instance));
-    }
+	@Test
+	void refusingIsAnAnswerToo() throws Exception {
+		DshInstance instance = makeInstance("""
+				                                    allowBuilds:
+				                                      node-pty: set this to true or false
+				                                    """);
 
-    @Test
-    void refusingIsAnAnswerToo() throws Exception {
-        DshInstance instance = makeInstance("""
-                allowBuilds:
-                  node-pty: set this to true or false
-                """);
+		assertEquals(1, DshBuildScripts.answer(instance, List.of("node-pty"), false));
 
-        assertEquals(1, DshBuildScripts.answer(instance, List.of("node-pty"), false));
+		assertTrue(Files.readString(profileFile(instance)).contains("node-pty: false"));
+		assertEquals(List.of(), DshBuildScripts.unanswered(instance));
+		assertFalse(DshBuildScripts.answer(instance, List.of("nothing-here"), true) > 0,
+		            "a package that was never asked about is not invented");
+	}
 
-        assertTrue(Files.readString(profileFile(instance)).contains("node-pty: false"));
-        assertEquals(List.of(), DshBuildScripts.unanswered(instance));
-        assertFalse(DshBuildScripts.answer(instance, List.of("nothing-here"), true) > 0,
-                "a package that was never asked about is not invented");
-    }
+	@Test
+	void aQuestionPnpmNamedIsRecordedAndAnsweredLikeAnyOther() throws Exception {
+		// A repository-hosted package is named by the address it was resolved to, so the entry
+		// holds colons of its own — reading only up to the first one would lose it.
+		String key = "dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/"
+		             + "180c3144da8eb4229cacb843aced229ea55912fc";
+		DshInstance instance = makeInstance("""
+				                                    allowBuilds:
+				                                      node-pty: true
+				                                    """);
 
-    @Test
-    void aQuestionPnpmNamedIsRecordedAndAnsweredLikeAnyOther() throws Exception {
-        // A repository-hosted package is named by the address it was resolved to, so the entry
-        // holds colons of its own — reading only up to the first one would lose it.
-        String key = "dshmarket@https://codeload.github.com/dsh-market/dsh-market/tar.gz/"
-                + "180c3144da8eb4229cacb843aced229ea55912fc";
-        DshInstance instance = makeInstance("""
-                allowBuilds:
-                  node-pty: true
-                """);
+		assertEquals(1, DshBuildScripts.propose(instance, List.of(key)));
+		assertEquals(List.of(key),
+		             DshBuildScripts.unanswered(instance),
+		             "what pnpm named is the question waiting to be answered");
+		assertEquals(0, DshBuildScripts.propose(instance, List.of(key)), "asking twice records one question");
 
-        assertEquals(1, DshBuildScripts.propose(instance, List.of(key)));
-        assertEquals(List.of(key), DshBuildScripts.unanswered(instance),
-                "what pnpm named is the question waiting to be answered");
-        assertEquals(0, DshBuildScripts.propose(instance, List.of(key)), "asking twice records one question");
+		assertEquals(1, DshBuildScripts.answer(instance, List.of(key), true));
 
-        assertEquals(1, DshBuildScripts.answer(instance, List.of(key), true));
+		String written = Files.readString(profileFile(instance));
+		assertTrue(written.contains(key + ": true"), written);
+		assertTrue(written.contains("node-pty: true"), "an entry somebody answered stays as it was");
+		assertEquals(List.of(), DshBuildScripts.unanswered(instance));
+		assertEquals(0, DshBuildScripts.propose(instance, List.of(key)), "an answered entry is not asked about again");
+	}
 
-        String written = Files.readString(profileFile(instance));
-        assertTrue(written.contains(key + ": true"), written);
-        assertTrue(written.contains("node-pty: true"), "an entry somebody answered stays as it was");
-        assertEquals(List.of(), DshBuildScripts.unanswered(instance));
-        assertEquals(0, DshBuildScripts.propose(instance, List.of(key)),
-                "an answered entry is not asked about again");
-    }
+	@Test
+	void aQuestionIsRecordedWhereTheFileHasNoSectionYet() throws Exception {
+		String key = "thing@https://codeload.github.com/owner/name/tar.gz/abcdef";
+		DshInstance instance = makeInstance("""
+				                                    packages:
+				                                      - .
+				                                    
+				                                    nodeLinker: hoisted
+				                                    """);
 
-    @Test
-    void aQuestionIsRecordedWhereTheFileHasNoSectionYet() throws Exception {
-        String key = "thing@https://codeload.github.com/owner/name/tar.gz/abcdef";
-        DshInstance instance = makeInstance("""
-                packages:
-                  - .
+		assertEquals(1, DshBuildScripts.propose(instance, List.of(key)));
 
-                nodeLinker: hoisted
-                """);
+		String written = Files.readString(profileFile(instance));
+		assertTrue(written.contains("allowBuilds:\n  " + key + ": set this to true or false"), written);
+		assertTrue(written.contains("nodeLinker: hoisted"), "the rest of the file is untouched");
+		assertEquals(List.of(key), DshBuildScripts.unanswered(instance));
+	}
 
-        assertEquals(1, DshBuildScripts.propose(instance, List.of(key)));
+	@Test
+	void anInstancesOwnAnswerOverridesTheLaunchers() throws Exception {
+		DshInstance instance = makeInstance("""
+				                                    allowBuilds:
+				                                      node-pty: set this to true or false
+				                                    """);
 
-        String written = Files.readString(profileFile(instance));
-        assertTrue(written.contains("allowBuilds:\n  " + key + ": set this to true or false"), written);
-        assertTrue(written.contains("nodeLinker: hoisted"), "the rest of the file is untouched");
-        assertEquals(List.of(key), DshBuildScripts.unanswered(instance));
-    }
+		// Following the launcher: the instance's file says nothing.
+		assertNull(DshInstanceSettings.buildScriptPolicy(instance));
+		assertEquals(DshBuildScriptPolicy.MANUAL,
+		             DshBuildScriptPolicy.of(instance),
+		             "with no answer of its own, the launcher's applies, and it asks by default");
 
-    @Test
-    void anInstancesOwnAnswerOverridesTheLaunchers() throws Exception {
-        DshInstance instance = makeInstance("""
-                allowBuilds:
-                  node-pty: set this to true or false
-                """);
+		DshInstanceSettings.setBuildScriptPolicy(instance, DshBuildScriptPolicy.AUTO.id());
+		assertEquals(DshBuildScriptPolicy.AUTO,
+		             DshBuildScriptPolicy.of(instance),
+		             "an instance may allow what the launcher does not");
 
-        // Following the launcher: the instance's file says nothing.
-        assertNull(DshInstanceSettings.buildScriptPolicy(instance));
-        assertEquals(DshBuildScriptPolicy.MANUAL, DshBuildScriptPolicy.of(instance),
-                "with no answer of its own, the launcher's applies, and it asks by default");
+		DshInstanceSettings.setBuildScriptPolicy(instance, DshBuildScriptPolicy.NEVER.id());
+		assertEquals(DshBuildScriptPolicy.NEVER, DshBuildScriptPolicy.of(instance), "and may refuse them");
 
-        DshInstanceSettings.setBuildScriptPolicy(instance, DshBuildScriptPolicy.AUTO.id());
-        assertEquals(DshBuildScriptPolicy.AUTO, DshBuildScriptPolicy.of(instance),
-                "an instance may allow what the launcher does not");
+		DshInstanceSettings.setBuildScriptPolicy(instance, null);
+		assertNull(DshInstanceSettings.buildScriptPolicy(instance), "and may go back to following the launcher");
+		assertEquals(DshBuildScriptPolicy.MANUAL, DshBuildScriptPolicy.of(instance));
+	}
 
-        DshInstanceSettings.setBuildScriptPolicy(instance, DshBuildScriptPolicy.NEVER.id());
-        assertEquals(DshBuildScriptPolicy.NEVER, DshBuildScriptPolicy.of(instance),
-                "and may refuse them");
+	/// A fresh instance runs under the launcher-wide answer, whichever of the three it is.
+	///
+	/// Installing a pack is what makes the instance, so there is no per-instance answer to find and
+	/// the launcher's is the one that decides: run install scripts without asking, ask, or never run
+	/// them. A pack that answered for itself — always asking, or answering yes — would be deciding
+	/// about running somebody else's code on the person's behalf, which is the one thing this
+	/// setting exists to prevent.
+	///
+	/// @throws Exception when the instance cannot be made
+	@Test
+	void aFreshInstanceRunsUnderTheLauncherWideAnswer() throws Exception {
+		DshInstance instance = makeInstance("""
+				                                    packages:
+				                                      - .
+				                                    """);
+		var launcher = SettingsManager.settings().buildScriptPolicyProperty();
+		DshBuildScriptPolicy before = launcher.get();
+		try {
+			for (DshBuildScriptPolicy launcherWide : DshBuildScriptPolicy.values()) {
+				launcher.set(launcherWide);
+				assertEquals(launcherWide,
+				             DshBuildScriptPolicy.of(instance),
+				             "an instance that has answered nothing runs under " + launcherWide.id());
+			}
+		} finally {
+			launcher.set(before);
+		}
+	}
 
-        DshInstanceSettings.setBuildScriptPolicy(instance, null);
-        assertNull(DshInstanceSettings.buildScriptPolicy(instance),
-                "and may go back to following the launcher");
-        assertEquals(DshBuildScriptPolicy.MANUAL, DshBuildScriptPolicy.of(instance));
-    }
-
-    /// A fresh instance runs under the launcher-wide answer, whichever of the three it is.
-    ///
-    /// Installing a pack is what makes the instance, so there is no per-instance answer to find and
-    /// the launcher's is the one that decides: run install scripts without asking, ask, or never run
-    /// them. A pack that answered for itself — always asking, or answering yes — would be deciding
-    /// about running somebody else's code on the person's behalf, which is the one thing this
-    /// setting exists to prevent.
-    ///
-    /// @throws Exception when the instance cannot be made
-    @Test
-    void aFreshInstanceRunsUnderTheLauncherWideAnswer() throws Exception {
-        DshInstance instance = makeInstance("""
-                packages:
-                  - .
-                """);
-        var launcher = org.jackhuang.hmcl.setting.SettingsManager.settings().buildScriptPolicyProperty();
-        DshBuildScriptPolicy before = launcher.get();
-        try {
-            for (DshBuildScriptPolicy launcherWide : DshBuildScriptPolicy.values()) {
-                launcher.set(launcherWide);
-                assertEquals(launcherWide, DshBuildScriptPolicy.of(instance),
-                        "an instance that has answered nothing runs under " + launcherWide.id());
-            }
-        } finally {
-            launcher.set(before);
-        }
-    }
-
-    /// Creates an instance whose profile holds the given workspace file.
-    ///
-    /// @param workspace the file's contents
-    /// @return the instance
-    private DshInstance makeInstance(String workspace) throws Exception {
-        Path source = Files.createTempDirectory("build-scripts-home");
-        DshInstance instance = DshInstanceManager.create(ID, "0.1.6-alpha.2", DshInstance.DEFAULT_PROFILE,
-                source, DshHomeMode.ISOLATED, null, List.of(), Map.of());
-        Files.createDirectories(profileFile(instance).getParent());
-        Files.writeString(profileFile(instance), workspace);
-        return instance;
-    }
-
-    /// Returns an instance's `pnpm-workspace.yaml`.
-    ///
-    /// @param instance the instance
-    /// @return the file
-    private static Path profileFile(DshInstance instance) throws Exception {
-        return instance.homeDirectory().resolve("profiles").resolve(instance.profile())
-                .resolve("pnpm-workspace.yaml");
-    }
+	/// Creates an instance whose profile holds the given workspace file.
+	///
+	/// @param workspace the file's contents
+	/// @return the instance
+	private DshInstance makeInstance(String workspace) throws Exception {
+		Path source = Files.createTempDirectory("build-scripts-home");
+		DshInstance instance = DshInstanceManager.create(ID,
+		                                                 "0.1.6-alpha.2",
+		                                                 DshInstance.DEFAULT_PROFILE,
+		                                                 source,
+		                                                 DshHomeMode.ISOLATED,
+		                                                 null,
+		                                                 List.of(),
+		                                                 Map.of());
+		Files.createDirectories(profileFile(instance).getParent());
+		Files.writeString(profileFile(instance), workspace);
+		return instance;
+	}
 }

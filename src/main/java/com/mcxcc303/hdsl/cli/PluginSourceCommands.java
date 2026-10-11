@@ -32,30 +32,29 @@ import java.io.PrintStream;
 /// which of them is read, and that is what this prints.
 @NotNullByDefault
 public final class PluginSourceCommands {
-    /// Prints the plugin markets, and marks the one in use.
-    ///
-    /// The addresses under the market that is in use are printed too, in the order they are tried,
-    /// because that is what somebody diagnosing a catalogue that will not load needs to see.
-    ///
-    /// @param out the stream for normal output
-    /// @return the process exit code
-    static int listPluginSources(PrintStream out) {
-        MarketSource selected = CatalogSources.marketSource();
-        for (MarketSource source : MarketSource.values()) {
-            out.println((source == selected ? "* " : "  ") + source.id()
-                    + "  " + source.label() + (source == selected ? "  [in use]" : ""));
-        }
-        for (String address : selected.addresses()) {
-            out.println("    " + address);
-        }
-        String fallback = selected.fallback();
-        if (fallback != null) {
-            out.println("    " + fallback
-                    + "  [npm package, read only when the address above answers nothing]");
-        }
-        return 0;
-    }
+	private PluginSourceCommands() {
+	}
 
-    private PluginSourceCommands() {
-    }
+	/// Prints the plugin markets, and marks the one in use.
+	///
+	/// The addresses under the market that is in use are printed too, in the order they are tried,
+	/// because that is what somebody diagnosing a catalogue that will not load needs to see.
+	///
+	/// @param out the stream for normal output
+	/// @return the process exit code
+	static int listPluginSources(PrintStream out) {
+		MarketSource selected = CatalogSources.marketSource();
+		for (MarketSource source : MarketSource.values()) {
+			out.println((source == selected ? "* " : "  ") + source.id() + "  " + source.label() +
+			            (source == selected ? "  [in use]" : ""));
+		}
+		for (String address : selected.addresses()) {
+			out.println("    " + address);
+		}
+		String fallback = selected.fallback();
+		if (fallback != null) {
+			out.println("    " + fallback + "  [npm package, read only when the address above answers nothing]");
+		}
+		return 0;
+	}
 }

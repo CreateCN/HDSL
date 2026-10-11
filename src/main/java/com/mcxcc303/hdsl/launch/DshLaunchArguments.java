@@ -19,12 +19,13 @@ package com.mcxcc303.hdsl.launch;
 
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
-
-import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+
+import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
 /// Command-line arguments somebody typed for an instance, split into the two places they belong.
 ///
@@ -58,239 +59,238 @@ import java.util.Set;
 /// another, and the harness recognises the profile by name on every start.
 @NotNullByDefault
 public final class DshLaunchArguments {
-    /// The flags that belong to the launcher rather than to the booted app.
-    ///
-    /// `--profile` and `--patch` are the launcher's own; `--from-default-profile` is how a profile
-    /// is created from another one's tree, and it is a launcher flag wherever it appears.
-    private static final Set<String> LAUNCHER_FLAGS = Set.of(
-            "--profile", "--patch", "--from-default-profile");
+	/// The flags that belong to the launcher rather than to the booted app.
+	///
+	/// `--profile` and `--patch` are the launcher's own; `--from-default-profile` is how a profile
+	/// is created from another one's tree, and it is a launcher flag wherever it appears.
+	private static final Set<String> LAUNCHER_FLAGS = Set.of("--profile", "--patch", "--from-default-profile");
 
-    /// The flags that take a value, so the tokeniser does not mistake the value for a flag.
-    private static final Set<String> VALUE_FLAGS = Set.of(
-            "--profile", "--patch", "--from-default-profile",
-            "--host", "--port", "--trusted-host");
+	/// The flags that take a value, so the tokeniser does not mistake the value for a flag.
+	private static final Set<String> VALUE_FLAGS = Set.of("--profile",
+	                                                      "--patch",
+	                                                      "--from-default-profile",
+	                                                      "--host",
+	                                                      "--port",
+	                                                      "--trusted-host");
 
-    /// The flags the launcher states for itself and refuses to have taken over.
-    private static final Set<String> MANAGED_FLAGS = Set.of("--port");
+	/// The flags the launcher states for itself and refuses to have taken over.
+	private static final Set<String> MANAGED_FLAGS = Set.of("--port");
 
-    /// The prefix that marks an environment assignment rather than a flag.
-    ///
-    /// Spelled from the name itself, so this class and [DshEnvironment] — which refuses the same
-    /// variable when it arrives through an environment box — cannot drift apart about what the
-    /// launcher states for itself. One name, two doors; a second copy of the literal is a second
-    /// answer waiting to happen.
-    private static final String ENVIRONMENT_PREFIX = DshEnvironment.HOMEDIRECTORY_VARIABLE + "=";
+	/// The prefix that marks an environment assignment rather than a flag.
+	///
+	/// Spelled from the name itself, so this class and [DshEnvironment] — which refuses the same
+	/// variable when it arrives through an environment box — cannot drift apart about what the
+	/// launcher states for itself. One name, two doors; a second copy of the literal is a second
+	/// answer waiting to happen.
+	private static final String ENVIRONMENT_PREFIX = DshEnvironment.HOMEDIRECTORY_VARIABLE + "=";
 
-    /// What a typed line came to.
-    ///
-    /// @param launcherArguments the launcher's own flags, in the order they were typed
-    /// @param appArguments      the flags and arguments for the booted app, in order
-    /// @param profile           the profile the line names, or `null` when it names none
-    /// @param refusals          the arguments that were refused, each with why
-    public record Parsed(
-            @org.jetbrains.annotations.Unmodifiable List<String> launcherArguments,
-            @org.jetbrains.annotations.Unmodifiable List<String> appArguments,
-            @Nullable String profile,
-            @org.jetbrains.annotations.Unmodifiable List<String> refusals) {
+	private DshLaunchArguments() {
+	}
 
-        /// Reports whether the line asks for no browser to be opened.
-        ///
-        /// Asked of the app arguments because that is where the flag belongs; a user who writes it
-        /// is taken at their word, and one who does not gets the launcher's own answer.
-        ///
-        /// @return whether `--no-open` was given
-        public boolean asksNoOpen() {
-            return appArguments.contains("--no-open");
-        }
-    }
+	/// Splits a typed line into the arguments the launcher owns and the arguments the app gets.
+	///
+	/// @param text the typed line, or `null` for none
+	/// @return what it came to
+	public static Parsed parse(@Nullable String text) {
+		return parseArguments(tokenize(text));
+	}
 
-    private DshLaunchArguments() {
-    }
+	/// Splits arguments into the ones the launcher owns and the ones the app gets.
+	///
+	/// The instance stores its arguments as a list rather than as a line, because that is what a
+	/// process is given; the field somebody types into turns its text into this list on the way in.
+	/// Both entry points meet here so the rules are stated once.
+	///
+	/// @param arguments the arguments
+	/// @return what they came to
+	public static Parsed parseArguments(List<String> arguments) {
+		List<String> launcher = new ArrayList<>();
+		List<String> app = new ArrayList<>();
+		List<String> refusals = new ArrayList<>();
+		String profile = null;
+		// Locals, not fields: two launches can be prepared at once, and a parser that remembered
+		// its place between calls would put one instance's argument into the other's command.
+		boolean pendingLauncherValue = false;
+		boolean pendingProfile = false;
+		boolean skipValue = false;
 
-    /// Splits a typed line into the arguments the launcher owns and the arguments the app gets.
-    ///
-    /// @param text the typed line, or `null` for none
-    /// @return what it came to
-    public static Parsed parse(@Nullable String text) {
-        return parseArguments(tokenize(text));
-    }
+		for (String token : arguments) {
+			if (token.startsWith(ENVIRONMENT_PREFIX)) {
+				refusals.add(i18n("dsh.launch.refused.home", token));
+				continue;
+			}
 
-    /// Splits arguments into the ones the launcher owns and the ones the app gets.
-    ///
-    /// The instance stores its arguments as a list rather than as a line, because that is what a
-    /// process is given; the field somebody types into turns its text into this list on the way in.
-    /// Both entry points meet here so the rules are stated once.
-    ///
-    /// @param arguments the arguments
-    /// @return what they came to
-    public static Parsed parseArguments(List<String> arguments) {
-        List<String> launcher = new ArrayList<>();
-        List<String> app = new ArrayList<>();
-        List<String> refusals = new ArrayList<>();
-        String profile = null;
-        // Locals, not fields: two launches can be prepared at once, and a parser that remembered
-        // its place between calls would put one instance's argument into the other's command.
-        boolean pendingLauncherValue = false;
-        boolean pendingProfile = false;
-        boolean skipValue = false;
+			// A flag may carry its value with `=` instead of a following word — `--port=1234` is the
+			// same request as `--port 1234` — so the name is what is matched, not the whole token.
+			// Matching the whole token let `--port=1234` through as an app argument, where it
+			// overrode the port the launcher had reserved: the one thing this refuses to allow.
+			String name = token;
+			String inlineValue = null;
+			if (token.startsWith("--")) {
+				int equals = token.indexOf('=');
+				if (equals > 0) {
+					name = token.substring(0, equals);
+					inlineValue = token.substring(equals + 1);
+				}
+			}
 
-        for (String token : arguments) {
-            if (token.startsWith(ENVIRONMENT_PREFIX)) {
-                refusals.add(i18n("dsh.launch.refused.home", token));
-                continue;
-            }
+			if (MANAGED_FLAGS.contains(name)) {
+				refusals.add(i18n("dsh.launch.refused.port", name));
+				// Skip the value too, so it does not land in the app's arguments on its own. With
+				// `=` the value was on the same token and is simply dropped with it.
+				skipValue = inlineValue == null;
+				continue;
+			}
+			if (LAUNCHER_FLAGS.contains(name)) {
+				if (inlineValue != null) {
+					launcher.add(token);
+					if ("--profile".equals(name)) {
+						profile = inlineValue;
+					}
+					continue;
+				}
+				launcher.add(token);
+				pendingLauncherValue = VALUE_FLAGS.contains(name);
+				if ("--profile".equals(name)) {
+					pendingProfile = true;
+				}
+				continue;
+			}
+			if (pendingProfile) {
+				profile = token;
+				launcher.add(token);
+				pendingProfile = false;
+				pendingLauncherValue = false;
+				continue;
+			}
+			if (pendingLauncherValue) {
+				launcher.add(token);
+				pendingLauncherValue = false;
+				continue;
+			}
+			if (skipValue) {
+				skipValue = false;
+				continue;
+			}
+			app.add(token);
+		}
 
-            // A flag may carry its value with `=` instead of a following word — `--port=1234` is the
-            // same request as `--port 1234` — so the name is what is matched, not the whole token.
-            // Matching the whole token let `--port=1234` through as an app argument, where it
-            // overrode the port the launcher had reserved: the one thing this refuses to allow.
-            String name = token;
-            String inlineValue = null;
-            if (token.startsWith("--")) {
-                int equals = token.indexOf('=');
-                if (equals > 0) {
-                    name = token.substring(0, equals);
-                    inlineValue = token.substring(equals + 1);
-                }
-            }
+		return new Parsed(List.copyOf(launcher), List.copyOf(app), profile, List.copyOf(refusals));
+	}
 
-            if (MANAGED_FLAGS.contains(name)) {
-                refusals.add(i18n("dsh.launch.refused.port", name));
-                // Skip the value too, so it does not land in the app's arguments on its own. With
-                // `=` the value was on the same token and is simply dropped with it.
-                skipValue = inlineValue == null;
-                continue;
-            }
-            if (LAUNCHER_FLAGS.contains(name)) {
-                if (inlineValue != null) {
-                    launcher.add(token);
-                    if ("--profile".equals(name)) {
-                        profile = inlineValue;
-                    }
-                    continue;
-                }
-                launcher.add(token);
-                pendingLauncherValue = VALUE_FLAGS.contains(name);
-                if ("--profile".equals(name)) {
-                    pendingProfile = true;
-                }
-                continue;
-            }
-            if (pendingProfile) {
-                profile = token;
-                launcher.add(token);
-                pendingProfile = false;
-                pendingLauncherValue = false;
-                continue;
-            }
-            if (pendingLauncherValue) {
-                launcher.add(token);
-                pendingLauncherValue = false;
-                continue;
-            }
-            if (skipValue) {
-                skipValue = false;
-                continue;
-            }
-            app.add(token);
-        }
-
-        return new Parsed(List.copyOf(launcher), List.copyOf(app), profile, List.copyOf(refusals));
-    }
-
-    /// Splits a line into arguments, honouring quotes.
-    ///
-    /// A path with a space in it has to be typeable, so single and double quotes group. This is the
-    /// shell's own rule, minus the parts a settings field has no use for (no expansion, no
-    /// substitution): what is typed is what is passed.
-    ///
-    /// **A backslash escapes only what a shell lets it escape inside the quoting it is in**, and
-    /// that is a Windows-facing rule rather than a cosmetic one. Written as "a backslash always
-    /// escapes the next character", a Windows path typed in the quoting everybody reaches for first
-    /// lost every separator:
-    ///
-    /// ```text
+	/// Splits a line into arguments, honouring quotes.
+	///
+	/// A path with a space in it has to be typeable, so single and double quotes group. This is the
+	/// shell's own rule, minus the parts a settings field has no use for (no expansion, no
+	/// substitution): what is typed is what is passed.
+	///
+	/// **A backslash escapes only what a shell lets it escape inside the quoting it is in**, and
+	/// that is a Windows-facing rule rather than a cosmetic one. Written as "a backslash always
+	/// escapes the next character", a Windows path typed in the quoting everybody reaches for first
+	/// lost every separator:
+	///
+	/// ```text
     /// --patch "C:\Users\me\my patches\a.yml"   →   C:Usersmemy patchesa.yml
     /// ```
-    ///
-    /// measured end to end, in the argument list a real child process printed. Nothing reported it:
-    /// the argument was neither refused nor empty, so the launch failed later inside the harness,
-    /// which is the expensive place to find out. The rule kept here is the one that makes the line
-    /// above mean what it looks like: outside quotes a backslash escapes the next character (so a
-    /// space can be escaped), inside single quotes it is literal, and inside double quotes it
-    /// escapes only `"` and `\` — which is what a POSIX shell does with them, and what makes
+	///
+	/// measured end to end, in the argument list a real child process printed. Nothing reported it:
+	/// the argument was neither refused nor empty, so the launch failed later inside the harness,
+	/// which is the expensive place to find out. The rule kept here is the one that makes the line
+	/// above mean what it looks like: outside quotes a backslash escapes the next character (so a
+	/// space can be escaped), inside single quotes it is literal, and inside double quotes it
+	/// escapes only `"` and `\` — which is what a POSIX shell does with them, and what makes
     /// `'C:\Users\me\a.yml'` and `"C:\Users\me\a.yml"` both arrive intact.
-    ///
-    /// The field somebody types into stores what they typed as the arguments it names, so this is
-    /// also the way in for the interface.
-    ///
-    /// @param text the line
-    /// @return the arguments
-    public static List<String> tokenize(@Nullable String text) {
-        List<String> tokens = new ArrayList<>();
-        if (text == null || text.isBlank()) {
-            return tokens;
-        }
-        StringBuilder current = new StringBuilder();
-        boolean started = false;
-        char quote = 0;
-        boolean escaped = false;
+	///
+	/// The field somebody types into stores what they typed as the arguments it names, so this is
+	/// also the way in for the interface.
+	///
+	/// @param text the line
+	/// @return the arguments
+	public static List<String> tokenize(@Nullable String text) {
+		List<String> tokens = new ArrayList<>();
+		if (text == null || text.isBlank()) {
+			return tokens;
+		}
+		StringBuilder current = new StringBuilder();
+		boolean started = false;
+		char quote = 0;
+		boolean escaped = false;
 
-        for (int i = 0; i < text.length(); i++) {
-            char c = text.charAt(i);
-            if (escaped) {
-                current.append(c);
-                escaped = false;
-                started = true;
-                continue;
-            }
-            if (c == '\\') {
-                // What the backslash escapes depends on the quoting it is in — see the class note.
-                // `next` is looked at rather than consumed: whether it is escaped is decided here,
-                // and the character itself is taken by the branch above on the next turn.
-                char next = i + 1 < text.length() ? text.charAt(i + 1) : 0;
-                boolean escapes = switch (quote) {
-                    case '\'' -> false;
-                    case '"' -> next == '"' || next == '\\';
-                    default -> true;
-                };
-                if (escapes) {
-                    escaped = true;
-                    started = true;
-                    continue;
-                }
-                current.append(c);
-                started = true;
-                continue;
-            }
-            if (quote != 0) {
-                if (c == quote) {
-                    quote = 0;
-                } else {
-                    current.append(c);
-                }
-                started = true;
-                continue;
-            }
-            if (c == '\'' || c == '"') {
-                quote = c;
-                started = true;
-                continue;
-            }
-            if (Character.isWhitespace(c)) {
-                if (started) {
-                    tokens.add(current.toString());
-                    current.setLength(0);
-                    started = false;
-                }
-                continue;
-            }
-            current.append(c);
-            started = true;
-        }
-        if (started) {
-            tokens.add(current.toString());
-        }
-        return tokens;
-    }
+		for (int i = 0; i < text.length(); i++) {
+			char c = text.charAt(i);
+			if (escaped) {
+				current.append(c);
+				escaped = false;
+				started = true;
+				continue;
+			}
+			if (c == '\\') {
+				// What the backslash escapes depends on the quoting it is in — see the class note.
+				// `next` is looked at rather than consumed: whether it is escaped is decided here,
+				// and the character itself is taken by the branch above on the next turn.
+				char next = i + 1 < text.length() ? text.charAt(i + 1) : 0;
+				boolean escapes = switch (quote) {
+					case '\'' -> false;
+					case '"' -> next == '"' || next == '\\';
+					default -> true;
+				};
+				if (escapes) {
+					escaped = true;
+					started = true;
+					continue;
+				}
+				current.append(c);
+				started = true;
+				continue;
+			}
+			if (quote != 0) {
+				if (c == quote) {
+					quote = 0;
+				} else {
+					current.append(c);
+				}
+				started = true;
+				continue;
+			}
+			if (c == '\'' || c == '"') {
+				quote = c;
+				started = true;
+				continue;
+			}
+			if (Character.isWhitespace(c)) {
+				if (started) {
+					tokens.add(current.toString());
+					current.setLength(0);
+					started = false;
+				}
+				continue;
+			}
+			current.append(c);
+			started = true;
+		}
+		if (started) {
+			tokens.add(current.toString());
+		}
+		return tokens;
+	}
+
+	/// What a typed line came to.
+	///
+	/// @param launcherArguments the launcher's own flags, in the order they were typed
+	/// @param appArguments      the flags and arguments for the booted app, in order
+	/// @param profile           the profile the line names, or `null` when it names none
+	/// @param refusals          the arguments that were refused, each with why
+	public record Parsed(@Unmodifiable List<String> launcherArguments, @Unmodifiable List<String> appArguments,
+	                     @Nullable String profile, @Unmodifiable List<String> refusals) {
+
+		/// Reports whether the line asks for no browser to be opened.
+		///
+		/// Asked of the app arguments because that is where the flag belongs; a user who writes it
+		/// is taken at their word, and one who does not gets the launcher's own answer.
+		///
+		/// @return whether `--no-open` was given
+		public boolean asksNoOpen() {
+			return appArguments.contains("--no-open");
+		}
+	}
 }

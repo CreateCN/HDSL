@@ -32,24 +32,24 @@ import org.jetbrains.annotations.Nullable;
 /// @param date    the release date as published
 @NotNullByDefault
 public record NodeRelease(String version, @Nullable String lts, String date) {
-    /// Reports whether this release is an LTS line.
-    ///
-    /// @return whether the release carries an LTS codename
-    public boolean isLts() {
-        return lts != null && !lts.isBlank();
-    }
+	/// Reports whether this release is an LTS line.
+	///
+	/// @return whether the release carries an LTS codename
+	public boolean isLts() {
+		return lts != null && !lts.isBlank();
+	}
 
-    /// Reports whether this release satisfies DeepSeek Harness's Node range.
-    ///
-    /// @return whether the version is usable
-    public boolean isSupported() {
-        return DshNodeRuntime.isSupportedNodeVersion(version);
-    }
+	/// Reports whether this release satisfies DeepSeek Harness's Node range.
+	///
+	/// @return whether the version is usable
+	public boolean isSupported() {
+		return DshNodeRuntime.isSupportedNodeVersion(version);
+	}
 
-    /// Returns the label shown next to the version.
-    ///
-    /// @return the LTS codename, or an empty string
-    public String label() {
-        return isLts() ? lts : "";
-    }
+	/// Returns the label shown next to the version.
+	///
+	/// @return the LTS codename, or an empty string
+	public String label() {
+		return isLts() ? lts : "";
+	}
 }

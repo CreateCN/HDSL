@@ -54,102 +54,102 @@ import java.util.function.Consumer;
 /// therefore one that looks almost right.
 @NotNullByDefault
 public final class DirectoryListItem extends RadioButton {
-    /// Marks the row whose folder the list is showing.
-    private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
+	/// Marks the row whose folder the list is showing.
+	private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
 
-    /// The folder being shown.
-    private final GameDirectory directory;
+	/// The folder being shown.
+	private final GameDirectory directory;
 
-    /// Run when the row is clicked.
-    private final Consumer<GameDirectory> onSelect;
+	/// Run when the row is clicked.
+	private final Consumer<GameDirectory> onSelect;
 
-    /// Run when the remove button is pressed, or `null` when there is none.
-    private final @Nullable Consumer<GameDirectory> onRemove;
+	/// Run when the remove button is pressed, or `null` when there is none.
+	private final @Nullable Consumer<GameDirectory> onRemove;
 
-    /// Creates a row.
-    ///
-    /// @param directory the folder to show
-    /// @param onSelect  run when the row is clicked
-    /// @param onRemove  run when the remove button is pressed, or `null`
-    public DirectoryListItem(GameDirectory directory,
-                             Consumer<GameDirectory> onSelect,
-                             @Nullable Consumer<GameDirectory> onRemove) {
-        this.directory = directory;
-        this.onSelect = onSelect;
-        this.onRemove = onRemove;
+	/// Creates a row.
+	///
+	/// @param directory the folder to show
+	/// @param onSelect  run when the row is clicked
+	/// @param onRemove  run when the remove button is pressed, or `null`
+	public DirectoryListItem(GameDirectory directory,
+	                         Consumer<GameDirectory> onSelect,
+	                         @Nullable Consumer<GameDirectory> onRemove) {
+		this.directory = directory;
+		this.onSelect = onSelect;
+		this.onRemove = onRemove;
 
-        getStyleClass().setAll("game-directory-list-item", "navigation-drawer-item");
+		getStyleClass().setAll("game-directory-list-item", "navigation-drawer-item");
 
-        // The row's selection is the launcher's, not the button group's: two
-        // rows are never both selected, but which one is comes from the settings
-        // rather than from having been clicked.
-        selectedProperty().addListener((observable, was, active) -> pseudoClassStateChanged(SELECTED, active));
-    }
+		// The row's selection is the launcher's, not the button group's: two
+		// rows are never both selected, but which one is comes from the settings
+		// rather than from having been clicked.
+		selectedProperty().addListener((observable, was, active) -> pseudoClassStateChanged(SELECTED, active));
+	}
 
-    /// Returns the folder this row shows.
-    ///
-    /// @return the folder
-    public GameDirectory getDirectory() {
-        return directory;
-    }
+	/// Returns the folder this row shows.
+	///
+	/// @return the folder
+	public GameDirectory getDirectory() {
+		return directory;
+	}
 
-    @Override
-    protected Skin<?> createDefaultSkin() {
-        return new DirectoryListItemSkin(this);
-    }
+	@Override
+	protected Skin<?> createDefaultSkin() {
+		return new DirectoryListItemSkin(this);
+	}
 
-    /// Lays a row out.
-    ///
-    /// The layout belongs to a skin rather than to the control: a RadioButton's
-    /// own skin renders it, and setting the control's children directly fights
-    /// that — the row ends up with no height and nothing appears. The original
-    /// splits them the same way.
-    private static final class DirectoryListItemSkin extends SkinBase<DirectoryListItem> {
-        /// The folder icon, which fills in when the row is selected.
-        private final SVGContainer icon;
+	/// Lays a row out.
+	///
+	/// The layout belongs to a skin rather than to the control: a RadioButton's
+	/// own skin renders it, and setting the control's children directly fights
+	/// that — the row ends up with no height and nothing appears. The original
+	/// splits them the same way.
+	private static final class DirectoryListItemSkin extends SkinBase<DirectoryListItem> {
+		/// The folder icon, which fills in when the row is selected.
+		private final SVGContainer icon;
 
-        /// Creates the skin.
-        ///
-        /// @param control the row
-        DirectoryListItemSkin(DirectoryListItem control) {
-            super(control);
+		/// Creates the skin.
+		///
+		/// @param control the row
+		DirectoryListItemSkin(DirectoryListItem control) {
+			super(control);
 
-            BorderPane root = new BorderPane();
-            root.setPickOnBounds(false);
+			BorderPane root = new BorderPane();
+			root.setPickOnBounds(false);
 
-            this.icon = new SVGContainer(SVG.FOLDER, 20);
-            icon.setMouseTransparent(true);
-            BorderPane.setMargin(icon, new Insets(0, 6, 0, 6));
-            BorderPane.setAlignment(icon, Pos.CENTER_LEFT);
-            root.setLeft(icon);
+			this.icon = new SVGContainer(SVG.FOLDER, 20);
+			icon.setMouseTransparent(true);
+			BorderPane.setMargin(icon, new Insets(0, 6, 0, 6));
+			BorderPane.setAlignment(icon, Pos.CENTER_LEFT);
+			root.setLeft(icon);
 
-            TwoLineListItem content = new TwoLineListItem();
-            content.setPickOnBounds(false);
-            BorderPane.setAlignment(content, Pos.CENTER);
-            content.setTitle(control.getDirectory().displayName());
-            content.setSubtitle(control.getDirectory().path());
-            root.setCenter(content);
+			TwoLineListItem content = new TwoLineListItem();
+			content.setPickOnBounds(false);
+			BorderPane.setAlignment(content, Pos.CENTER);
+			content.setTitle(control.getDirectory().displayName());
+			content.setSubtitle(control.getDirectory().path());
+			root.setCenter(content);
 
-            HBox right = new HBox();
-            right.setAlignment(Pos.CENTER_RIGHT);
-            if (control.onRemove != null) {
-                JFXButton remove = FXUtils.newToggleButton4(SVG.CLOSE, 14);
-                remove.setOnAction(event -> control.onRemove.accept(control.getDirectory()));
-                BorderPane.setAlignment(remove, Pos.CENTER);
-                right.getChildren().add(remove);
-            }
-            root.setRight(right);
+			HBox right = new HBox();
+			right.setAlignment(Pos.CENTER_RIGHT);
+			if (control.onRemove != null) {
+				JFXButton remove = FXUtils.newToggleButton4(SVG.CLOSE, 14);
+				remove.setOnAction(event -> control.onRemove.accept(control.getDirectory()));
+				BorderPane.setAlignment(remove, Pos.CENTER);
+				right.getChildren().add(remove);
+			}
+			root.setRight(right);
 
-            FXUtils.onClicked(control, () -> control.onSelect.accept(control.getDirectory()));
+			FXUtils.onClicked(control, () -> control.onSelect.accept(control.getDirectory()));
 
-            FXUtils.onChangeAndOperate(control.selectedProperty(), active -> {
-                SVG target = active ? SVG.FOLDER_FILL : SVG.FOLDER;
-                if (icon.getIcon() != target) {
-                    icon.setIcon(target);
-                }
-            });
+			FXUtils.onChangeAndOperate(control.selectedProperty(), active -> {
+				SVG target = active ? SVG.FOLDER_FILL : SVG.FOLDER;
+				if (icon.getIcon() != target) {
+					icon.setIcon(target);
+				}
+			});
 
-            getChildren().setAll(new RipplerContainer(root));
-        }
-    }
+			getChildren().setAll(new RipplerContainer(root));
+		}
+	}
 }

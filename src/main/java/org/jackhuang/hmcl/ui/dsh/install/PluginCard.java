@@ -17,29 +17,29 @@
  */
 package org.jackhuang.hmcl.ui.dsh.install;
 
+import com.jfoenix.controls.JFXButton;
+import com.mcxcc303.hdsl.harness.DshPreset;
+import com.mcxcc303.hdsl.instance.DshInstanceIcon;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.ObjectProperty;
-import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleBooleanProperty;
-import javafx.beans.binding.Bindings;
-import com.jfoenix.controls.JFXButton;
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.css.PseudoClass;
-import javafx.geometry.Pos;
-import javafx.scene.layout.HBox;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Skin;
 import javafx.scene.control.SkinBase;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
-import com.mcxcc303.hdsl.harness.DshPreset;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
-import javafx.scene.Node;
-import com.mcxcc303.hdsl.instance.DshInstanceIcon;
-import org.jackhuang.hmcl.ui.construct.ImageContainer;
 import org.jackhuang.hmcl.ui.SVGContainer;
+import org.jackhuang.hmcl.ui.construct.ImageContainer;
 import org.jackhuang.hmcl.ui.construct.RipplerContainer;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -57,223 +57,218 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// resolves the package spec itself.
 @NotNullByDefault
 public final class PluginCard extends Control {
-    /// Applied while the card is selected.
-    private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
+	/// Applied while the card is selected.
+	private static final PseudoClass SELECTED = PseudoClass.getPseudoClass("selected");
 
-    /// The catalogue entry this card represents.
-    private final DshPreset preset;
+	/// The catalogue entry this card represents.
+	private final DshPreset preset;
 
-    /// Whether the plugin will be installed.
-    private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected", false);
+	/// Whether the plugin will be installed.
+	private final BooleanProperty selected = new SimpleBooleanProperty(this, "selected", false);
 
-    /// The action run when the card is activated.
-    private final ObjectProperty<@Nullable Runnable> onConfigure = new SimpleObjectProperty<>(this, "onConfigure");
+	/// The action run when the card is activated.
+	private final ObjectProperty<@Nullable Runnable> onConfigure = new SimpleObjectProperty<>(this, "onConfigure");
 
-    /// The version shown under the name, or `null` for "do not install".
-    private final ObjectProperty<@Nullable String> chosenVersion = new SimpleObjectProperty<>(this, "chosenVersion");
+	/// The version shown under the name, or `null` for "do not install".
+	private final ObjectProperty<@Nullable String> chosenVersion = new SimpleObjectProperty<>(this, "chosenVersion");
 
-    /// Run when the choice is taken back.
-    private Runnable onClear = () -> { };
+	/// Run when the choice is taken back.
+	private Runnable onClear = () -> {};
 
-    /// Creates a card for a catalogue entry.
-    ///
-    /// @param preset   the entry
-    /// @param selected whether it starts selected
-    public PluginCard(DshPreset preset, boolean selected) {
-        this.preset = preset;
+	/// Creates a card for a catalogue entry.
+	///
+	/// @param preset   the entry
+	/// @param selected whether it starts selected
+	public PluginCard(DshPreset preset, boolean selected) {
+		this.preset = preset;
 
-        getStyleClass().add("installer-item-card");
-        this.selected.set(selected);
-        this.selected.addListener((observable, oldValue, newValue) ->
-                pseudoClassStateChanged(SELECTED, newValue));
-        pseudoClassStateChanged(SELECTED, selected);
+		getStyleClass().add("installer-item-card");
+		this.selected.set(selected);
+		this.selected.addListener((observable, oldValue, newValue) -> pseudoClassStateChanged(SELECTED, newValue));
+		pseudoClassStateChanged(SELECTED, selected);
 
-        setOnMouseClicked(event -> {
-            Runnable action = onConfigure.get();
-            if (action != null) {
-                action.run();
-            }
-        });
-    }
+		setOnMouseClicked(event -> {
+			Runnable action = onConfigure.get();
+			if (action != null) {
+				action.run();
+			}
+		});
+	}
 
-    /// Sets the action run when the card is activated.
-    ///
-    /// @param action the action
-    public void setOnConfigure(Runnable action) {
-        onConfigure.set(action);
-    }
+	/// Sets the action run when the card is activated.
+	///
+	/// @param action the action
+	public void setOnConfigure(Runnable action) {
+		onConfigure.set(action);
+	}
 
-    /// Returns the version the card currently shows.
-    ///
-    /// @return the version, an empty string for the current release, or `null` when not installing
-    public @Nullable String chosenVersion() {
-        return chosenVersion.get();
-    }
+	/// Returns the version the card currently shows.
+	///
+	/// @return the version, an empty string for the current release, or `null` when not installing
+	public @Nullable String chosenVersion() {
+		return chosenVersion.get();
+	}
 
-    /// Sets the version the card shows.
-    ///
-    /// @param version the version, or `null` for "do not install"
-    public void setChosenVersion(@Nullable String version) {
-        chosenVersion.set(version);
-        selected.set(version != null);
-        pseudoClassStateChanged(SELECTED, version != null);
-    }
+	/// Sets the version the card shows.
+	///
+	/// @param version the version, or `null` for "do not install"
+	public void setChosenVersion(@Nullable String version) {
+		chosenVersion.set(version);
+		selected.set(version != null);
+		pseudoClassStateChanged(SELECTED, version != null);
+	}
 
+	/// Returns the catalogue entry.
+	///
+	/// @return the preset
+	public DshPreset preset() {
+		return preset;
+	}
 
-    /// Returns the catalogue entry.
-    ///
-    /// @return the preset
-    public DshPreset preset() {
-        return preset;
-    }
+	/// Returns whether the plugin is selected for installation.
+	///
+	/// @return whether it is selected
+	public boolean isSelected() {
+		return selected.get();
+	}
 
-    /// Returns whether the plugin is selected for installation.
-    ///
-    /// @return whether it is selected
-    public boolean isSelected() {
-        return selected.get();
-    }
+	/// Returns the selection property.
+	///
+	/// @return the selection property
+	public BooleanProperty selectedProperty() {
+		return selected;
+	}
 
-    /// Returns the selection property.
-    ///
-    /// @return the selection property
-    public BooleanProperty selectedProperty() {
-        return selected;
-    }
+	/// Takes the choice back, leaving the plugin unselected.
+	private void clearChosenVersion() {
+		setChosenVersion(null);
+		onClear.run();
+	}
 
-    /// Takes the choice back, leaving the plugin unselected.
-    private void clearChosenVersion() {
-        setChosenVersion(null);
-        onClear.run();
-    }
+	/// Opens the version list.
+	private void configure() {
+		@Nullable Runnable action = onConfigure.get();
+		if (action != null) {
+			action.run();
+		}
+	}
 
-    /// Opens the version list.
-    private void configure() {
-        @Nullable Runnable action = onConfigure.get();
-        if (action != null) {
-            action.run();
-        }
-    }
+	/// Sets what taking the choice back does.
+	///
+	/// @param action the action
+	public void setOnClear(Runnable action) {
+		onClear = action;
+	}
 
-    /// Sets what taking the choice back does.
-    ///
-    /// @param action the action
-    public void setOnClear(Runnable action) {
-        onClear = action;
-    }
+	/// Returns the chosen-version property.
+	///
+	/// @return the chosen-version property
+	public ObjectProperty<@Nullable String> chosenVersionProperty() {
+		return chosenVersion;
+	}
 
-    /// Returns the chosen-version property.
-    ///
-    /// @return the chosen-version property
-    public ObjectProperty<@Nullable String> chosenVersionProperty() {
-        return chosenVersion;
-    }
+	@Override
+	protected Skin<?> createDefaultSkin() {
+		return new PluginCardSkin(this);
+	}
 
-    @Override
-    protected Skin<?> createDefaultSkin() {
-        return new PluginCardSkin(this);
-    }
+	/// Renders the icon, name and status of one plugin card.
+	private static final class PluginCardSkin extends SkinBase<PluginCard> {
+		/// Creates the skin.
+		///
+		/// @param control the card
+		private PluginCardSkin(PluginCard control) {
+			super(control);
 
-    /// Renders the icon, name and status of one plugin card.
-    private static final class PluginCardSkin extends SkinBase<PluginCard> {
-        /// Creates the skin.
-        ///
-        /// @param control the card
-        private PluginCardSkin(PluginCard control) {
-            super(control);
+			VBox pane = new VBox();
+			pane.getStyleClass().add("installer-item");
+			pane.pseudoClassStateChanged(PseudoClass.getPseudoClass("card"), true);
 
-            VBox pane = new VBox();
-            pane.getStyleClass().add("installer-item");
-            pane.pseudoClassStateChanged(PseudoClass.getPseudoClass("card"), true);
+			// The marketplace leads with the mark of the loader it stands in for,
+			// which is the picture the install page shows for it; every other
+			// plugin has one of the launcher's own marks.
+			Node icon;
+			if (control.preset().id().equals("dshmarket")) {
+				ImageContainer picture = new ImageContainer(32);
+				picture.setImage(DshInstanceIcon.FABRIC.load());
+				icon = picture;
+			} else {
+				icon = new SVGContainer(iconFor(control.preset()), 32);
+			}
+			icon.setMouseTransparent(true);
+			icon.getStyleClass().add("installer-item-image");
+			VBox.setMargin(icon, new Insets(8, 0, 8, 0));
+			pane.getChildren().add(icon);
 
-            // The marketplace leads with the mark of the loader it stands in for,
-            // which is the picture the install page shows for it; every other
-            // plugin has one of the launcher's own marks.
-            Node icon;
-            if (control.preset().id().equals("dshmarket")) {
-                ImageContainer picture = new ImageContainer(32);
-                picture.setImage(DshInstanceIcon.FABRIC.load());
-                icon = picture;
-            } else {
-                icon = new SVGContainer(iconFor(control.preset()), 32);
-            }
-            icon.setMouseTransparent(true);
-            icon.getStyleClass().add("installer-item-image");
-            VBox.setMargin(icon, new Insets(8, 0, 8, 0));
-            pane.getChildren().add(icon);
+			Label name = new Label(control.preset().name());
+			name.getStyleClass().add("installer-item-name");
+			name.setMouseTransparent(true);
+			pane.getChildren().add(name);
 
-            Label name = new Label(control.preset().name());
-            name.getStyleClass().add("installer-item-name");
-            name.setMouseTransparent(true);
-            pane.getChildren().add(name);
+			Label status = new Label();
+			status.getStyleClass().add("installer-item-status");
+			status.setMouseTransparent(true);
+			status.textProperty().bind(Bindings.createStringBinding(() -> {
+				String version = control.chosenVersion();
+				if (version == null) {
+					return i18n("dsh.install.plugin.not_installing");
+				}
+				return version.isEmpty() ? i18n("dsh.install.plugin.latest") : version;
+			}, control.chosenVersionProperty()));
+			pane.getChildren().add(status);
 
-            Label status = new Label();
-            status.getStyleClass().add("installer-item-status");
-            status.setMouseTransparent(true);
-            status.textProperty().bind(Bindings.createStringBinding(
-                    () -> {
-                        String version = control.chosenVersion();
-                        if (version == null) {
-                            return i18n("dsh.install.plugin.not_installing");
-                        }
-                        return version.isEmpty() ? i18n("dsh.install.plugin.latest") : version;
-                    },
-                    control.chosenVersionProperty()));
-            pane.getChildren().add(status);
+			// The original's card carries its own controls rather than being one
+			// large button: a cross that takes the choice back, and an arrow that
+			// opens the list — or, once a version is chosen, reopens it. Leaving
+			// the plugin out is the cross, not a row in the list, so the list
+			// holds versions and the way out of it is on the card.
+			HBox buttons = new HBox(8);
+			buttons.setAlignment(Pos.CENTER);
 
-            // The original's card carries its own controls rather than being one
-            // large button: a cross that takes the choice back, and an arrow that
-            // opens the list — or, once a version is chosen, reopens it. Leaving
-            // the plugin out is the cross, not a row in the list, so the list
-            // holds versions and the way out of it is on the card.
-            HBox buttons = new HBox(8);
-            buttons.setAlignment(Pos.CENTER);
+			JFXButton remove = FXUtils.newToggleButton4(SVG.CLOSE);
+			FXUtils.installFastTooltip(remove, i18n("dsh.install.plugin.not_installing"));
+			remove.visibleProperty().bind(control.chosenVersionProperty().isNotNull());
+			remove.managedProperty().bind(remove.visibleProperty());
+			remove.setOnAction(event -> control.clearChosenVersion());
 
-            JFXButton remove = FXUtils.newToggleButton4(SVG.CLOSE);
-            FXUtils.installFastTooltip(remove, i18n("dsh.install.plugin.not_installing"));
-            remove.visibleProperty().bind(control.chosenVersionProperty().isNotNull());
-            remove.managedProperty().bind(remove.visibleProperty());
-            remove.setOnAction(event -> control.clearChosenVersion());
+			JFXButton choose = new JFXButton();
+			choose.graphicProperty()
+			      .bind(Bindings.createObjectBinding(() -> control.chosenVersion() == null
+			                                               ? SVG.ARROW_FORWARD.createIcon()
+			                                               : SVG.UPDATE.createIcon(), control.chosenVersionProperty()));
+			choose.getStyleClass().add("toggle-icon4");
+			FXUtils.installFastTooltip(choose, i18n("dsh.install.plugin.choose"));
+			choose.setOnAction(event -> control.configure());
 
-            JFXButton choose = new JFXButton();
-            choose.graphicProperty().bind(Bindings.createObjectBinding(
-                    () -> control.chosenVersion() == null
-                            ? SVG.ARROW_FORWARD.createIcon()
-                            : SVG.UPDATE.createIcon(),
-                    control.chosenVersionProperty()));
-            choose.getStyleClass().add("toggle-icon4");
-            FXUtils.installFastTooltip(choose, i18n("dsh.install.plugin.choose"));
-            choose.setOnAction(event -> control.configure());
+			buttons.getChildren().setAll(remove, choose);
+			pane.getChildren().add(buttons);
 
-            buttons.getChildren().setAll(remove, choose);
-            pane.getChildren().add(buttons);
+			StackPane wrapper = new StackPane();
+			wrapper.getStyleClass().add("installer-item-wrapper");
+			wrapper.pseudoClassStateChanged(PseudoClass.getPseudoClass("card"), true);
+			wrapper.getChildren().add(new RipplerContainer(pane));
 
-            StackPane wrapper = new StackPane();
-            wrapper.getStyleClass().add("installer-item-wrapper");
-            wrapper.pseudoClassStateChanged(PseudoClass.getPseudoClass("card"), true);
-            wrapper.getChildren().add(new RipplerContainer(pane));
+			getChildren().setAll(wrapper);
 
-            getChildren().setAll(wrapper);
+			// The original ties a card's height to its width, so cards in a row
+			// keep one shape whatever their text does.
+			FXUtils.onWeakChangeAndOperate(control.widthProperty(),
+			                               width -> FXUtils.setLimitHeight(pane, width.doubleValue() * 0.7));
+		}
 
-            // The original ties a card's height to its width, so cards in a row
-            // keep one shape whatever their text does.
-            FXUtils.onWeakChangeAndOperate(control.widthProperty(), width ->
-                    FXUtils.setLimitHeight(pane, width.doubleValue() * 0.7));
-        }
-
-        /// Chooses an icon for a catalogue entry.
-        ///
-        /// @param preset the entry
-        /// @return the icon
-        private static SVG iconFor(DshPreset preset) {
-            return switch (preset.id()) {
-                case "dshmarket" -> SVG.EXTENSION;
-                case "better-sidebar", "skin-center" -> SVG.STYLE;
-                case "context", "cost-meter" -> SVG.TUNE;
-                case "git-graph" -> SVG.FOLDER_COPY;
-                case "subagent-codex", "subagent-claude-code", "agent-team" -> SVG.ROCKET_LAUNCH;
-                default -> SVG.EXTENSION_FILL;
-            };
-        }
-    }
+		/// Chooses an icon for a catalogue entry.
+		///
+		/// @param preset the entry
+		/// @return the icon
+		private static SVG iconFor(DshPreset preset) {
+			return switch (preset.id()) {
+				case "dshmarket" -> SVG.EXTENSION;
+				case "better-sidebar", "skin-center" -> SVG.STYLE;
+				case "context", "cost-meter" -> SVG.TUNE;
+				case "git-graph" -> SVG.FOLDER_COPY;
+				case "subagent-codex", "subagent-claude-code", "agent-team" -> SVG.ROCKET_LAUNCH;
+				default -> SVG.EXTENSION_FILL;
+			};
+		}
+	}
 }

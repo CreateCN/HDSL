@@ -31,47 +31,47 @@ import java.nio.file.Path;
 /// @param directory the npm prefix holding this version
 @NotNullByDefault
 public record DshVersion(String version, Path directory) {
-    /// The installed `@deepseek-ai/dsh` package directory.
-    public static final String PACKAGE_PATH = "node_modules/@deepseek-ai/dsh";
+	/// The installed `@deepseek-ai/dsh` package directory.
+	public static final String PACKAGE_PATH = "node_modules/@deepseek-ai/dsh";
 
-    /// The CLI entry script relative to the package directory.
-    private static final String BIN_SCRIPT = "lib/bin.js";
+	/// The CLI entry script relative to the package directory.
+	private static final String BIN_SCRIPT = "lib/bin.js";
 
-    /// Returns the installed package directory.
-    ///
-    /// @return the path of `node_modules/@deepseek-ai/dsh`
-    public Path packageDirectory() {
-        return directory.resolve(PACKAGE_PATH);
-    }
+	/// Returns the installed package directory.
+	///
+	/// @return the path of `node_modules/@deepseek-ai/dsh`
+	public Path packageDirectory() {
+		return directory.resolve(PACKAGE_PATH);
+	}
 
-    /// Returns the CLI entry script that must be run with `node`.
-    ///
-    /// Invoking this script directly is what pins a profile to *this* version:
-    /// the launcher resolves its bundles from the installation that booted it.
-    ///
-    /// @return the path of the `dsh` entry script
-    public Path binScript() {
-        return packageDirectory().resolve(BIN_SCRIPT);
-    }
+	/// Returns the CLI entry script that must be run with `node`.
+	///
+	/// Invoking this script directly is what pins a profile to *this* version:
+	/// the launcher resolves its bundles from the installation that booted it.
+	///
+	/// @return the path of the `dsh` entry script
+	public Path binScript() {
+		return packageDirectory().resolve(BIN_SCRIPT);
+	}
 
-    /// Returns the generated `dsh` shim in the prefix's `.bin` directory.
-    ///
-    /// @return the path of the `dsh` shim
-    public Path shim() {
-        return directory.resolve("node_modules/.bin/dsh");
-    }
+	/// Returns the generated `dsh` shim in the prefix's `.bin` directory.
+	///
+	/// @return the path of the `dsh` shim
+	public Path shim() {
+		return directory.resolve("node_modules/.bin/dsh");
+	}
 
-    /// Reports whether this version is complete enough to boot.
-    ///
-    /// @return whether the CLI entry script exists
-    public boolean isUsable() {
-        return Files.isRegularFile(binScript());
-    }
+	/// Reports whether this version is complete enough to boot.
+	///
+	/// @return whether the CLI entry script exists
+	public boolean isUsable() {
+		return Files.isRegularFile(binScript());
+	}
 
-    /// Reports whether this version's install left a `package.json`.
-    ///
-    /// @return whether the prefix looks like an npm install
-    public boolean hasManifest() {
-        return Files.isRegularFile(directory.resolve("package.json"));
-    }
+	/// Reports whether this version's install left a `package.json`.
+	///
+	/// @return whether the prefix looks like an npm install
+	public boolean hasManifest() {
+		return Files.isRegularFile(directory.resolve("package.json"));
+	}
 }

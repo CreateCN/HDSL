@@ -27,40 +27,35 @@ import org.jetbrains.annotations.NotNullByDefault;
 /// the counterpart of the Forge/Fabric/NeoForge buttons in HMCL's installer
 /// list.
 ///
-/// @param id             a stable identifier
-/// @param name           the display name shown in the wizard
-/// @param spec           the package spec handed to `dsh plugin add`
-/// @param description    a one-line explanation
-/// @param recommended    whether the entry is preselected
-/// @param requiresPnpm   whether installing needs `pnpm` on `PATH`
+/// @param id           a stable identifier
+/// @param name         the display name shown in the wizard
+/// @param spec         the package spec handed to `dsh plugin add`
+/// @param description  a one-line explanation
+/// @param recommended  whether the entry is preselected
+/// @param requiresPnpm whether installing needs `pnpm` on `PATH`
 @NotNullByDefault
-public record DshPreset(
-        String id,
-        String name,
-        String spec,
-        String description,
-        boolean recommended,
-        boolean requiresPnpm) {
+public record DshPreset(String id, String name, String spec, String description, boolean recommended,
+                        boolean requiresPnpm) {
 
-    /// Creates a recommended preset that needs `pnpm`.
-    ///
-    /// @param id          the identifier
-    /// @param name        the display name
-    /// @param spec        the package spec
-    /// @param description the one-line explanation
-    /// @return the preset
-    public static DshPreset recommended(String id, String name, String spec, String description) {
-        return new DshPreset(id, name, spec, description, true, true);
-    }
+	/// Creates a recommended preset that needs `pnpm`.
+	///
+	/// @param id          the identifier
+	/// @param name        the display name
+	/// @param spec        the package spec
+	/// @param description the one-line explanation
+	/// @return the preset
+	public static DshPreset recommended(String id, String name, String spec, String description) {
+		return new DshPreset(id, name, spec, description, true, true);
+	}
 
-    /// Creates an optional preset that needs `pnpm`.
-    ///
-    /// @param id          the identifier
-    /// @param name        the display name
-    /// @param spec        the package spec
-    /// @param description the one-line explanation
-    /// @return the preset
-    public static DshPreset optional(String id, String name, String spec, String description) {
-        return new DshPreset(id, name, spec, description, false, true);
-    }
+	/// Creates an optional preset that needs `pnpm`.
+	///
+	/// @param id          the identifier
+	/// @param name        the display name
+	/// @param spec        the package spec
+	/// @param description the one-line explanation
+	/// @return the preset
+	public static DshPreset optional(String id, String name, String spec, String description) {
+		return new DshPreset(id, name, spec, description, false, true);
+	}
 }

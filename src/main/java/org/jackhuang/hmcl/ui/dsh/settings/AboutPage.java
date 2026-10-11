@@ -19,16 +19,17 @@ package org.jackhuang.hmcl.ui.dsh.settings;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.layout.VBox;
 import javafx.scene.image.Image;
-import java.util.Objects;
-import org.jetbrains.annotations.Nullable;
+import javafx.scene.layout.VBox;
 import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.ComponentList;
 import org.jackhuang.hmcl.ui.construct.LineButton;
 import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
@@ -39,70 +40,71 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// repository `NOTICE` file rather than in the UI.
 @NotNullByDefault
 public final class AboutPage extends ScrollPane {
-    /// Creates the about tab.
-    public AboutPage() {
-        setFitToWidth(true);
+	/// Creates the about tab.
+	public AboutPage() {
+		setFitToWidth(true);
 
-        VBox root = new VBox(10);
-        root.setPadding(new Insets(10));
-        setContent(root);
+		VBox root = new VBox(10);
+		root.setPadding(new Insets(10));
+		setContent(root);
 
-        // Must run after the content is installed: smooth scrolling binds to
-        // the content node and fails on a null content.
-        FXUtils.smoothScrolling(this);
+		// Must run after the content is installed: smooth scrolling binds to
+		// the content node and fails on a null content.
+		FXUtils.smoothScrolling(this);
 
-        ComponentList aboutList = new ComponentList();
-        LineButton product = buildInfoRow(Metadata.FULL_NAME, Metadata.VERSION, "/assets/img/icon.png");
-        product.setOnAction(event -> FXUtils.openLink(Metadata.HOMEPAGE_URL));
-        aboutList.getContent().add(product);
-        aboutList.getContent().add(buildInfoRow(i18n("dsh.about.runtime"),
-                System.getProperty("java.vm.name") + " " + System.getProperty("java.version"), null));
+		ComponentList aboutList = new ComponentList();
+		LineButton product = buildInfoRow(Metadata.FULL_NAME, Metadata.VERSION, "/assets/img/icon.png");
+		product.setOnAction(event -> FXUtils.openLink(Metadata.HOMEPAGE_URL));
+		aboutList.getContent().add(product);
+		aboutList.getContent()
+		         .add(buildInfoRow(i18n("dsh.about.runtime"),
+		                           System.getProperty("java.vm.name") + " " + System.getProperty("java.version"),
+		                           null));
 
-        // One section, headed as the original heads its own: a card of rows with
-        // nothing above it is the form the original does not use. The directory
-        // row joins it rather than getting a section of its own — a section whose
-        // only row repeats its name is the shape that was wrong on the appearance
-        // tab, and this row's name is already the words a heading would use.
-        aboutList.getContent().addAll(buildPathsList().getContent());
+		// One section, headed as the original heads its own: a card of rows with
+		// nothing above it is the form the original does not use. The directory
+		// row joins it rather than getting a section of its own — a section whose
+		// only row repeats its name is the shape that was wrong on the appearance
+		// tab, and this row's name is already the words a heading would use.
+		aboutList.getContent().addAll(buildPathsList().getContent());
 
-        root.getChildren().addAll(
-                ComponentList.createComponentListTitle(i18n("about")), aboutList);
-    }
+		root.getChildren().addAll(ComponentList.createComponentListTitle(i18n("about")), aboutList);
+	}
 
-    /// Builds a read-only information row.
-    ///
-    /// `setLargeTitle` is what HMCL's about page uses on every row, and it is
-    /// what raises the title from the row default to its 15px about-page size.
-    ///
-    /// @param title     the row label
-    /// @param subtitle  the value to display
-    /// @param iconPath  a bundled image to show as the leading graphic, or `null`
-    /// @return the row
-    private static LineButton buildInfoRow(String title, String subtitle, @Nullable String iconPath) {
-        LineButton item = new LineButton();
-        item.setLargeTitle(true);
-        item.setTitle(title);
-        item.setSubtitle(subtitle);
-        if (iconPath != null) {
-            item.setLeading(new Image(Objects.requireNonNull(
-                    AboutPage.class.getResource(iconPath)).toExternalForm()), 32);
-        }
-        return item;
-    }
+	/// Builds a read-only information row.
+	///
+	/// `setLargeTitle` is what HMCL's about page uses on every row, and it is
+	/// what raises the title from the row default to its 15px about-page size.
+	///
+	/// @param title    the row label
+	/// @param subtitle the value to display
+	/// @param iconPath a bundled image to show as the leading graphic, or `null`
+	/// @return the row
+	private static LineButton buildInfoRow(String title, String subtitle, @Nullable String iconPath) {
+		LineButton item = new LineButton();
+		item.setLargeTitle(true);
+		item.setTitle(title);
+		item.setSubtitle(subtitle);
+		if (iconPath != null) {
+			item.setLeading(new Image(Objects.requireNonNull(AboutPage.class.getResource(iconPath)).toExternalForm()),
+			                32);
+		}
+		return item;
+	}
 
-    /// Builds the list of directories HDSL owns.
-    ///
-    /// @return the assembled component list
-    private static ComponentList buildPathsList() {
-        LineButton userHome = new LineButton();
-        userHome.setLargeTitle(true);
-        userHome.setLeading(SVG.FOLDER_OPEN, 24);
-        userHome.setTitle(i18n("dsh.settings.home"));
-        userHome.setSubtitle(Metadata.HMCL_USER_HOME.toString());
-        userHome.setOnAction(event -> FXUtils.showFileInExplorer(Metadata.HMCL_USER_HOME));
+	/// Builds the list of directories HDSL owns.
+	///
+	/// @return the assembled component list
+	private static ComponentList buildPathsList() {
+		LineButton userHome = new LineButton();
+		userHome.setLargeTitle(true);
+		userHome.setLeading(SVG.FOLDER_OPEN, 24);
+		userHome.setTitle(i18n("dsh.settings.home"));
+		userHome.setSubtitle(Metadata.HMCL_USER_HOME.toString());
+		userHome.setOnAction(event -> FXUtils.showFileInExplorer(Metadata.HMCL_USER_HOME));
 
-        ComponentList list = new ComponentList();
-        list.getContent().add(userHome);
-        return list;
-    }
+		ComponentList list = new ComponentList();
+		list.getContent().add(userHome);
+		return list;
+	}
 }

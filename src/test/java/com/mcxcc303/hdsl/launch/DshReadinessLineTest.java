@@ -17,9 +17,10 @@
  */
 package com.mcxcc303.hdsl.launch;
 
-import com.mcxcc303.hdsl.launch.DshProcess;
-
 import org.junit.jupiter.api.Test;
+
+import java.net.URI;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,49 +33,50 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// launcher that waits correctly, reports the instance ready, and then opens a page that is refused.
 /// That is what happened, and it was invisible for as long as nothing looked at the value.
 class DshReadinessLineTest {
-    /// The token a real 0.1.5-alpha.2 instance printed, kept verbatim: base64url, so it exercises the
-    /// `-` and `_` in the character class rather than only alphanumerics.
-    private static final String TOKEN = "dcuszlMez30wtcJpMkS1-VosQcMaTfgE7g4i_mc6Tq8";
+	/// The token a real 0.1.5-alpha.2 instance printed, kept verbatim: base64url, so it exercises the
+	/// `-` and `_` in the character class rather than only alphanumerics.
+	private static final String TOKEN = "dcuszlMez30wtcJpMkS1-VosQcMaTfgE7g4i_mc6Tq8";
 
-    @Test
-    void theAddressKeepsTheTokenItWasPrintedWith() {
-        String line = "dsh web: http://127.0.0.1:3229/?token=" + TOKEN;
+	@Test
+	void theAddressKeepsTheTokenItWasPrintedWith() {
+		String line = "dsh web: http://127.0.0.1:3229/?token=" + TOKEN;
 
-        java.util.Optional<java.net.URI> parsed = DshProcess.parseWebUrl(line);
+		Optional<URI> parsed = DshProcess.parseWebUrl(line);
 
-        assertTrue(parsed.isPresent(), "a readiness line must be recognised");
-        assertEquals("http://127.0.0.1:3229/?token=" + TOKEN, parsed.get().toString());
-        assertEquals(TOKEN, parsed.get().getQuery().substring("token=".length()),
-                "the token is the credential the browser presents; losing it opens a page that is refused");
-    }
+		assertTrue(parsed.isPresent(), "a readiness line must be recognised");
+		assertEquals("http://127.0.0.1:3229/?token=" + TOKEN, parsed.get().toString());
+		assertEquals(TOKEN,
+		             parsed.get().getQuery().substring("token=".length()),
+		             "the token is the credential the browser presents; losing it opens a page that is refused");
+	}
 
-    @Test
-    void theOlderSpellingsAreStillRead() {
-        // Releases before the fence print the address on its own, with or without a trailing slash,
-        // and those have to keep working: they are what every instance older than the fence says.
-        assertEquals("http://127.0.0.1:4061",
-                DshProcess.parseWebUrl("dsh web: http://127.0.0.1:4061").orElseThrow().toString());
-        assertEquals("http://127.0.0.1:4061/",
-                DshProcess.parseWebUrl("dsh web: http://127.0.0.1:4061/").orElseThrow().toString());
-    }
+	@Test
+	void theOlderSpellingsAreStillRead() {
+		// Releases before the fence print the address on its own, with or without a trailing slash,
+		// and those have to keep working: they are what every instance older than the fence says.
+		assertEquals("http://127.0.0.1:4061",
+		             DshProcess.parseWebUrl("dsh web: http://127.0.0.1:4061").orElseThrow().toString());
+		assertEquals("http://127.0.0.1:4061/",
+		             DshProcess.parseWebUrl("dsh web: http://127.0.0.1:4061/").orElseThrow().toString());
+	}
 
-    @Test
-    void aLanSuffixIsNotMistakenForTheAddress() {
-        String line = "dsh web: http://127.0.0.1:3229/?token=" + TOKEN
-                + " (LAN: http://192.168.1.5:3229/?token=" + TOKEN + ")";
+	@Test
+	void aLanSuffixIsNotMistakenForTheAddress() {
+		String line = "dsh web: http://127.0.0.1:3229/?token=" + TOKEN
+		              + " (LAN: http://192.168.1.5:3229/?token=" + TOKEN + ")";
 
-        assertEquals("http://127.0.0.1:3229/?token=" + TOKEN,
-                DshProcess.parseWebUrl(line).orElseThrow().toString());
-    }
+		assertEquals("http://127.0.0.1:3229/?token=" + TOKEN,
+		             DshProcess.parseWebUrl(line).orElseThrow().toString());
+	}
 
-    @Test
-    void whatIsNotAReadinessLineSaysSo() {
-        // The child prints a great deal that is not this. An address invented for a line that is not
-        // a readiness line would be a launcher opening a browser at nothing.
-        assertTrue(DshProcess.parseWebUrl("").isEmpty());
-        assertTrue(DshProcess.parseWebUrl("[INFO] starting up").isEmpty());
-        assertTrue(DshProcess.parseWebUrl("dsh web: http://0.0.0.0:3229/?token=" + TOKEN).isEmpty(),
-                "only the loopback address is the one the launcher opens");
-        assertTrue(DshProcess.parseWebUrl("dsh web: http://127.0.0.1:not-a-port").isEmpty());
-    }
+	@Test
+	void whatIsNotAReadinessLineSaysSo() {
+		// The child prints a great deal that is not this. An address invented for a line that is not
+		// a readiness line would be a launcher opening a browser at nothing.
+		assertTrue(DshProcess.parseWebUrl("").isEmpty());
+		assertTrue(DshProcess.parseWebUrl("[INFO] starting up").isEmpty());
+		assertTrue(DshProcess.parseWebUrl("dsh web: http://0.0.0.0:3229/?token=" + TOKEN).isEmpty(),
+		           "only the loopback address is the one the launcher opens");
+		assertTrue(DshProcess.parseWebUrl("dsh web: http://127.0.0.1:not-a-port").isEmpty());
+	}
 }

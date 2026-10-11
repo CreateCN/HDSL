@@ -36,46 +36,46 @@ import org.jetbrains.annotations.NotNullByDefault;
 /// the package itself says it was written for.
 @NotNullByDefault
 public enum DshDependencyPolicy {
-    /// Hold nothing. Whatever the ranges resolve to is what is installed.
-    ///
-    /// The behaviour before this setting existed, and the one that lets an unverified update break a
-    /// launch. Kept because tracking upstream is a legitimate thing to want; **not** the default,
-    /// because shipping it as the default is shipping the bug.
-    LATEST {
-        @Override
-        public boolean pins(String packageName) {
-            return false;
-        }
-    },
+	/// Hold nothing. Whatever the ranges resolve to is what is installed.
+	///
+	/// The behaviour before this setting existed, and the one that lets an unverified update break a
+	/// launch. Kept because tracking upstream is a legitimate thing to want; **not** the default,
+	/// because shipping it as the default is shipping the bug.
+	LATEST {
+		@Override
+		public boolean pins(String packageName) {
+			return false;
+		}
+	},
 
-    /// Hold the vendor's own packages to the versions the harness declares.
-    ///
-    /// `@deepseek-ai/*` rather than only `@deepseek-ai/cordis*`, and the wider scope is deliberate:
-    /// the plugin framework and the harness's own libraries are published together in lockstep, the
-    /// launcher's own notes record a breakage from exactly that family floating, and a rule that
-    /// named one of them would have to be widened the next time the other one moved. Everything
-    /// outside the vendor's scope — the plugins a pack brings — is left free.
-    CORE_PINNED {
-        @Override
-        public boolean pins(String packageName) {
-            return packageName.startsWith("@deepseek-ai/");
-        }
-    },
+	/// Hold the vendor's own packages to the versions the harness declares.
+	///
+	/// `@deepseek-ai/*` rather than only `@deepseek-ai/cordis*`, and the wider scope is deliberate:
+	/// the plugin framework and the harness's own libraries are published together in lockstep, the
+	/// launcher's own notes record a breakage from exactly that family floating, and a rule that
+	/// named one of them would have to be widened the next time the other one moved. Everything
+	/// outside the vendor's scope — the plugins a pack brings — is left free.
+	CORE_PINNED {
+		@Override
+		public boolean pins(String packageName) {
+			return packageName.startsWith("@deepseek-ai/");
+		}
+	},
 
-    /// Hold every declared dependency to the version the harness declares.
-    ///
-    /// The tree the author published against, item for item. The cost is real and is the reason this
-    /// is not the default: an upstream patch to any dependency is never picked up.
-    LOCKED {
-        @Override
-        public boolean pins(String packageName) {
-            return true;
-        }
-    };
+	/// Hold every declared dependency to the version the harness declares.
+	///
+	/// The tree the author published against, item for item. The cost is real and is the reason this
+	/// is not the default: an upstream patch to any dependency is never picked up.
+	LOCKED {
+		@Override
+		public boolean pins(String packageName) {
+			return true;
+		}
+	};
 
-    /// Reports whether this policy holds a dependency to its declared floor.
-    ///
-    /// @param packageName the dependency's name
-    /// @return whether to pin it
-    public abstract boolean pins(String packageName);
+	/// Reports whether this policy holds a dependency to its declared floor.
+	///
+	/// @param packageName the dependency's name
+	/// @return whether to pin it
+	public abstract boolean pins(String packageName);
 }

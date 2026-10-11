@@ -17,12 +17,11 @@
  */
 package com.mcxcc303.hdsl.plugin;
 
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshInstance;
-
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.instance.DshInstance;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.zip.GZIPInputStream;
 
@@ -65,311 +65,311 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// follow — see [DshLocalPluginPaths].
 @NotNullByDefault
 public final class DshLocalPlugins {
-    /// Where an instance's local plugin files are kept.
-    public static final String DIRECTORY = "plugins";
+	/// Where an instance's local plugin files are kept.
+	public static final String DIRECTORY = "plugins";
 
-    private DshLocalPlugins() {
-    }
+	private DshLocalPlugins() {
+	}
 
-    /// What a plugin file holds.
-    ///
-    /// @param name        the package name
-    /// @param version     the package version
-    /// @param bundlePatch the patch file the package declares, or `null` when it
-    ///                    declares no bundle and would be installed but inactive
-    /// @param sizeBytes   the file's size
-    public record Package(String name, String version, @Nullable String bundlePatch, long sizeBytes) {
-        /// Returns whether the package would be an active plugin.
-        ///
-        /// @return whether it declares a bundle patch
-        public boolean isBundle() {
-            return bundlePatch != null && !bundlePatch.isBlank();
-        }
-    }
+	/// Reads what a plugin file holds, without installing anything.
+	///
+	/// @param file the archive
+	/// @return the package
+	/// @throws DshException when the file is not a readable package
+	public static Package inspect(Path file) throws DshException {
+		if (!Files.isRegularFile(file)) {
+			throw new DshException("There is no file at " + file);
+		}
+		if (!file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".tgz") &&
+		    !file.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".tar.gz")) {
+			throw new DshException(file.getFileName() + " is not a packed plugin (.tgz)");
+		}
 
-    /// What an installation did.
-    ///
-    /// @param pkg        what the file held
-    /// @param installed  the file inside the instance, which is what the profile
-    ///                   depends on now
-    /// @param spec       the specification the profile recorded
-    public record Result(Package pkg, Path installed, String spec) {
-    }
+		String manifest = readPackedManifest(file);
+		if (manifest == null) {
+			throw new DshException(file.getFileName() + " holds no package.json, so it is not a package");
+		}
+		return packageOf(manifest, sizeOf(file), file.getFileName().toString());
+	}
 
-    /// Reads what a plugin file holds, without installing anything.
-    ///
-    /// @param file the archive
-    /// @return the package
-    /// @throws DshException when the file is not a readable package
-    public static Package inspect(Path file) throws DshException {
-        if (!Files.isRegularFile(file)) {
-            throw new DshException("There is no file at " + file);
-        }
-        if (!file.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".tgz")
-                && !file.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".tar.gz")) {
-            throw new DshException(file.getFileName() + " is not a packed plugin (.tgz)");
-        }
+	/// Copies a plugin file into an instance and installs it from there.
+	///
+	/// @param instance the instance to install into
+	/// @param file     the archive the user has
+	/// @param onLine   receives progress lines, or `null`
+	/// @return what was installed
+	/// @throws DshException when the file is not a plugin, or the installation fails
+	public static Result install(DshInstance instance, Path file, @Nullable Consumer<String> onLine)
+	throws DshException {
+		Package pkg = inspect(file);
 
-        String manifest = readPackedManifest(file);
-        if (manifest == null) {
-            throw new DshException(file.getFileName() + " holds no package.json, so it is not a package");
-        }
-        return packageOf(manifest, sizeOf(file), file.getFileName().toString());
-    }
+		Path directory = instance.instanceDirectory().resolve(DIRECTORY);
+		String fileName = safeFileName(pkg.name()) + "-" + safeFileName(pkg.version()) + ".tgz";
+		Path target = directory.resolve(fileName);
+		try {
+			Files.createDirectories(directory);
+			if (Files.exists(target) && Files.mismatch(target, file) == -1) {
+				report(onLine, "Already holding " + fileName);
+			} else {
+				report(onLine, "Copying " + file.getFileName() + " into the instance");
+				Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} catch (IOException e) {
+			throw new DshException("Failed to copy " + file + " into " + directory, e);
+		}
 
-    /// Copies a plugin file into an instance and installs it from there.
-    ///
-    /// @param instance the instance to install into
-    /// @param file     the archive the user has
-    /// @param onLine   receives progress lines, or `null`
-    /// @return what was installed
-    /// @throws DshException when the file is not a plugin, or the installation fails
-    public static Result install(DshInstance instance, Path file, @Nullable Consumer<String> onLine)
-            throws DshException {
-        Package pkg = inspect(file);
+		if (!pkg.isBundle()) {
+			// Worth saying out loud: the harness installs it, reconciliation leaves
+			// it out of the bundle list because it contributes no layer, and the
+			// plugin then does nothing at all.
+			report(onLine, "Note: " + pkg.name() + " declares no dsh.bundle, so it will be installed but not active");
+		}
 
-        Path directory = instance.instanceDirectory().resolve(DIRECTORY);
-        String fileName = safeFileName(pkg.name()) + "-" + safeFileName(pkg.version()) + ".tgz";
-        Path target = directory.resolve(fileName);
-        try {
-            Files.createDirectories(directory);
-            if (Files.exists(target) && Files.mismatch(target, file) == -1) {
-                report(onLine, "Already holding " + fileName);
-            } else {
-                report(onLine, "Copying " + file.getFileName() + " into the instance");
-                Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
-            throw new DshException("Failed to copy " + file + " into " + directory, e);
-        }
+		// The absolute path of the copy, not the file the user picked: the profile
+		// records this specification, and it has to keep pointing at something.
+		String spec = target.toAbsolutePath().toString();
+		report(onLine, "Installing " + pkg.name() + " " + pkg.version() + " from the instance's own copy");
+		DshPluginInstaller.installSpecs(instance, List.of(spec), onLine);
 
-        if (!pkg.isBundle()) {
-            // Worth saying out loud: the harness installs it, reconciliation leaves
-            // it out of the bundle list because it contributes no layer, and the
-            // plugin then does nothing at all.
-            report(onLine, "Note: " + pkg.name() + " declares no dsh.bundle, so it will be installed but not active");
-        }
+		LOG.info("Installed the local plugin " + pkg.name() + " into " + instance.id() + " from " + target);
+		return new Result(pkg, target, spec);
+	}
 
-        // The absolute path of the copy, not the file the user picked: the profile
-        // records this specification, and it has to keep pointing at something.
-        String spec = target.toAbsolutePath().toString();
-        report(onLine, "Installing " + pkg.name() + " " + pkg.version() + " from the instance's own copy");
-        DshPluginInstaller.installSpecs(instance, List.of(spec), onLine);
+	/// Removes a local plugin file an instance no longer needs.
+	///
+	/// @param instance the instance
+	/// @param pkg      the package that was installed from it
+	/// @return whether a file was removed
+	public static boolean discard(DshInstance instance, Package pkg) {
+		Path target;
+		try {
+			target = instance.instanceDirectory()
+			                 .resolve(DIRECTORY)
+			                 .resolve(safeFileName(pkg.name()) + "-" + safeFileName(pkg.version()) + ".tgz");
+		} catch (DshException e) {
+			LOG.warning("Failed to locate the instance directory of " + instance.id(), e);
+			return false;
+		}
+		try {
+			return Files.deleteIfExists(target);
+		} catch (IOException e) {
+			LOG.warning("Failed to remove " + target, e);
+			return false;
+		}
+	}
 
-        LOG.info("Installed the local plugin " + pkg.name() + " into " + instance.id() + " from " + target);
-        return new Result(pkg, target, spec);
-    }
+	/// Reads the `package.json` out of a packed archive.
+	///
+	/// A gzipped tar is read here without a library: the format's header is a
+	/// fixed layout, and finding one named entry in it needs a few dozen lines
+	/// rather than a dependency as large as the launcher.
+	///
+	/// @param file the archive
+	/// @return the manifest's text, or `null` when the archive holds none
+	/// @throws DshException when the archive cannot be read
+	static @Nullable String readPackedManifest(Path file) throws DshException {
+		try (InputStream raw = Files.newInputStream(file);
+		     InputStream gzip = new GZIPInputStream(raw)) {
+			byte[] header = new byte[512];
+			while (true) {
+				int read = gzip.readNBytes(header, 0, 512);
+				if (read < 512) {
+					return null;
+				}
+				if (isZero(header)) {
+					// Two zero blocks end an archive; one is enough to stop looking
+					// for a manifest that is not there.
+					return null;
+				}
 
-    /// Removes a local plugin file an instance no longer needs.
-    ///
-    /// @param instance the instance
-    /// @param pkg      the package that was installed from it
-    /// @return whether a file was removed
-    public static boolean discard(DshInstance instance, Package pkg) {
-        Path target;
-        try {
-            target = instance.instanceDirectory().resolve(DIRECTORY)
-                    .resolve(safeFileName(pkg.name()) + "-" + safeFileName(pkg.version()) + ".tgz");
-        } catch (DshException e) {
-            LOG.warning("Failed to locate the instance directory of " + instance.id(), e);
-            return false;
-        }
-        try {
-            return Files.deleteIfExists(target);
-        } catch (IOException e) {
-            LOG.warning("Failed to remove " + target, e);
-            return false;
-        }
-    }
+				String name = string(header, 0, 100);
+				long size = octal(header, 124, 12);
+				int type = header[156] & 0xff;
+				String prefix = string(header, 345, 155);
+				String full = prefix.isEmpty() ? name : prefix + "/" + name;
 
-    /// Reads the `package.json` out of a packed archive.
-    ///
-    /// A gzipped tar is read here without a library: the format's header is a
-    /// fixed layout, and finding one named entry in it needs a few dozen lines
-    /// rather than a dependency as large as the launcher.
-    ///
-    /// @param file the archive
-    /// @return the manifest's text, or `null` when the archive holds none
-    /// @throws DshException when the archive cannot be read
-    static @Nullable String readPackedManifest(Path file) throws DshException {
-        try (InputStream raw = Files.newInputStream(file);
-             InputStream gzip = new GZIPInputStream(raw)) {
-            byte[] header = new byte[512];
-            while (true) {
-                int read = gzip.readNBytes(header, 0, 512);
-                if (read < 512) {
-                    return null;
-                }
-                if (isZero(header)) {
-                    // Two zero blocks end an archive; one is enough to stop looking
-                    // for a manifest that is not there.
-                    return null;
-                }
+				if (type == '0' || type == 0) {
+					if (full.equals("package/package.json") || full.equals("package.json")) {
+						return new String(gzip.readNBytes((int) size), StandardCharsets.UTF_8);
+					}
+				}
+				long remaining = size;
+				while (remaining > 0) {
+					long skipped = gzip.skip(remaining);
+					if (skipped <= 0) {
+						return null;
+					}
+					remaining -= skipped;
+				}
+				long padding = (512 - (size % 512)) % 512;
+				while (padding > 0) {
+					long skipped = gzip.skip(padding);
+					if (skipped <= 0) {
+						break;
+					}
+					padding -= skipped;
+				}
+			}
+		} catch (IOException e) {
+			throw new DshException("Failed to read " + file, e);
+		}
+	}
 
-                String name = string(header, 0, 100);
-                long size = octal(header, 124, 12);
-                int type = header[156] & 0xff;
-                String prefix = string(header, 345, 155);
-                String full = prefix.isEmpty() ? name : prefix + "/" + name;
+	/// Reads a package manifest.
+	///
+	/// @param body     the manifest's text
+	/// @param size     the file's size
+	/// @param fileName the file's name, for messages
+	/// @return the package
+	/// @throws DshException when the manifest names no package
+	static Package packageOf(String body, long size, String fileName) throws DshException {
+		JsonObject root;
+		try {
+			JsonElement parsed = JsonParser.parseString(body);
+			if (!parsed.isJsonObject()) {
+				throw new DshException(fileName + " holds a package.json that is not an object");
+			}
+			root = parsed.getAsJsonObject();
+		} catch (RuntimeException e) {
+			throw new DshException(fileName + " holds a package.json that cannot be read", e);
+		}
 
-                if (type == '0' || type == 0) {
-                    if (full.equals("package/package.json") || full.equals("package.json")) {
-                        return new String(gzip.readNBytes((int) size), StandardCharsets.UTF_8);
-                    }
-                }
-                long remaining = size;
-                while (remaining > 0) {
-                    long skipped = gzip.skip(remaining);
-                    if (skipped <= 0) {
-                        return null;
-                    }
-                    remaining -= skipped;
-                }
-                long padding = (512 - (size % 512)) % 512;
-                while (padding > 0) {
-                    long skipped = gzip.skip(padding);
-                    if (skipped <= 0) {
-                        break;
-                    }
-                    padding -= skipped;
-                }
-            }
-        } catch (IOException e) {
-            throw new DshException("Failed to read " + file, e);
-        }
-    }
+		String name = asString(root, "name");
+		if (name == null) {
+			throw new DshException(fileName + " holds a package with no name");
+		}
 
-    /// Reads a package manifest.
-    ///
-    /// @param body     the manifest's text
-    /// @param size     the file's size
-    /// @param fileName the file's name, for messages
-    /// @return the package
-    /// @throws DshException when the manifest names no package
-    static Package packageOf(String body, long size, String fileName) throws DshException {
-        JsonObject root;
-        try {
-            JsonElement parsed = JsonParser.parseString(body);
-            if (!parsed.isJsonObject()) {
-                throw new DshException(fileName + " holds a package.json that is not an object");
-            }
-            root = parsed.getAsJsonObject();
-        } catch (RuntimeException e) {
-            throw new DshException(fileName + " holds a package.json that cannot be read", e);
-        }
+		String patch = null;
+		JsonElement dsh = root.get("dsh");
+		if (dsh != null && dsh.isJsonObject()) {
+			JsonElement bundle = dsh.getAsJsonObject().get("bundle");
+			if (bundle != null && bundle.isJsonObject()) {
+				patch = asString(bundle.getAsJsonObject(), "patch");
+			}
+		}
 
-        String name = asString(root, "name");
-        if (name == null) {
-            throw new DshException(fileName + " holds a package with no name");
-        }
+		return new Package(name, asString(root, "version") == null ? "0.0.0" : asString(root, "version"), patch, size);
+	}
 
-        String patch = null;
-        JsonElement dsh = root.get("dsh");
-        if (dsh != null && dsh.isJsonObject()) {
-            JsonElement bundle = dsh.getAsJsonObject().get("bundle");
-            if (bundle != null && bundle.isJsonObject()) {
-                patch = asString(bundle.getAsJsonObject(), "patch");
-            }
-        }
+	/// Returns a member as a string.
+	///
+	/// @param object the object
+	/// @param name   the member
+	/// @return the string, or `null`
+	private static @Nullable String asString(JsonObject object, String name) {
+		JsonElement element = object.get(name);
+		if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+			return null;
+		}
+		String value = element.getAsString();
+		return value.isBlank() ? null : value;
+	}
 
-        return new Package(name, asString(root, "version") == null ? "0.0.0" : asString(root, "version"),
-                patch, size);
-    }
+	/// Returns a name that can be used as a file name.
+	///
+	/// @param value the package name or version
+	/// @return the sanitised value
+	private static String safeFileName(String value) {
+		return value.replaceAll("[^A-Za-z0-9._-]", "_");
+	}
 
-    /// Returns a member as a string.
-    ///
-    /// @param object the object
-    /// @param name   the member
-    /// @return the string, or `null`
-    private static @Nullable String asString(JsonObject object, String name) {
-        JsonElement element = object.get(name);
-        if (element == null || !element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
-            return null;
-        }
-        String value = element.getAsString();
-        return value.isBlank() ? null : value;
-    }
+	/// Returns a name that can be used as a file name, for a package a pack carries.
+	///
+	/// @param value the package name or version
+	/// @return the sanitised value
+	static String safeName(String value) {
+		return safeFileName(value);
+	}
 
-    /// Returns a name that can be used as a file name.
-    ///
-    /// @param value the package name or version
-    /// @return the sanitised value
-    private static String safeFileName(String value) {
-        return value.replaceAll("[^A-Za-z0-9._-]", "_");
-    }
+	/// Reports whether a tar header block is all zeroes.
+	///
+	/// @param block the block
+	/// @return whether it is empty
+	private static boolean isZero(byte[] block) {
+		for (byte b : block) {
+			if (b != 0) {
+				return false;
+			}
+		}
+		return true;
+	}
 
-    /// Returns a name that can be used as a file name, for a package a pack carries.
-    ///
-    /// @param value the package name or version
-    /// @return the sanitised value
-    static String safeName(String value) {
-        return safeFileName(value);
-    }
+	/// Returns a NUL-terminated string from a tar header block.
+	///
+	/// @param block  the block
+	/// @param offset where the string starts
+	/// @param length how long it may be
+	/// @return the string
+	private static String string(byte[] block, int offset, int length) {
+		int end = offset;
+		while (end < offset + length && block[end] != 0) {
+			end++;
+		}
+		return new String(block, offset, end - offset, StandardCharsets.UTF_8).trim();
+	}
 
-    /// Reports whether a tar header block is all zeroes.
-    ///
-    /// @param block the block
-    /// @return whether it is empty
-    private static boolean isZero(byte[] block) {
-        for (byte b : block) {
-            if (b != 0) {
-                return false;
-            }
-        }
-        return true;
-    }
+	/// Returns an octal number from a tar header block.
+	///
+	/// @param block  the block
+	/// @param offset where the number starts
+	/// @param length how long it may be
+	/// @return the number, or zero
+	private static long octal(byte[] block, int offset, int length) {
+		String text = string(block, offset, length).trim();
+		if (text.isEmpty()) {
+			return 0;
+		}
+		try {
+			return Long.parseLong(text, 8);
+		} catch (NumberFormatException e) {
+			return 0;
+		}
+	}
 
-    /// Returns a NUL-terminated string from a tar header block.
-    ///
-    /// @param block  the block
-    /// @param offset where the string starts
-    /// @param length how long it may be
-    /// @return the string
-    private static String string(byte[] block, int offset, int length) {
-        int end = offset;
-        while (end < offset + length && block[end] != 0) {
-            end++;
-        }
-        return new String(block, offset, end - offset, StandardCharsets.UTF_8).trim();
-    }
+	/// Returns a file's size.
+	///
+	/// @param file the file
+	/// @return the size, or zero
+	private static long sizeOf(Path file) {
+		try {
+			return Files.size(file);
+		} catch (IOException e) {
+			return 0;
+		}
+	}
 
-    /// Returns an octal number from a tar header block.
-    ///
-    /// @param block  the block
-    /// @param offset where the number starts
-    /// @param length how long it may be
-    /// @return the number, or zero
-    private static long octal(byte[] block, int offset, int length) {
-        String text = string(block, offset, length).trim();
-        if (text.isEmpty()) {
-            return 0;
-        }
-        try {
-            return Long.parseLong(text, 8);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
+	/// Reports progress.
+	///
+	/// @param onStage the sink, or `null`
+	/// @param message the message
+	private static void report(@Nullable Consumer<String> onStage, String message) {
+		if (onStage != null) {
+			onStage.accept(message);
+		}
+	}
 
-    /// Returns a file's size.
-    ///
-    /// @param file the file
-    /// @return the size, or zero
-    private static long sizeOf(Path file) {
-        try {
-            return Files.size(file);
-        } catch (IOException e) {
-            return 0;
-        }
-    }
+	/// What a plugin file holds.
+	///
+	/// @param name        the package name
+	/// @param version     the package version
+	/// @param bundlePatch the patch file the package declares, or `null` when it
+	///                    declares no bundle and would be installed but inactive
+	/// @param sizeBytes   the file's size
+	public record Package(String name, String version, @Nullable String bundlePatch, long sizeBytes) {
+		/// Returns whether the package would be an active plugin.
+		///
+		/// @return whether it declares a bundle patch
+		public boolean isBundle() {
+			return bundlePatch != null && !bundlePatch.isBlank();
+		}
+	}
 
-    /// Reports progress.
-    ///
-    /// @param onStage the sink, or `null`
-    /// @param message the message
-    private static void report(@Nullable Consumer<String> onStage, String message) {
-        if (onStage != null) {
-            onStage.accept(message);
-        }
-    }
+	/// What an installation did.
+	///
+	/// @param pkg       what the file held
+	/// @param installed the file inside the instance, which is what the profile
+	///                   depends on now
+	/// @param spec      the specification the profile recorded
+	public record Result(Package pkg, Path installed, String spec) {
+	}
 }

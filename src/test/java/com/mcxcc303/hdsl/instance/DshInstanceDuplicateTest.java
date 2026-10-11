@@ -17,16 +17,11 @@
  */
 package com.mcxcc303.hdsl.instance;
 
+import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.launch.DshSessions;
 import com.mcxcc303.hdsl.pack.PackExporter;
 import com.mcxcc303.hdsl.pack.PackManifest;
-
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.instance.DshHomeMode;
-import com.mcxcc303.hdsl.instance.DshInstance;
-import com.mcxcc303.hdsl.instance.DshInstanceManager;
-import com.mcxcc303.hdsl.launch.DshSessions;
 import com.mcxcc303.hdsl.skill.DshSkills;
-
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,10 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipFile;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// What "copy this instance" is made of.
 ///
@@ -49,130 +41,135 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// registry, which a test cannot assume; *describing* one needs neither, and that is the half where
 /// the decision lives — a copy that was made empty was made empty here.
 class DshInstanceDuplicateTest {
-    /// The instance a copy is made from.
-    private static final String SOURCE_ID = "duplicate-source";
+	/// The instance a copy is made from.
+	private static final String SOURCE_ID = "duplicate-source";
 
-    /// The instance a copy is made into.
-    private static final String TARGET_ID = "duplicate-target";
+	/// The instance a copy is made into.
+	private static final String TARGET_ID = "duplicate-target";
 
-    /// The workspace slug the fixture session lives under.
-    private static final String SLUG = "-home-user-project";
+	/// The workspace slug the fixture session lives under.
+	private static final String SLUG = "-home-user-project";
 
-    /// Removes the instances the tests made.
-    @AfterEach
-    void removeInstances() {
-        for (String id : List.of(SOURCE_ID, TARGET_ID)) {
-            try {
-                if (InstanceStore.find(id) != null) {
-                    DshInstanceManager.delete(id);
-                }
-            } catch (Exception ignored) {
-                // The test's own cleanup: a failure here would hide the real one.
-            }
-        }
-    }
+	/// Creates an instance whose home the tests can fill.
+	///
+	/// @param id the instance id
+	/// @return the instance
+	private static DshInstance makeInstance(String id) throws Exception {
+		Path workspace = Files.createTempDirectory("duplicate-home");
+		return DshInstanceManager.create(id,
+		                                 "0.1.6-alpha.2",
+		                                 DshInstance.DEFAULT_PROFILE,
+		                                 workspace,
+		                                 DshHomeMode.ISOLATED,
+		                                 null,
+		                                 List.of(),
+		                                 Map.of());
+	}
 
-    @Test
-    void aCopyIsTheConfigurationAndNotTheSessions() throws Exception {
-        DshInstance source = makeInstance(SOURCE_ID);
-        writeProfile(source, """
-                {
-                  "name": "dsh-profile-web",
-                  "private": true,
-                  "dependencies": {"dsh-context": "0.54.2", "dshmarket": "1.52.0"},
-                  "dsh": {"profile": {"bundles": ["dsh-context", "dshmarket"]}}
-                }
-                """);
-        Files.writeString(profileDirectory(source).resolve("cordis.patch.yml"), "- id: title\n");
-        // A plugin's own settings, which is most of what "the same environment" means for it.
-        Files.writeString(source.homeDirectory().resolve("settings.yaml"), """
-                dshmarket:
-                  registry: https://example.invalid
-                """);
-        Path skills = DshSkills.directory(source.homeDirectory());
-        Files.createDirectories(skills.resolve("alpha"));
-        Files.writeString(skills.resolve("alpha").resolve("SKILL.md"),
-                "---\nname: alpha\ndescription: First\n---\n");
-        writeSession(source.homeDirectory());
-        assertFalse(DshSessions.list(source.homeDirectory()).isEmpty(),
-                "the source has something to leave behind");
+	/// Returns an instance's profile directory.
+	///
+	/// @param instance the instance
+	/// @return the directory
+	private static Path profileDirectory(DshInstance instance) throws Exception {
+		return instance.homeDirectory().resolve("profiles").resolve(instance.profile());
+	}
 
-        Path pack = Files.createTempFile("duplicate", PackManifest.FILE_EXTENSION);
-        try {
-            // Exactly what a duplicate writes: `export(instance, target, report)` is `Options.of(instance)`.
-            PackExporter.export(source, pack, null);
-            PackManifest.Manifest manifest = PackManifest.readManifest(pack);
+	/// Writes a profile manifest.
+	///
+	/// @param instance the instance
+	/// @param body     the manifest
+	private static void writeProfile(DshInstance instance, String body) throws Exception {
+		Path directory = profileDirectory(instance);
+		Files.createDirectories(directory);
+		Files.writeString(directory.resolve("package.json"), body);
+	}
 
-            assertEquals(List.of("dsh-context", "dshmarket"), manifest.bundles(),
-                    "the load order the original boots in is the order the copy boots in");
-            assertTrue(manifest.hasPatch(), "the patch layer is composition, so the copy gets it");
-            assertEquals(List.of("alpha"), manifest.skills(), "the skill packs travel");
-            assertEquals(List.of("dshmarket"), manifest.settings(),
-                    "a plugin's own settings travel, or the copy is not the same environment");
-            assertEquals(0, manifest.sessionCount(), "session history stays behind");
-            try (ZipFile zip = new ZipFile(pack.toFile())) {
-                assertTrue(zip.getEntry("cordis.patch.yml") != null,
-                        "and the patch layer is really in the archive");
-            }
-        } finally {
-            Files.deleteIfExists(pack);
-        }
-    }
+	/// Writes a session into a home, in the shape the harness keeps them in.
+	///
+	/// @param home the `DSH_HOME`
+	private static void writeSession(Path home) throws Exception {
+		Path directory = home.resolve("sessions").resolve(SLUG).resolve("session-1");
+		Files.createDirectories(directory);
+		Files.writeString(directory.resolve("session.v4.jsonl.zstd"), "fixture-log");
+		Files.writeString(directory.resolve("session.lock"), "");
+	}
 
-    @Test
-    void anIdTakenByAnInstanceThatIsWholeIsRefused() throws Exception {
-        // What must not happen: a duplicate quietly adopting an instance that is already somebody's,
-        // and installing over it. Only a half-made copy — this call's own earlier attempt, kept
-        // because pnpm asked about an install script — is continued.
-        makeInstance(SOURCE_ID);
-        DshInstance taken = makeInstance(TARGET_ID);
-        Path entry = taken.dshEntryPoint();
-        Files.createDirectories(entry.getParent());
-        Files.writeString(entry, "// the harness that was already there\n");
+	/// Removes the instances the tests made.
+	@AfterEach
+	void removeInstances() {
+		for (String id : List.of(SOURCE_ID, TARGET_ID)) {
+			try {
+				if (InstanceStore.find(id) != null) {
+					DshInstanceManager.delete(id);
+				}
+			} catch (Exception ignored) {
+				// The test's own cleanup: a failure here would hide the real one.
+			}
+		}
+	}
 
-        DshException refused = assertThrows(DshException.class,
-                () -> DshInstanceManager.duplicate(SOURCE_ID, TARGET_ID, null));
+	@Test
+	void aCopyIsTheConfigurationAndNotTheSessions() throws Exception {
+		DshInstance source = makeInstance(SOURCE_ID);
+		writeProfile(source, """
+				{
+				  "name": "dsh-profile-web",
+				  "private": true,
+				  "dependencies": {"dsh-context": "0.54.2", "dshmarket": "1.52.0"},
+				  "dsh": {"profile": {"bundles": ["dsh-context", "dshmarket"]}}
+				}
+				""");
+		Files.writeString(profileDirectory(source).resolve("cordis.patch.yml"), "- id: title\n");
+		// A plugin's own settings, which is most of what "the same environment" means for it.
+		Files.writeString(source.homeDirectory().resolve("settings.yaml"), """
+				dshmarket:
+				  registry: https://example.invalid
+				""");
+		Path skills = DshSkills.directory(source.homeDirectory());
+		Files.createDirectories(skills.resolve("alpha"));
+		Files.writeString(skills.resolve("alpha").resolve("SKILL.md"), "---\nname: alpha\ndescription: First\n---\n");
+		writeSession(source.homeDirectory());
+		assertFalse(DshSessions.list(source.homeDirectory()).isEmpty(), "the source has something to leave behind");
 
-        assertTrue(refused.getMessage().contains("already exists"), refused.getMessage());
-        assertEquals("// the harness that was already there\n", Files.readString(entry),
-                "and nothing was written over it");
-    }
+		Path pack = Files.createTempFile("duplicate", PackManifest.FILE_EXTENSION);
+		try {
+			// Exactly what a duplicate writes: `export(instance, target, report)` is `Options.of(instance)`.
+			PackExporter.export(source, pack, null);
+			PackManifest.Manifest manifest = PackManifest.readManifest(pack);
 
-    /// Creates an instance whose home the tests can fill.
-    ///
-    /// @param id the instance id
-    /// @return the instance
-    private static DshInstance makeInstance(String id) throws Exception {
-        Path workspace = Files.createTempDirectory("duplicate-home");
-        return DshInstanceManager.create(id, "0.1.6-alpha.2", DshInstance.DEFAULT_PROFILE,
-                workspace, DshHomeMode.ISOLATED, null, List.of(), Map.of());
-    }
+			assertEquals(List.of("dsh-context", "dshmarket"),
+			             manifest.bundles(),
+			             "the load order the original boots in is the order the copy boots in");
+			assertTrue(manifest.hasPatch(), "the patch layer is composition, so the copy gets it");
+			assertEquals(List.of("alpha"), manifest.skills(), "the skill packs travel");
+			assertEquals(List.of("dshmarket"),
+			             manifest.settings(),
+			             "a plugin's own settings travel, or the copy is not the same environment");
+			assertEquals(0, manifest.sessionCount(), "session history stays behind");
+			try (ZipFile zip = new ZipFile(pack.toFile())) {
+				assertNotNull(zip.getEntry("cordis.patch.yml"), "and the patch layer is really in the archive");
+			}
+		} finally {
+			Files.deleteIfExists(pack);
+		}
+	}
 
-    /// Returns an instance's profile directory.
-    ///
-    /// @param instance the instance
-    /// @return the directory
-    private static Path profileDirectory(DshInstance instance) throws Exception {
-        return instance.homeDirectory().resolve("profiles").resolve(instance.profile());
-    }
+	@Test
+	void anIdTakenByAnInstanceThatIsWholeIsRefused() throws Exception {
+		// What must not happen: a duplicate quietly adopting an instance that is already somebody's,
+		// and installing over it. Only a half-made copy — this call's own earlier attempt, kept
+		// because pnpm asked about an install script — is continued.
+		makeInstance(SOURCE_ID);
+		DshInstance taken = makeInstance(TARGET_ID);
+		Path entry = taken.dshEntryPoint();
+		Files.createDirectories(entry.getParent());
+		Files.writeString(entry, "// the harness that was already there\n");
 
-    /// Writes a profile manifest.
-    ///
-    /// @param instance the instance
-    /// @param body     the manifest
-    private static void writeProfile(DshInstance instance, String body) throws Exception {
-        Path directory = profileDirectory(instance);
-        Files.createDirectories(directory);
-        Files.writeString(directory.resolve("package.json"), body);
-    }
+		DshException refused = assertThrows(DshException.class,
+		                                    () -> DshInstanceManager.duplicate(SOURCE_ID, TARGET_ID, null));
 
-    /// Writes a session into a home, in the shape the harness keeps them in.
-    ///
-    /// @param home the `DSH_HOME`
-    private static void writeSession(Path home) throws Exception {
-        Path directory = home.resolve("sessions").resolve(SLUG).resolve("session-1");
-        Files.createDirectories(directory);
-        Files.writeString(directory.resolve("session.v4.jsonl.zstd"), "fixture-log");
-        Files.writeString(directory.resolve("session.lock"), "");
-    }
+		assertTrue(refused.getMessage().contains("already exists"), refused.getMessage());
+		assertEquals("// the harness that was already there\n", Files.readString(entry),
+		             "and nothing was written over it");
+	}
 }

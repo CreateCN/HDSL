@@ -19,20 +19,20 @@ package org.jackhuang.hmcl.ui.dsh;
 
 import com.jfoenix.controls.JFXButton;
 import com.jfoenix.controls.JFXRadioButton;
-import javafx.beans.property.SimpleStringProperty;
-import javafx.beans.property.StringProperty;
-import javafx.event.ActionEvent;
-import javafx.scene.Cursor;
-import javafx.scene.input.MouseButton;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
-import javafx.scene.control.ListCell;
-import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceIcons;
 import com.mcxcc303.hdsl.launch.DshProcessManager.LaunchState;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.beans.property.StringProperty;
+import javafx.event.ActionEvent;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.Cursor;
+import javafx.scene.control.ListCell;
+import javafx.scene.input.MouseButton;
+import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.ImageContainer;
@@ -61,184 +61,184 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 /// virtual flow; only its contents change between items.
 @NotNullByDefault
 public final class InstanceListCell extends ListCell<DshInstance> {
-    /// The radio button that chooses the instance.
-    private final JFXRadioButton selector = new JFXRadioButton() {
-        @Override
-        public void fire() {
-            DshInstance instance = getItem();
-            if (!isDisable() && !isSelected() && instance != null) {
-                fireEvent(new ActionEvent());
-                onSelect.accept(instance);
-            }
-        }
-    };
+	/// The radio button that chooses the instance.
+	private final JFXRadioButton selector = new JFXRadioButton() {
+		@Override
+		public void fire() {
+			DshInstance instance = getItem();
+			if (!isDisable() && !isSelected() && instance != null) {
+				fireEvent(new ActionEvent());
+				onSelect.accept(instance);
+			}
+		}
+	};
 
-    /// The instance icon.
-    private final ImageContainer icon = new ImageContainer(32);
+	/// The instance icon.
+	private final ImageContainer icon = new ImageContainer(32);
 
-    /// The instance name, summary and tag.
-    private final TwoLineListItem content = new TwoLineListItem();
+	/// The instance name, summary and tag.
+	private final TwoLineListItem content = new TwoLineListItem();
 
-    /// The tag saying what the instance is doing, empty while it is doing nothing.
-    private final StringProperty stateTag = new SimpleStringProperty();
+	/// The tag saying what the instance is doing, empty while it is doing nothing.
+	private final StringProperty stateTag = new SimpleStringProperty();
 
-    /// The launch or stop button.
-    private final JFXButton launch = FXUtils.newToggleButton4(SVG.ROCKET_LAUNCH);
+	/// The launch or stop button.
+	private final JFXButton launch = FXUtils.newToggleButton4(SVG.ROCKET_LAUNCH);
 
-    /// The menu button.
-    private final JFXButton menu = FXUtils.newToggleButton4(SVG.MORE_VERT);
+	/// The menu button.
+	private final JFXButton menu = FXUtils.newToggleButton4(SVG.MORE_VERT);
 
-    /// The row's graphic, built once.
-    private final RipplerContainer graphic;
+	/// The row's graphic, built once.
+	private final RipplerContainer graphic;
 
-    /// Called when the radio button chooses the instance.
-    private Consumer<DshInstance> onSelect = instance -> {
-    };
+	/// Called when the radio button chooses the instance.
+	private Consumer<DshInstance> onSelect = instance -> {
+	};
 
-    /// Called when the row is opened.
-    private Consumer<DshInstance> onOpen = instance -> {
-    };
+	/// Called when the row is opened.
+	private Consumer<DshInstance> onOpen = instance -> {
+	};
 
-    /// Called when the launch button is pressed.
-    private Consumer<DshInstance> onLaunch = instance -> {
-    };
+	/// Called when the launch button is pressed.
+	private Consumer<DshInstance> onLaunch = instance -> {
+	};
 
-    /// Called when the menu button is pressed; receives the row and its anchor.
-    private BiConsumer<DshInstance, JFXButton> onMenu = (instance, anchor) -> {
-    };
+	/// Called when the menu button is pressed; receives the row and its anchor.
+	private BiConsumer<DshInstance, JFXButton> onMenu = (instance, anchor) -> {
+	};
 
-    /// Supplies the instance the radio buttons treat as selected.
-    private Supplier<@Nullable DshInstance> selectedInstance = () -> null;
+	/// Supplies the instance the radio buttons treat as selected.
+	private Supplier<@Nullable DshInstance> selectedInstance = () -> null;
 
-    /// Reports what an instance is doing, which is what the button and the tag show.
-    private Function<DshInstance, LaunchState> stateCheck = instance -> LaunchState.STOPPED;
+	/// Reports what an instance is doing, which is what the button and the tag show.
+	private Function<DshInstance, LaunchState> stateCheck = instance -> LaunchState.STOPPED;
 
-    /// Creates the cell.
-    public InstanceListCell() {
-        BorderPane root = new BorderPane();
-        root.getStyleClass().add("md-list-cell");
-        root.setPadding(new Insets(8, 8, 8, 0));
+	/// Creates the cell.
+	public InstanceListCell() {
+		BorderPane root = new BorderPane();
+		root.getStyleClass().add("md-list-cell");
+		root.setPadding(new Insets(8, 8, 8, 0));
 
-        selector.setMouseTransparent(false);
-        root.setLeft(selector);
-        BorderPane.setAlignment(selector, Pos.CENTER);
+		selector.setMouseTransparent(false);
+		root.setLeft(selector);
+		BorderPane.setAlignment(selector, Pos.CENTER);
 
-        HBox center = new HBox(8);
-        center.setAlignment(Pos.CENTER_LEFT);
-        center.setMouseTransparent(true);
-        // The original holds the middle at its preferred width and centres the
-        // text within the row rather than stretching it.
-        center.setPrefWidth(Region.USE_PREF_SIZE);
-        BorderPane.setMargin(center, new Insets(0, 0, 0, 8));
-        BorderPane.setAlignment(content, Pos.CENTER);
-        center.getChildren().setAll(icon, content);
-        root.setCenter(center);
+		HBox center = new HBox(8);
+		center.setAlignment(Pos.CENTER_LEFT);
+		center.setMouseTransparent(true);
+		// The original holds the middle at its preferred width and centres the
+		// text within the row rather than stretching it.
+		center.setPrefWidth(Region.USE_PREF_SIZE);
+		BorderPane.setMargin(center, new Insets(0, 0, 0, 8));
+		BorderPane.setAlignment(content, Pos.CENTER);
+		center.getChildren().setAll(icon, content);
+		root.setCenter(center);
 
-        // The tag is the row's own line about what the instance is doing, drawn
-        // beside the name as the original draws the tags it keeps on a game.
-        FXUtils.onChangeAndOperate(stateTag, tag -> {
-            content.getTags().clear();
-            if (tag != null && !tag.isBlank()) {
-                content.addTag(tag);
-            }
-        });
+		// The tag is the row's own line about what the instance is doing, drawn
+		// beside the name as the original draws the tags it keeps on a game.
+		FXUtils.onChangeAndOperate(stateTag, tag -> {
+			content.getTags().clear();
+			if (tag != null && !tag.isBlank()) {
+				content.addTag(tag);
+			}
+		});
 
-        HBox right = new HBox();
-        right.setAlignment(Pos.CENTER_RIGHT);
-        launch.setOnAction(event -> {
-            DshInstance instance = getItem();
-            if (instance != null) {
-                onLaunch.accept(instance);
-            }
-        });
-        menu.setOnAction(event -> {
-            DshInstance instance = getItem();
-            if (instance != null) {
-                onMenu.accept(instance, menu);
-            }
-        });
-        right.getChildren().addAll(launch, menu);
-        root.setRight(right);
+		HBox right = new HBox();
+		right.setAlignment(Pos.CENTER_RIGHT);
+		launch.setOnAction(event -> {
+			DshInstance instance = getItem();
+			if (instance != null) {
+				onLaunch.accept(instance);
+			}
+		});
+		menu.setOnAction(event -> {
+			DshInstance instance = getItem();
+			if (instance != null) {
+				onMenu.accept(instance, menu);
+			}
+		});
+		right.getChildren().addAll(launch, menu);
+		root.setRight(right);
 
-        this.graphic = new RipplerContainer(root);
-        setGraphic(graphic);
+		this.graphic = new RipplerContainer(root);
+		setGraphic(graphic);
 
-        // The whole row opens the instance, and only the radio button beside it
-        // chooses which one the launcher starts — which is what the original
-        // does: its rows open the settings and leave the choice alone. Choosing
-        // as a side effect of looking at an instance is a choice nobody made.
-        root.setCursor(Cursor.HAND);
-        graphic.setOnMouseClicked(event -> {
-            DshInstance instance = getItem();
-            if (instance != null && event.getButton() == MouseButton.PRIMARY) {
-                onOpen.accept(instance);
-            }
-        });
-    }
+		// The whole row opens the instance, and only the radio button beside it
+		// chooses which one the launcher starts — which is what the original
+		// does: its rows open the settings and leave the choice alone. Choosing
+		// as a side effect of looking at an instance is a choice nobody made.
+		root.setCursor(Cursor.HAND);
+		graphic.setOnMouseClicked(event -> {
+			DshInstance instance = getItem();
+			if (instance != null && event.getButton() == MouseButton.PRIMARY) {
+				onOpen.accept(instance);
+			}
+		});
+	}
 
-    /// Sets the handlers the row reports to.
-    ///
-    /// @param onSelect called when the radio button chooses the instance
-    /// @param onLaunch called when the launch button is pressed
-    /// @param onMenu   called when the menu button is pressed
-    public void setHandlers(Consumer<DshInstance> onSelect,
-                            Consumer<DshInstance> onOpen,
-                            Consumer<DshInstance> onLaunch,
-                            BiConsumer<DshInstance, JFXButton> onMenu) {
-        this.onSelect = onSelect;
-        this.onOpen = onOpen;
-        this.onLaunch = onLaunch;
-        this.onMenu = onMenu;
-    }
+	/// Sets the handlers the row reports to.
+	///
+	/// @param onSelect called when the radio button chooses the instance
+	/// @param onLaunch called when the launch button is pressed
+	/// @param onMenu   called when the menu button is pressed
+	public void setHandlers(Consumer<DshInstance> onSelect,
+	                        Consumer<DshInstance> onOpen,
+	                        Consumer<DshInstance> onLaunch,
+	                        BiConsumer<DshInstance, JFXButton> onMenu) {
+		this.onSelect = onSelect;
+		this.onOpen = onOpen;
+		this.onLaunch = onLaunch;
+		this.onMenu = onMenu;
+	}
 
-    /// Sets how the cell learns which instance is selected.
-    ///
-    /// A supplier is used rather than a value because the virtual flow recycles
-    /// cells: the selected instance can change while a cell is in place, and the
-    /// answer belongs to the folder rather than to the cell.
-    ///
-    /// @param supplier supplies the selected instance, or `null`
-    public void setSelectedInstanceSupplier(Supplier<@Nullable DshInstance> supplier) {
-        this.selectedInstance = supplier;
-    }
+	/// Sets how the cell learns which instance is selected.
+	///
+	/// A supplier is used rather than a value because the virtual flow recycles
+	/// cells: the selected instance can change while a cell is in place, and the
+	/// answer belongs to the folder rather than to the cell.
+	///
+	/// @param supplier supplies the selected instance, or `null`
+	public void setSelectedInstanceSupplier(Supplier<@Nullable DshInstance> supplier) {
+		this.selectedInstance = supplier;
+	}
 
-    /// Sets how the cell learns what an instance is doing.
-    ///
-    /// @param check reports the state of the given instance
-    public void setStateCheck(Function<DshInstance, LaunchState> check) {
-        this.stateCheck = check;
-    }
+	/// Sets how the cell learns what an instance is doing.
+	///
+	/// @param check reports the state of the given instance
+	public void setStateCheck(Function<DshInstance, LaunchState> check) {
+		this.stateCheck = check;
+	}
 
-    @Override
-    protected void updateItem(@Nullable DshInstance instance, boolean empty) {
-        super.updateItem(instance, empty);
+	@Override
+	protected void updateItem(@Nullable DshInstance instance, boolean empty) {
+		super.updateItem(instance, empty);
 
-        if (empty || instance == null) {
-            setGraphic(null);
-            return;
-        }
+		if (empty || instance == null) {
+			setGraphic(null);
+			return;
+		}
 
-        setGraphic(graphic);
+		setGraphic(graphic);
 
-        DshInstance selected = selectedInstance.get();
-        selector.setSelected(selected != null && instance.id().equals(selected.id()));
-        icon.setImage(DshInstanceIcons.load(instance));
-        content.setTitle(instance.id());
-        content.setSubtitle(i18n("dsh.instance.summary",
-                instance.version(),
-                instance.profile(),
-                i18n("dsh.instance.home." + instance.homeMode().name().toLowerCase(Locale.ROOT))));
+		DshInstance selected = selectedInstance.get();
+		selector.setSelected(selected != null && instance.id().equals(selected.id()));
+		icon.setImage(DshInstanceIcons.load(instance));
+		content.setTitle(instance.id());
+		content.setSubtitle(i18n("dsh.instance.summary",
+		                         instance.version(),
+		                         instance.profile(),
+		                         i18n("dsh.instance.home." + instance.homeMode().name().toLowerCase(Locale.ROOT))));
 
-        LaunchState state = stateCheck.apply(instance);
-        // Anything but a stopped instance is stopped by this button, so it wears
-        // the mark for stopping from the moment the instance is asked for: a
-        // rocket that cancelled a launch would be a button that lied.
-        SVG action = state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL;
-        // No size: the stylesheet sizes a toggle-icon4 button's graphic, which is
-        // what the original leaves it to.
-        launch.setGraphic(action.createIcon());
-        FXUtils.installFastTooltip(launch, DshLaunchService.actionHint(state));
-        FXUtils.installFastTooltip(menu, i18n("dsh.instance.menu"));
-        stateTag.set(DshLaunchService.stateTag(state));
-    }
+		LaunchState state = stateCheck.apply(instance);
+		// Anything but a stopped instance is stopped by this button, so it wears
+		// the mark for stopping from the moment the instance is asked for: a
+		// rocket that cancelled a launch would be a button that lied.
+		SVG action = state == LaunchState.STOPPED ? SVG.ROCKET_LAUNCH : SVG.CANCEL;
+		// No size: the stylesheet sizes a toggle-icon4 button's graphic, which is
+		// what the original leaves it to.
+		launch.setGraphic(action.createIcon());
+		FXUtils.installFastTooltip(launch, DshLaunchService.actionHint(state));
+		FXUtils.installFastTooltip(menu, i18n("dsh.instance.menu"));
+		stateTag.set(DshLaunchService.stateTag(state));
+	}
 }

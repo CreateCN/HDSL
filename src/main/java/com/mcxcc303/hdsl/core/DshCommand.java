@@ -18,20 +18,19 @@
 package com.mcxcc303.hdsl.core;
 
 import com.mcxcc303.hdsl.launch.DshNetworkSettings;
-
 import org.jackhuang.hmcl.util.platform.ManagedProcess;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /// Runs a short-lived external command and captures its output.
@@ -41,173 +40,173 @@ import java.util.function.Consumer;
 /// [com.mcxcc303.hdsl.launch.DshProcess] instead.
 @NotNullByDefault
 public final class DshCommand {
-    /// The programs this launcher has started and is waiting on.
-    private static final java.util.Set<Process> RUNNING = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	/// The programs this launcher has started and is waiting on.
+	private static final Set<Process> RUNNING = ConcurrentHashMap.newKeySet();
 
-    /// How long the readers of a command's output are given to finish once the process has ended.
-    ///
-    /// What the process wrote is already in the pipe by then, so this bounds scheduling rather than
-    /// work: the readers of a finished process finish in microseconds. The bound is only ever reached
-    /// when a descendant inherited the pipe and holds it open, where waiting longer would not help.
-    private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(2);
+	/// How long the readers of a command's output are given to finish once the process has ended.
+	///
+	/// What the process wrote is already in the pipe by then, so this bounds scheduling rather than
+	/// work: the readers of a finished process finish in microseconds. The bound is only ever reached
+	/// when a descendant inherited the pipe and holds it open, where waiting longer would not help.
+	private static final Duration DRAIN_TIMEOUT = Duration.ofSeconds(2);
 
-    private DshCommand() {
-    }
+	private DshCommand() {
+	}
 
-    /// The result of a finished command.
-    ///
-    /// @param exitCode the process exit code
-    /// @param output   every stdout and stderr line, in arrival order
-    public record Result(int exitCode, @org.jetbrains.annotations.Unmodifiable List<String> output) {
-        /// Returns whether the command exited successfully.
-        ///
-        /// @return whether the exit code is zero
-        public boolean isSuccess() {
-            return exitCode == 0;
-        }
+	/// Runs a command, waiting for it to finish.
+	///
+	/// @param command the program and its arguments
+	/// @return the command result
+	/// @throws IOException          when the process cannot be started
+	/// @throws InterruptedException when the calling thread is interrupted while waiting
+	public static Result run(List<String> command) throws IOException, InterruptedException {
+		return run(command, null, Map.of(), null);
+	}
 
-        /// Returns the captured output joined by newlines.
-        ///
-        /// @return the trimmed output text
-        public String text() {
-            return String.join("\n", output).trim();
-        }
-    }
+	/// Runs a command in a directory, waiting for it to finish.
+	///
+	/// @param command   the program and its arguments
+	/// @param directory the working directory, or `null` for the current one
+	/// @param onLine    a consumer notified of every output line, or `null`
+	/// @return the command result
+	/// @throws IOException          when the process cannot be started
+	/// @throws InterruptedException when the calling thread is interrupted while waiting
+	public static Result run(List<String> command, @Nullable Path directory, @Nullable Consumer<String> onLine)
+	throws IOException, InterruptedException {
+		return run(command, directory, Map.of(), onLine);
+	}
 
-    /// Runs a command, waiting for it to finish.
-    ///
-    /// @param command the program and its arguments
-    /// @return the command result
-    /// @throws IOException          when the process cannot be started
-    /// @throws InterruptedException when the calling thread is interrupted while waiting
-    public static Result run(List<String> command) throws IOException, InterruptedException {
-        return run(command, null, Map.of(), null);
-    }
+	/// Runs a command with extra environment variables, waiting for it to finish.
+	///
+	/// The variables are added to the inherited environment. Passing them here
+	/// rather than relying on the caller's own `ProcessBuilder` matters for
+	/// anything that must be scoped to a directory of ours: `dsh` reads
+	/// `DSH_HOME` from its environment, and without it the command would quietly
+	/// operate on the user's real `~/.dsh`.
+	///
+	/// @param command     the program and its arguments
+	/// @param directory   the working directory, or `null` for the current one
+	/// @param environment extra environment variables
+	/// @param onLine      a consumer notified of every output line, or `null`
+	/// @return the command result
+	/// @throws IOException          when the process cannot be started
+	/// @throws InterruptedException when the calling thread is interrupted while waiting
+	public static Result run(List<String> command,
+	                         @Nullable Path directory,
+	                         Map<String, String> environment,
+	                         @Nullable Consumer<String> onLine) throws IOException, InterruptedException {
+		ProcessBuilder builder = new ProcessBuilder(command);
+		// What the launcher is configured to download through travels with every child, so a
+		// proxy covers the version lists and the plugin installs alike.
+		builder.environment().putAll(DshNetworkSettings.environment());
+		if (directory != null) {
+			builder.directory(directory.toFile());
+		}
+		builder.environment().putAll(environment);
+		builder.redirectErrorStream(true);
 
-    /// Runs a command in a directory, waiting for it to finish.
-    ///
-    /// @param command   the program and its arguments
-    /// @param directory the working directory, or `null` for the current one
-    /// @param onLine    a consumer notified of every output line, or `null`
-    /// @return the command result
-    /// @throws IOException          when the process cannot be started
-    /// @throws InterruptedException when the calling thread is interrupted while waiting
-    public static Result run(List<String> command, @Nullable Path directory, @Nullable Consumer<String> onLine)
-            throws IOException, InterruptedException {
-        return run(command, directory, Map.of(), onLine);
-    }
+		ManagedProcess process = new ManagedProcess(builder);
+		// Registered while it runs, so an install the user cancels can stop the
+		// program it started. Interrupting the thread waiting on a process does
+		// not stop the process: npm keeps writing to a directory nothing is
+		// watching any more.
+		Process running = process.getProcess();
+		RUNNING.add(running);
+		List<String> output = Collections.synchronizedList(new ArrayList<>());
+		Charset charset = OperatingSystem.NATIVE_CHARSET;
 
-    /// Runs a command with extra environment variables, waiting for it to finish.
-    ///
-    /// The variables are added to the inherited environment. Passing them here
-    /// rather than relying on the caller's own `ProcessBuilder` matters for
-    /// anything that must be scoped to a directory of ours: `dsh` reads
-    /// `DSH_HOME` from its environment, and without it the command would quietly
-    /// operate on the user's real `~/.dsh`.
-    ///
-    /// @param command     the program and its arguments
-    /// @param directory   the working directory, or `null` for the current one
-    /// @param environment extra environment variables
-    /// @param onLine      a consumer notified of every output line, or `null`
-    /// @return the command result
-    /// @throws IOException          when the process cannot be started
-    /// @throws InterruptedException when the calling thread is interrupted while waiting
-    public static Result run(List<String> command, @Nullable Path directory,
-                             Map<String, String> environment, @Nullable Consumer<String> onLine)
-            throws IOException, InterruptedException {
-        ProcessBuilder builder = new ProcessBuilder(command);
-        // What the launcher is configured to download through travels with every child, so a
-        // proxy covers the version lists and the plugin installs alike.
-        builder.environment().putAll(DshNetworkSettings.environment());
-        if (directory != null) {
-            builder.directory(directory.toFile());
-        }
-        builder.environment().putAll(environment);
-        builder.redirectErrorStream(true);
+		process.pumpInputStream(line -> {
+			output.add(line);
+			if (onLine != null) {
+				onLine.accept(line);
+			}
+		});
+		process.pumpErrorStream(line -> {
+			output.add(line);
+			if (onLine != null) {
+				onLine.accept(line);
+			}
+		});
 
-        ManagedProcess process = new ManagedProcess(builder);
-        // Registered while it runs, so an install the user cancels can stop the
-        // program it started. Interrupting the thread waiting on a process does
-        // not stop the process: npm keeps writing to a directory nothing is
-        // watching any more.
-        Process running = process.getProcess();
-        RUNNING.add(running);
-        List<String> output = Collections.synchronizedList(new ArrayList<>());
-        Charset charset = OperatingSystem.NATIVE_CHARSET;
+		try {
+			int exitCode = running.waitFor();
+			// The process has ended, but its output has not necessarily been read: the line it
+			// wrote last is still in the pipe, and the thread reading it is a scheduling delay
+			// away from handing it over. Interrupting that thread instead of waiting for it
+			// discards the line — and for a `node --version` the line is the whole answer, which
+			// is how a machine with Node.js installed comes to be reported as having none.
+			//
+			// So the readers are waited for first. This is not the same as waiting for the
+			// process: what it left in the pipe is already written, and the wait is bounded
+			// because a descendant that inherited the pipe would otherwise hold it open.
+			process.awaitRelatedThreads(DRAIN_TIMEOUT);
+			process.destroyRelatedThreads();
+			return new Result(exitCode, List.copyOf(output));
+		} catch (InterruptedException e) {
+			// The wait was cut short, which is what cancelling an install does.
+			// Stopping the wait does not stop the program: it carries on writing
+			// into a directory whose owner has gone. It is stopped here, where it
+			// was started — the caller cannot do it, because by the time it sees
+			// the interrupt this block has already removed the process from the
+			// registry.
+			stopTree(running);
+			Thread.currentThread().interrupt();
+			throw e;
+		} finally {
+			RUNNING.remove(running);
+		}
+	}
 
-        process.pumpInputStream(line -> {
-            output.add(line);
-            if (onLine != null) {
-                onLine.accept(line);
-            }
-        });
-        process.pumpErrorStream(line -> {
-            output.add(line);
-            if (onLine != null) {
-                onLine.accept(line);
-            }
-        });
+	/// Stops a program and everything it started.
+	///
+	/// npm is a launcher that runs node, so stopping the launcher leaves the
+	/// work running. What is being stopped is the work.
+	///
+	/// @param process the program to stop
+	private static void stopTree(Process process) {
+		process.descendants().forEach(ProcessHandle::destroy);
+		process.destroy();
+		try {
+			if (!process.waitFor(5, TimeUnit.SECONDS)) {
+				process.descendants().forEach(ProcessHandle::destroyForcibly);
+				process.destroyForcibly();
+			}
+		} catch (InterruptedException e) {
+			process.descendants().forEach(ProcessHandle::destroyForcibly);
+			process.destroyForcibly();
+			Thread.currentThread().interrupt();
+		}
+	}
 
-        try {
-            int exitCode = running.waitFor();
-            // The process has ended, but its output has not necessarily been read: the line it
-            // wrote last is still in the pipe, and the thread reading it is a scheduling delay
-            // away from handing it over. Interrupting that thread instead of waiting for it
-            // discards the line — and for a `node --version` the line is the whole answer, which
-            // is how a machine with Node.js installed comes to be reported as having none.
-            //
-            // So the readers are waited for first. This is not the same as waiting for the
-            // process: what it left in the pipe is already written, and the wait is bounded
-            // because a descendant that inherited the pipe would otherwise hold it open.
-            process.awaitRelatedThreads(DRAIN_TIMEOUT);
-            process.destroyRelatedThreads();
-            return new Result(exitCode, List.copyOf(output));
-        } catch (InterruptedException e) {
-            // The wait was cut short, which is what cancelling an install does.
-            // Stopping the wait does not stop the program: it carries on writing
-            // into a directory whose owner has gone. It is stopped here, where it
-            // was started — the caller cannot do it, because by the time it sees
-            // the interrupt this block has already removed the process from the
-            // registry.
-            stopTree(running);
-            Thread.currentThread().interrupt();
-            throw e;
-        } finally {
-            RUNNING.remove(running);
-        }
-    }
+	/// Stops every command this launcher is running, and waits for them to stop.
+	///
+	/// Called when an install is cancelled. It waits, because the caller deletes
+	/// what the command was writing: a program that has been asked to stop is
+	/// still writing until it has.
+	public static void stopRunning() {
+		for (Process process : RUNNING) {
+			stopTree(process);
+		}
+		RUNNING.clear();
+	}
 
-    /// Stops a program and everything it started.
-    ///
-    /// npm is a launcher that runs node, so stopping the launcher leaves the
-    /// work running. What is being stopped is the work.
-    ///
-    /// @param process the program to stop
-    private static void stopTree(Process process) {
-        process.descendants().forEach(ProcessHandle::destroy);
-        process.destroy();
-        try {
-            if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
-                process.descendants().forEach(ProcessHandle::destroyForcibly);
-                process.destroyForcibly();
-            }
-        } catch (InterruptedException e) {
-            process.descendants().forEach(ProcessHandle::destroyForcibly);
-            process.destroyForcibly();
-            Thread.currentThread().interrupt();
-        }
-    }
+	/// The result of a finished command.
+	///
+	/// @param exitCode the process exit code
+	/// @param output   every stdout and stderr line, in arrival order
+	public record Result(int exitCode, @Unmodifiable List<String> output) {
+		/// Returns whether the command exited successfully.
+		///
+		/// @return whether the exit code is zero
+		public boolean isSuccess() {
+			return exitCode == 0;
+		}
 
-
-    /// Stops every command this launcher is running, and waits for them to stop.
-    ///
-    /// Called when an install is cancelled. It waits, because the caller deletes
-    /// what the command was writing: a program that has been asked to stop is
-    /// still writing until it has.
-    public static void stopRunning() {
-        for (Process process : RUNNING) {
-            stopTree(process);
-        }
-        RUNNING.clear();
-    }
+		/// Returns the captured output joined by newlines.
+		///
+		/// @return the trimmed output text
+		public String text() {
+			return String.join("\n", output).trim();
+		}
+	}
 }

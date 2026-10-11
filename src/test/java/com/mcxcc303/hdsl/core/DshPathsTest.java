@@ -17,9 +17,6 @@
  */
 package com.mcxcc303.hdsl.core;
 
-import com.mcxcc303.hdsl.core.DshException;
-import com.mcxcc303.hdsl.core.DshPaths;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -27,10 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /// Verifies the rule an instance name has to satisfy to become a directory.
 ///
@@ -40,82 +34,87 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// refused, because that is the one that breaks when the folder is carried to a
 /// Windows machine.
 class DshPathsTest {
-    /// The names an instance may be called.
-    private static final List<String> ACCEPTED = List.of(
-            "default",
-            "e2e1",
-            "my instance",          // a space inside is a space Windows keeps
-            "2026-09-26",
-            "实例",
-            "a.b",                  // a dot inside is not a trailing dot
-            ".hidden",
-            "dsh_2",
-            "a~b");                 // '~' only matters as a whole segment
+	/// The names an instance may be called.
+	private static final List<String> ACCEPTED = List.of("default",
+	                                                     "e2e1",
+	                                                     "my instance",          // a space inside is a space Windows keeps
+	                                                     "2026-09-26",
+	                                                     "实例",
+	                                                     "a.b",                  // a dot inside is not a trailing dot
+	                                                     ".hidden",
+	                                                     "dsh_2",
+	                                                     "a~b");                 // '~' only matters as a whole segment
 
-    /// The names that must be refused, and the reason each one breaks.
-    private static final List<String> REFUSED = List.of(
-            "",                     // empty names no directory
-            ".",
-            "..",
-            "~",                    // the home directory in every shell
-            "a/b",                  // one segment, not two
-            "a\\b",
-            "C:instance",           // a drive separator inside a segment
-            "a:b",
-            "trailing.",            // Windows strips the dot
-            "CON",                  // reserved devices, with and without an extension
-            "con",
-            "CON.txt",
-            "prn", "aux", "nul",
-            "COM1", "com9", "LPT1", "lpt9",
-            "com\u00b9",            // the superscript spellings Windows also reserves
-            "clock$",
-            "a<b", "a>b", "a\"b", "a|b", "a?b", "a*b",
-            "a\u0000b",             // a NUL ends the string halfway through
-            "a\u0007b");            // a control character
+	/// The names that must be refused, and the reason each one breaks.
+	private static final List<String> REFUSED = List.of("",                     // empty names no directory
+	                                                    ".",
+	                                                    "..",
+	                                                    "~",                    // the home directory in every shell
+	                                                    "a/b",                  // one segment, not two
+	                                                    "a\\b",
+	                                                    "C:instance",           // a drive separator inside a segment
+	                                                    "a:b",
+	                                                    "trailing.",            // Windows strips the dot
+	                                                    "CON",                  // reserved devices, with and without an extension
+	                                                    "con",
+	                                                    "CON.txt",
+	                                                    "prn",
+	                                                    "aux",
+	                                                    "nul",
+	                                                    "COM1",
+	                                                    "com9",
+	                                                    "LPT1",
+	                                                    "lpt9",
+	                                                    "com\u00b9",            // the superscript spellings Windows also reserves
+	                                                    "clock$",
+	                                                    "a<b",
+	                                                    "a>b",
+	                                                    "a\"b",
+	                                                    "a|b",
+	                                                    "a?b",
+	                                                    "a*b",
+	                                                    "a\u0000b",             // a NUL ends the string halfway through
+	                                                    "a\u0007b");            // a control character
 
-    @Test
-    void theNamesAnInstanceMayBeCalledAreAccepted() {
-        for (String name : ACCEPTED) {
-            assertTrue(DshPaths.isUsableSegment(name),
-                    name + " should be usable as an instance name");
-        }
-    }
+	@Test
+	void theNamesAnInstanceMayBeCalledAreAccepted() {
+		for (String name : ACCEPTED) {
+			assertTrue(DshPaths.isUsableSegment(name), name + " should be usable as an instance name");
+		}
+	}
 
-    @Test
-    void theNamesThatWouldBreakAFolderAreRefused() {
-        for (String name : REFUSED) {
-            assertFalse(DshPaths.isUsableSegment(name),
-                    name + " should not be usable as an instance name");
-        }
-    }
+	@Test
+	void theNamesThatWouldBreakAFolderAreRefused() {
+		for (String name : REFUSED) {
+			assertFalse(DshPaths.isUsableSegment(name), name + " should not be usable as an instance name");
+		}
+	}
 
-    @Test
-    void aNameIsTrimmedBeforeItIsJudged() throws Exception {
-        assertTrue(DshPaths.isUsableSegment("  e2e1  "));
-        assertEquals("e2e1", DshPaths.instanceDirectory("  e2e1  ").getFileName().toString());
-    }
+	@Test
+	void aNameIsTrimmedBeforeItIsJudged() throws Exception {
+		assertTrue(DshPaths.isUsableSegment("  e2e1  "));
+		assertEquals("e2e1", DshPaths.instanceDirectory("  e2e1  ").getFileName().toString());
+	}
 
-    @Test
-    void aNullNameIsNotAName() {
-        assertFalse(DshPaths.isUsableSegment(null));
-    }
+	@Test
+	void aNullNameIsNotAName() {
+		assertFalse(DshPaths.isUsableSegment(null));
+	}
 
-    @Test
-    void aRefusedNameIsAnErrorRatherThanADirectoryBesideTheInstances() throws Exception {
-        DshException refused = assertThrows(DshException.class,
-                () -> DshPaths.instanceDirectory("../escape"));
-        assertTrue(refused.getMessage().contains("instance id"), refused.getMessage());
-    }
+	@Test
+	void aRefusedNameIsAnErrorRatherThanADirectoryBesideTheInstances() throws Exception {
+		DshException refused = assertThrows(DshException.class, () -> DshPaths.instanceDirectory("../escape"));
+		assertTrue(refused.getMessage().contains("instance id"), refused.getMessage());
+	}
 
-    /// The rule is not decorative: what it accepts, the filesystem of the
-    /// machine running the test can actually create, and what it refuses for a
-    /// reason Windows owns is refused even there.
-    @Test
-    void whatTheRuleAcceptsCanBeCreated(@TempDir Path root) throws Exception {
-        for (String name : ACCEPTED) {
-            Path directory = Files.createDirectory(root.resolve(name));
-            assertTrue(Files.isDirectory(directory), name + " should have been created");
-        }
-    }
+	/// The rule is not decorative: what it accepts, the filesystem of the
+	/// machine running the test can actually create, and what it refuses for a
+	/// reason Windows owns is refused even there.
+	@Test
+	void whatTheRuleAcceptsCanBeCreated(@TempDir Path root) throws Exception {
+		for (String name : ACCEPTED) {
+			Path directory = Files.createDirectory(root.resolve(name));
+			assertTrue(Files.isDirectory(directory), name + " should have been created");
+		}
+	}
 }

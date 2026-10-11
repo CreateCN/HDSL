@@ -33,26 +33,26 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// or deleted falls back rather than leaving the row blank.
 @NotNullByDefault
 public final class DshInstanceIcons {
-    private DshInstanceIcons() {
-    }
+	private DshInstanceIcons() {
+	}
 
-    /// Loads the image for an instance.
-    ///
-    /// @param instance the instance
-    /// @return the image, or `null` when neither source is usable
-    public static @Nullable Image load(DshInstance instance) {
-        Path file = instance.iconFileOrDefault();
-        if (file != null) {
-            if (Files.isRegularFile(file)) {
-                try {
-                    return new Image(file.toUri().toString(), true);
-                } catch (RuntimeException e) {
-                    LOG.warning("Unreadable instance icon " + file, e);
-                }
-            } else {
-                LOG.info("The instance icon " + file + " is gone; falling back to the built-in icon");
-            }
-        }
-        return instance.iconOrDefault().load();
-    }
+	/// Loads the image for an instance.
+	///
+	/// @param instance the instance
+	/// @return the image, or `null` when neither source is usable
+	public static @Nullable Image load(DshInstance instance) {
+		Path file = instance.iconFileOrDefault();
+		if (file != null) {
+			if (Files.isRegularFile(file)) {
+				try {
+					return new Image(file.toUri().toString(), true);
+				} catch (RuntimeException e) {
+					LOG.warning("Unreadable instance icon " + file, e);
+				}
+			} else {
+				LOG.info("The instance icon " + file + " is gone; falling back to the built-in icon");
+			}
+		}
+		return instance.iconOrDefault().load();
+	}
 }

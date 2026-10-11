@@ -17,7 +17,11 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import org.jackhuang.hmcl.setting.LauncherSettings;
+import org.jackhuang.hmcl.setting.SettingsManager;
+import org.jackhuang.hmcl.util.logging.Logger;
 import org.jetbrains.annotations.NotNullByDefault;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -35,90 +39,89 @@ import java.util.Map;
 /// exactly the environment it always did.
 @NotNullByDefault
 public final class DshNetworkSettings {
-    private DshNetworkSettings() {
-    }
+	private DshNetworkSettings() {
+	}
 
-    /// Returns the variables the launcher's network settings contribute.
-    ///
-    /// @return the variables, empty when nothing is configured
-    public static Map<String, String> environment() {
-        Map<String, String> environment = new LinkedHashMap<>();
-        try {
-            org.jackhuang.hmcl.setting.LauncherSettings settings =
-                    org.jackhuang.hmcl.setting.SettingsManager.settings();
-            DshProxyMode mode = settings.proxyModeProperty().get() == null
-                    ? DshProxyMode.SYSTEM : settings.proxyModeProperty().get();
-            switch (mode) {
-                case SYSTEM -> {
-                    // Nothing: whatever the system uses is what a child inherits anyway.
-                }
-                case NONE -> {
-                    // Said out loud, because a child that inherits a proxy from the system would
-                    // otherwise keep using one after being told not to.
-                    environment.put("HTTP_PROXY", "");
-                    environment.put("HTTPS_PROXY", "");
-                    environment.put("NO_PROXY", "*");
-                }
-                case HTTP, SOCKS -> {
-                    String address = address(settings, mode);
-                    if (address != null) {
-                        environment.put("HTTP_PROXY", address);
-                        environment.put("HTTPS_PROXY", address);
-                        // Some tools read only this one, and a SOCKS proxy is usually named here.
-                        environment.put("ALL_PROXY", address);
-                    }
-                }
-            }
+	/// Returns the variables the launcher's network settings contribute.
+	///
+	/// @return the variables, empty when nothing is configured
+	public static Map<String, String> environment() {
+		Map<String, String> environment = new LinkedHashMap<>();
+		try {
+			LauncherSettings settings = SettingsManager.settings();
+			DshProxyMode mode = settings.proxyModeProperty().get() == null
+			                    ? DshProxyMode.SYSTEM
+			                    : settings.proxyModeProperty().get();
+			switch (mode) {
+				case SYSTEM -> {
+					// Nothing: whatever the system uses is what a child inherits anyway.
+				}
+				case NONE -> {
+					// Said out loud, because a child that inherits a proxy from the system would
+					// otherwise keep using one after being told not to.
+					environment.put("HTTP_PROXY", "");
+					environment.put("HTTPS_PROXY", "");
+					environment.put("NO_PROXY", "*");
+				}
+				case HTTP, SOCKS -> {
+					String address = address(settings, mode);
+					if (address != null) {
+						environment.put("HTTP_PROXY", address);
+						environment.put("HTTPS_PROXY", address);
+						// Some tools read only this one, and a SOCKS proxy is usually named here.
+						environment.put("ALL_PROXY", address);
+					}
+				}
+			}
 
-            Integer concurrency = settings.downloadConcurrencyProperty().get();
-            if (concurrency != null && concurrency > 0) {
-                // npm reads its configuration from the environment, and `maxsockets` is the key
-                // that decides how many requests it makes at once. The name matters: npm answers an
-                // unknown `npm_config_*` variable with a warning on **stdout**, which is the same
-                // stream the answers come back on.
-                environment.put("npm_config_maxsockets", Integer.toString(concurrency));
-            }
-        } catch (RuntimeException e) {
-            // A launcher whose settings cannot be read is not a reason to fail every command: it
-            // simply has no proxy, which is what an unconfigured one has too.
-            org.jackhuang.hmcl.util.logging.Logger.LOG.warning("Could not read the network settings", e);
-        }
-        return environment;
-    }
+			Integer concurrency = settings.downloadConcurrencyProperty().get();
+			if (concurrency != null && concurrency > 0) {
+				// npm reads its configuration from the environment, and `maxsockets` is the key
+				// that decides how many requests it makes at once. The name matters: npm answers an
+				// unknown `npm_config_*` variable with a warning on **stdout**, which is the same
+				// stream the answers come back on.
+				environment.put("npm_config_maxsockets", Integer.toString(concurrency));
+			}
+		} catch (RuntimeException e) {
+			// A launcher whose settings cannot be read is not a reason to fail every command: it
+			// simply has no proxy, which is what an unconfigured one has too.
+			Logger.LOG.warning("Could not read the network settings", e);
+		}
+		return environment;
+	}
 
-    /// Builds the address of the proxy the settings describe.
-    ///
-    /// @param settings the settings
-    /// @param mode     the chosen mode
-    /// @return the address, or `null` when there is no host to reach
-    private static @org.jetbrains.annotations.Nullable String address(
-            org.jackhuang.hmcl.setting.LauncherSettings settings, DshProxyMode mode) {
-        String host = settings.proxyHostProperty().get();
-        if (host == null || host.isBlank()) {
-            return null;
-        }
-        String port = settings.proxyPortProperty().get();
-        String credentials = "";
-        if (settings.proxyAuthenticatedProperty().get()) {
-            String user = settings.proxyUserProperty().get();
-            String password = settings.proxyPasswordProperty().get();
-            if (user != null && !user.isBlank()) {
-                credentials = user + ":" + (password == null ? "" : password) + "@";
-            }
-        }
-        String scheme = mode == DshProxyMode.SOCKS ? "socks5" : "http";
-        return scheme + "://" + credentials + host.trim()
-                + (port == null || port.isBlank() ? "" : ":" + port.trim());
-    }
+	/// Builds the address of the proxy the settings describe.
+	///
+	/// @param settings the settings
+	/// @param mode     the chosen mode
+	/// @return the address, or `null` when there is no host to reach
+	private static @Nullable String address(LauncherSettings settings, DshProxyMode mode) {
+		String host = settings.proxyHostProperty().get();
+		if (host == null || host.isBlank()) {
+			return null;
+		}
+		String port = settings.proxyPortProperty().get();
+		String credentials = "";
+		if (settings.proxyAuthenticatedProperty().get()) {
+			String user = settings.proxyUserProperty().get();
+			String password = settings.proxyPasswordProperty().get();
+			if (user != null && !user.isBlank()) {
+				credentials = user + ":" + (password == null ? "" : password) + "@";
+			}
+		}
+		String scheme = mode == DshProxyMode.SOCKS ? "socks5" : "http";
+		return scheme + "://" + credentials + host.trim()
+		       + (port == null || port.isBlank() ? "" : ":" + port.trim());
+	}
 
-    /// Adds a variable when it holds something.
-    ///
-    /// @param environment the variables
-    /// @param name        the variable's name
-    /// @param value       its value, or `null` or blank for none
-    private static void add(Map<String, String> environment, String name, String value) {
-        if (value != null && !value.isBlank()) {
-            environment.put(name, value.trim());
-        }
-    }
+	/// Adds a variable when it holds something.
+	///
+	/// @param environment the variables
+	/// @param name        the variable's name
+	/// @param value       its value, or `null` or blank for none
+	private static void add(Map<String, String> environment, String name, String value) {
+		if (value != null && !value.isBlank()) {
+			environment.put(name, value.trim());
+		}
+	}
 }

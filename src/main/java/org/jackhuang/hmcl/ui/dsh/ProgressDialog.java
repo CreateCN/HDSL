@@ -30,6 +30,7 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import static org.jackhuang.hmcl.ui.FXUtils.runInFX;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
@@ -45,68 +46,70 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// work reports as it goes.
 @NotNullByDefault
 public final class ProgressDialog {
-    private ProgressDialog() {
-    }
+	private ProgressDialog() {
+	}
 
-    /// Work that takes time and can fail.
-    @FunctionalInterface
-    public interface Work {
-        /// Runs the installation.
-        ///
-        /// @param report receives the package manager's output
-        /// @throws DshException when the work fails
-        void run(Consumer<String> report) throws DshException;
-    }
+	/// Runs one installation with a progress dialog, and says so when it fails.
+	///
+	/// @param title  the line the dialog is titled with
+	/// @param work   the work, given a sink for the package manager's output
+	/// @param onDone run on the interface thread when the work ends, whether it
+	///               succeeded or not, or `null`
+	public static void run(String title, Work work, @Nullable Runnable onDone) {
+		run(title, work, onDone, null);
+	}
 
-    /// Runs one installation with a progress dialog, and says so when it fails.
-    ///
-    /// @param title  the line the dialog is titled with
-    /// @param work   the work, given a sink for the package manager's output
-    /// @param onDone run on the interface thread when the work ends, whether it
-    ///               succeeded or not, or `null`
-    public static void run(String title, Work work, @Nullable Runnable onDone) {
-        run(title, work, onDone, null);
-    }
+	/// Runs one installation, letting the caller deal with a particular failure.
+	///
+	/// @param title     the line the dialog is titled with
+	/// @param work      the work, given a sink for the package manager's output
+	/// @param onDone    run on the interface thread when the work ends, whether it
+	///                  succeeded or not, or `null`
+	/// @param onFailure asked about the failure; returning true means it was dealt
+	///                  with and no error is shown, or `null` to always show it
+	public static void run(String title,
+	                       Work work,
+	                       @Nullable Runnable onDone,
+	                       @Nullable Predicate<Exception> onFailure) {
+		DshInstallProgress progress = new DshInstallProgress();
 
-    /// Runs one installation, letting the caller deal with a particular failure.
-    ///
-    /// @param title     the line the dialog is titled with
-    /// @param work      the work, given a sink for the package manager's output
-    /// @param onDone    run on the interface thread when the work ends, whether it
-    ///                  succeeded or not, or `null`
-    /// @param onFailure asked about the failure; returning true means it was dealt
-    ///                  with and no error is shown, or `null` to always show it
-    public static void run(String title, Work work, @Nullable Runnable onDone,
-                           @Nullable java.util.function.Predicate<Exception> onFailure) {
-        DshInstallProgress progress = new DshInstallProgress();
+		Task<Void> task = Task.runAsync(title, () -> work.run(progress::accept));
+		TaskExecutorDialogPane pane = new TaskExecutorDialogPane(new TaskCancellationAction(it -> it.fireEvent(new DialogCloseEvent())));
+		pane.titleProperty().bind(progress.messageProperty());
 
-        Task<Void> task = Task.runAsync(title, () -> work.run(progress::accept));
-        TaskExecutorDialogPane pane = new TaskExecutorDialogPane(
-                new TaskCancellationAction(it -> it.fireEvent(new DialogCloseEvent())));
-        pane.titleProperty().bind(progress.messageProperty());
+		TaskExecutor executor = task.executor();
+		executor.addTaskListener(new TaskListener() {
+			@Override
+			public void onStop(boolean success, TaskExecutor stopped) {
+				runInFX(() -> {
+					if (!success) {
+						Exception failure = stopped.getException();
+						LOG.warning("Failed: " + title, failure);
+						if (onFailure == null || failure == null || !onFailure.test(failure)) {
+							Controllers.dialog(failure == null ? i18n("message.error") : failure.getMessage(),
+							                   title,
+							                   MessageType.ERROR);
+						}
+					}
+					if (onDone != null) {
+						onDone.run();
+					}
+				});
+			}
+		});
 
-        TaskExecutor executor = task.executor();
-        executor.addTaskListener(new TaskListener() {
-            @Override
-            public void onStop(boolean success, TaskExecutor stopped) {
-                runInFX(() -> {
-                    if (!success) {
-                        Exception failure = stopped.getException();
-                        LOG.warning("Failed: " + title, failure);
-                        if (onFailure == null || failure == null || !onFailure.test(failure)) {
-                            Controllers.dialog(failure == null ? i18n("message.error") : failure.getMessage(),
-                                    title, MessageType.ERROR);
-                        }
-                    }
-                    if (onDone != null) {
-                        onDone.run();
-                    }
-                });
-            }
-        });
+		pane.setExecutor(executor, true);
+		Controllers.dialog(pane);
+		executor.start();
+	}
 
-        pane.setExecutor(executor, true);
-        Controllers.dialog(pane);
-        executor.start();
-    }
+	/// Work that takes time and can fail.
+	@FunctionalInterface
+	public interface Work {
+		/// Runs the installation.
+		///
+		/// @param report receives the package manager's output
+		/// @throws DshException when the work fails
+		void run(Consumer<String> report) throws DshException;
+	}
 }
