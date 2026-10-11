@@ -162,6 +162,10 @@ public final class InstanceCommands {
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int launchInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		if (invocation.flag("url") && invocation.flag("key")) {
+			err.println("error: instance launch prints the address or the key, and was asked for both");
+			return 2;
+		}
 		if (invocation.flag("url")) {
 			return getUrl(invocation, out, err);
 		}

@@ -255,7 +255,7 @@ public final class Cli {
 		for (String name : Commands.groups()) {
 			printGroup(Commands.in(name), out);
 		}
-		printAlone(out);
+		printStandalone(out);
 		out.println();
 		out.println("`hdsl <group> <command> --help` says what one command takes.");
 	}
@@ -274,14 +274,14 @@ public final class Cli {
 	}
 
 	/// Prints the commands that stand alone, which are typed without a group.
-	private static void printAlone(PrintStream out) {
-		List<Commands.Command> alone = Commands.alone();
-		if (alone.isEmpty()) {
+	private static void printStandalone(PrintStream out) {
+		List<Commands.Command> standalone = Commands.standalone();
+		if (standalone.isEmpty()) {
 			return;
 		}
 		out.println();
-		int width = alone.stream().mapToInt(command -> command.name().length()).max().orElse(0);
-		for (Commands.Command command : alone) {
+		int width = standalone.stream().mapToInt(command -> command.name().length()).max().orElse(0);
+		for (Commands.Command command : standalone) {
 			out.println(pad(command.name(), width) + "  " + command.description());
 		}
 	}

@@ -108,13 +108,9 @@ final class Commands {
 
 	/// Every command, in the order the help lists them.
 	private static final List<Command> ALL = List.of(
-			// The launcher itself, and the harness it runs.
+			// The launcher itself.
 			new Command("", "doctor", "print a full diagnostics report",
 			            List.of(), (invocation, out, err) -> DshDoctor.report(out)),
-			new Command("harness", "list", "list the harness each instance runs, and whether it is complete",
-			            List.of(), HarnessCommands::list),
-			new Command("harness", "versions", "list the harness versions the registry publishes",
-			            List.of(), HarnessCommands::versions),
 
 			// Instances.
 			new Command("instance", "create", "create an instance, and give it the harness version to run",
@@ -239,7 +235,13 @@ final class Commands {
 			            NodeCommands::installNode),
 			new Command("node", "uninstall", "remove an installed Node runtime",
 			            List.of(required("version", "version", "the Node version to remove")),
-			            NodeCommands::uninstallNode));
+			            NodeCommands::uninstallNode),
+
+			// The harness the instances run.
+			new Command("harness", "list", "list the harness each instance runs, and whether it is complete",
+			            List.of(), HarnessCommands::list),
+			new Command("harness", "versions", "list the harness versions the registry publishes",
+			            List.of(), HarnessCommands::versions));
 
 	/// The commands by the words they are typed as, one entry per spelling.
 	private static final Map<String, Command> BY_SPELLING = bySpelling();
@@ -276,7 +278,7 @@ final class Commands {
 	/// Returns the commands that stand alone, in the order the help lists them.
 	///
 	/// @return the commands with no group
-	static List<Command> alone() {
+	static List<Command> standalone() {
 		return ALL.stream().filter(command -> command.group().isEmpty()).toList();
 	}
 
