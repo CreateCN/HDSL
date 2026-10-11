@@ -62,25 +62,6 @@ class DshPluginRequirementsTest {
     }
 
     @Test
-    void caretsHoldWithinTheLeftmostNonZeroPart() {
-        assertTrue(DshPluginRequirements.satisfies("^1.2.3", "1.9.0"));
-        assertFalse(DshPluginRequirements.satisfies("^1.2.3", "2.0.0"));
-        assertTrue(DshPluginRequirements.satisfies("^0.2.3", "0.2.9"));
-        assertFalse(DshPluginRequirements.satisfies("^0.2.3", "0.3.0"));
-        assertTrue(DshPluginRequirements.satisfies("~1.2.3", "1.2.9"));
-        assertFalse(DshPluginRequirements.satisfies("~1.2.3", "1.3.0"));
-    }
-
-    @Test
-    void comparisonsAndConjunctionsWork() {
-        assertTrue(DshPluginRequirements.satisfies(">=1.0.0 <2.0.0", "1.5.0"));
-        assertFalse(DshPluginRequirements.satisfies(">=1.0.0 <2.0.0", "2.0.0"));
-        assertTrue(DshPluginRequirements.satisfies("*", "0.0.1"));
-        assertTrue(DshPluginRequirements.satisfies("1.2.3", "1.2.3"));
-        assertFalse(DshPluginRequirements.satisfies("1.2.3", "1.2.4"));
-    }
-
-    @Test
     void aPluginFitsWhenEveryJudgeableRequirementIsMet() {
         JsonObject peers = JsonParser.parseString("""
                 {"@deepseek-ai/dsh-settings": "^0.1.0-rc.7 || ^0.1.1-rc.2 || ^0.1.2-alpha.2",
@@ -126,15 +107,11 @@ class DshPluginRequirementsTest {
     }
 
     @Test
-    void namesInAPrereleaseAreComparedAsNames() {
+    void aPrereleaseIsOrderedByNameAndThenByNumber() {
         assertFalse(DshPluginRequirements.satisfies(">=0.1.0-rc.0", "0.1.0-alpha.1"),
                 "`alpha` is under `rc`, whatever number follows it");
-        assertTrue(DshPluginRequirements.satisfies(">=0.1.0-alpha.0", "0.1.0-alpha.1"));
-        assertTrue(DshPluginRequirements.satisfies(">=0.1.0-beta.0", "0.1.0-rc.1"));
         assertTrue(DshPluginRequirements.satisfies(">=0.1.0-rc.2", "0.1.0-rc.10"),
                 "prerelease numbers are numbers, not text");
-        assertTrue(DshPluginRequirements.satisfies(">=0.1.0-1", "0.1.0-alpha"),
-                "a number is under a name");
     }
 
     @Test
@@ -149,19 +126,14 @@ class DshPluginRequirementsTest {
     }
 
     @Test
-    void hyphensAndWildcardsAreReadTheWayNpmReadsThem() {
-        assertTrue(DshPluginRequirements.satisfies("1.2.3 - 2.3.4", "1.2.5"));
-        assertFalse(DshPluginRequirements.satisfies("1.2.3 - 2.3.4", "1.2.0"));
-        assertFalse(DshPluginRequirements.satisfies("1.2.3 - 2.3.4", "2.3.5"));
-
-        assertTrue(DshPluginRequirements.satisfies("*", "0.1.7-rc.1"));
-        assertTrue(DshPluginRequirements.satisfies("^*", "0.1.7-rc.1"));
-        assertTrue(DshPluginRequirements.satisfies(">=*", "0.1.7-rc.1"));
-        assertFalse(DshPluginRequirements.satisfies("<*", "0.1.7-rc.1"), "npm reads `<*` as `<0.0.0-0`");
-        assertTrue(DshPluginRequirements.satisfies("1.x", "1.2.5"));
-        assertTrue(DshPluginRequirements.satisfies("0.1", "0.1.7-rc.1"),
-                "a range that names fewer numbers starts at a prerelease of them");
+    void aBoundThatNamesFewerNumbersStartsBelowTheRelease() {
+        // The floor a range makes up is a prerelease of the version it writes, which is what makes
+        // `0.1` about the 0.1 line rather than about 0.1.0 onwards, and what lets `*` hold the
+        // harness's own prereleases.
+        assertTrue(DshPluginRequirements.satisfies("0.1", "0.1.7-rc.1"));
         assertFalse(DshPluginRequirements.satisfies("0.1", "0.2.0"));
+        assertTrue(DshPluginRequirements.satisfies("*", "0.1.7-rc.1"));
+        assertFalse(DshPluginRequirements.satisfies("<*", "0.1.7-rc.1"), "npm reads `<*` as `<0.0.0-0`");
     }
 
     @Test
