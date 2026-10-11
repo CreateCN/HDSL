@@ -57,6 +57,9 @@ public final class SessionCommands {
 			return 1;
 		}
 
+		if (RunningInstances.isUp(target, err)) {
+			return 1;
+		}
 		String from = invocation.option("from");
 		Path sourceHome =
 				from == null || from.isBlank() ? Path.of(System.getProperty("user.home"), ".dsh") : Path.of(from);
@@ -135,6 +138,11 @@ public final class SessionCommands {
 			err.println("error: the source or target instance does not exist");
 			return 1;
 		}
+		// Both ends: the session is read out of the source's home and written into the target's, and
+		// either of them running is a home being changed under a live harness.
+		if (RunningInstances.isUp(source, err) || RunningInstances.isUp(target, err)) {
+			return 1;
+		}
 		String sessionId = invocation.option("session");
 
 		try {
@@ -172,6 +180,12 @@ public final class SessionCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+
+		// The prompt is answered by a harness of its own, started on this instance's home — which is
+		// the second process the launcher keeps an instance from having.
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 

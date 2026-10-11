@@ -182,6 +182,9 @@ public final class InstanceCommands {
 			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
+		if (RunningInstances.isUp(instance, err)) {
+			return 1;
+		}
 
 		// What is about to run, before it runs: the argument list is assembled from the version's
 		// own help, the instance's settings and the launcher's defaults, and when a launch goes
@@ -248,6 +251,9 @@ public final class InstanceCommands {
 			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
+		if (RunningInstances.isUp(instance, err)) {
+			return 1;
+		}
 		DshLaunchArguments.Parsed parsed = DshLaunchArguments.parseArguments(instance.extraArguments());
 		out.println("instance   : " + instance.id() + " (profile " + instance.profile() + ")");
 		out.println("typed      : " + instance.extraArguments());
@@ -262,11 +268,17 @@ public final class InstanceCommands {
 	}
 
 	/// Runs the `instance test-launch` command.
+	///
+	/// An instance that is up is not launched a second time: this would be that second harness on
+	/// the same home, which is what the launcher keeps one process per instance to avoid.
 	static int testLaunch(Invocation invocation, PrintStream out, PrintStream err) {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		try {
@@ -327,8 +339,19 @@ public final class InstanceCommands {
 	}
 
 	/// Runs the `instance delete` command.
+	///
+	/// An instance that is up is not removed: the harness is still writing to the home that would be
+	/// deleted. Stopping it first is one command, and its name is part of the refusal.
 	static int deleteInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String id = invocation.option("id");
+		DshInstance instance = InstanceStore.find(id);
+		if (instance == null) {
+			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
+			return 1;
+		}
 		DshInstanceManager.delete(id);
 		out.println("Removed instance " + id);
 		return 0;
@@ -357,6 +380,9 @@ public final class InstanceCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		String version = invocation.option("dsh-version");

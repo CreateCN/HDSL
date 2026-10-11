@@ -17,6 +17,7 @@
  */
 package com.mcxcc303.hdsl.launch;
 
+import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.harness.DshSurface;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshInstance;
@@ -111,6 +112,20 @@ class DshRunningRecordTest {
 
 		DshRunningRecord.delete(instance);
 		assertNull(DshRunningRecord.read(instance), "an instance that stopped is not running");
+	}
+
+	@Test
+	void aSecondLauncherDoesNotStartWhatTheFirstOneIsRunning(@TempDir Path directory) {
+		// The launcher keeps one process per instance because a second harness on one home races the
+		// profile files. What it could not see until the record existed was a process another
+		// launcher had started, so this is that check reaching across processes.
+		DshInstance instance = instanceIn(directory);
+		DshRunningRecord.write(instance, ProcessHandle.current().pid(), 3567, ADDRESS, DshSurface.WEB,
+		                       began());
+
+		DshException refused = assertThrows(DshException.class, () -> DshProcessManager.launch(instance));
+		assertTrue(refused.getMessage().contains("already running"), refused.getMessage());
+		assertTrue(refused.getMessage().contains("another launcher"), refused.getMessage());
 	}
 
 	/// Returns when this process began, which is what a record of it has to say.

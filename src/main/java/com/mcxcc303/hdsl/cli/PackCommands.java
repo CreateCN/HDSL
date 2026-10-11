@@ -96,6 +96,12 @@ public final class PackCommands {
 		String id = invocation.option("id") != null
 		            ? invocation.option("id")
 		            : PackManifest.readManifest(pack).instanceId();
+		// The pack may be making an instance that already exists, and one that is up is not one to
+		// write a profile over.
+		DshInstance existing = InstanceStore.find(id);
+		if (existing != null && RunningInstances.isUp(existing, err)) {
+			return 1;
+		}
 		ModpackInstaller.InstallResult result = ModpackInstaller.install(pack,
 		                                                                 id,
 		                                                                 Path.of(System.getProperty("user.home")),
@@ -112,6 +118,9 @@ public final class PackCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		Path pack = Path.of(invocation.option("file"));
@@ -131,6 +140,9 @@ public final class PackCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		Path pack = Path.of(invocation.option("file"));

@@ -132,6 +132,16 @@ public final class DshProcessManager {
 				RUNNING.remove(instance.id(), existing);
 			}
 
+			// Not one of ours, and possibly running all the same: another launcher may be serving
+			// this instance right now, and a second harness on one home races the profile files —
+			// which is the whole of what the check above is for among our own, and this is that same
+			// check reaching across processes.
+			DshRunningRecord record = DshRunningRecord.read(instance);
+			if (record != null) {
+				throw new DshException("Instance " + instance.id() + " is already running (pid " + record.pid() +
+				                       "), started by another launcher; stop it before starting it again");
+			}
+
 			// The runtime is resolved inside the launcher, so an instance pinned
 			// to a managed Node runtime is honoured here too.
 			DshProcess process = prepared == null

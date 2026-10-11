@@ -47,6 +47,9 @@ public final class PluginCommands {
 			err.println("error: instance " + id + " does not exist");
 			return 1;
 		}
+		if (RunningInstances.isUp(instance, err)) {
+			return 1;
+		}
 		String spec = invocation.option("spec");
 		out.println("Installing " + spec + " into " + instance.id() + " ...");
 		DshPluginInstaller.install(instance, List.of(new DshPreset(spec, spec, spec, "", false, true)), out::println);
@@ -79,6 +82,12 @@ public final class PluginCommands {
 			return 0;
 		}
 
+		// Looking is free; answering is not. The answer is written where the running harness reads
+		// it, and it is the profile's own file that would be changed under it.
+		if (RunningInstances.isUp(instance, err)) {
+			return 1;
+		}
+
 		boolean allow = invocation.flag("allow");
 		List<String> named = invocation.values("package");
 		List<String> targets = named.isEmpty() ? DshBuildScripts.unanswered(instance) : named;
@@ -94,6 +103,9 @@ public final class PluginCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		Path file = Path.of(invocation.option("file"));
@@ -113,6 +125,9 @@ public final class PluginCommands {
 		DshInstance instance = InstanceStore.find(id);
 		if (instance == null) {
 			err.println("error: instance " + id + " does not exist");
+			return 1;
+		}
+		if (RunningInstances.isUp(instance, err)) {
 			return 1;
 		}
 		List<String> specs = invocation.values("spec");
