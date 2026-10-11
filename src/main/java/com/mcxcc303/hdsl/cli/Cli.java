@@ -159,7 +159,13 @@ public final class Cli {
         ADD_DIRECTORY(false),
 
         /// Prints the places the plugin catalogue is read from.
-        LIST_PLUGIN_SOURCES(true)
+        LIST_PLUGIN_SOURCES(true),
+
+        /// Prints the address a running instance serves.
+        GET_URL(false),
+
+        /// Prints the key a running instance asks for.
+        GET_KEY(false)
 
 
         ;
@@ -218,6 +224,8 @@ public final class Cli {
                 && !args.contains("--delete-instance")
                 && !args.contains("--launch")
                 && !args.contains("--list-running")
+                && !args.contains("--get-url")
+                && !args.contains("--get-key")
                 && !args.contains("--stop")
                 && !args.contains("--list-runtimes")
                 && !args.contains("--print-launch-args")
@@ -282,6 +290,8 @@ public final class Cli {
                     if (i + 1 < args.size()) positional.add(args.get(++i));
                 }
                 case "--list-running" -> command = Command.LIST_RUNNING;
+                case "--get-url" -> command = Command.GET_URL;
+                case "--get-key" -> command = Command.GET_KEY;
                 case "--list-runtimes" -> command = Command.LIST_RUNTIMES;
                 case "--print-launch-args" -> command = Command.PRINT_LAUNCH_ARGS;
                 case "--list-node-versions" -> command = Command.LIST_NODE_VERSIONS;
@@ -449,6 +459,12 @@ public final class Cli {
                 case LAUNCH -> {
                     return InstanceCommands.launchInstance(invocation, out, err);
                 }
+                case GET_URL -> {
+                    return InstanceCommands.getUrl(invocation, out, err);
+                }
+                case GET_KEY -> {
+                    return InstanceCommands.getKey(invocation, out, err);
+                }
                 case LIST_RUNNING -> {
                     return InstanceCommands.listRunning(invocation, out, err);
                 }
@@ -597,6 +613,8 @@ public final class Cli {
                 running:
                   --launch <id>                    start an instance and block until it exits
                   --list-running                   list running instances
+                  --get-url <id>                   print the address a running instance serves
+                  --get-key <id>                   print the key a running instance asks for
                   --stop <id>                      stop a running instance
 
                 diagnostics:

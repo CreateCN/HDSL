@@ -106,4 +106,16 @@ class CliTest {
         assertTrue(invocation.arguments().contains("--with-sessions"),
                 "a pack that carries sessions says so among the arguments it was given");
     }
+    @Test
+    void theAddressAndTheKeyOfARunningInstanceAreCommandsOfTheirOwn() {
+        Cli.Invocation url = Cli.parse(List.of("--get-url", "my-instance"));
+        assertNotNull(url);
+        assertEquals(Cli.Command.GET_URL, url.command());
+        assertEquals("my-instance", url.subject(), "the instance is the subject, as everywhere else");
+
+        Cli.Invocation key = Cli.parse(List.of("--get-key", "my-instance"));
+        assertNotNull(key);
+        assertEquals(Cli.Command.GET_KEY, key.command());
+        assertEquals("my-instance", key.subject());
+    }
 }

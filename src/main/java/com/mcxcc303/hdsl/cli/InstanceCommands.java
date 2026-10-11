@@ -50,6 +50,77 @@ public final class InstanceCommands {
     /// @param out        the stream for normal output
     /// @param err        the stream for error output
     /// @return the process exit code
+    /// Prints the address a running instance serves.
+    ///
+    /// The address is the one the harness printed when it came up, and it carries the key in its
+    /// query: that is what makes it usable as it stands, by a person opening it and by a script
+    /// calling it.
+    ///
+    /// @param invocation the parsed invocation
+    /// @param out        the stream for normal output
+    /// @param err        the stream for error output
+    /// @return the process exit code
+    static int getUrl(Invocation invocation, PrintStream out, PrintStream err) {
+        String id = invocation.subject();
+        if (id == null || id.isBlank()) {
+            err.println("error: --get-url needs an instance");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(id);
+        if (instance == null) {
+            err.println("error: there is no instance called " + id);
+            return 1;
+        }
+        java.util.Optional<java.net.URI> address = servedAddress(instance);
+        if (address.isEmpty()) {
+            err.println("error: " + id
+                    + " is not running, or its harness has not said where it serves");
+            return 1;
+        }
+        out.println(address.get());
+        return 0;
+    }
+
+    /// Prints the key a running instance asks for.
+    ///
+    /// The key is the \`token\` of the address above, alone: it is what another client needs when the
+    /// address is already known, and it is the half of that address a person should not paste into a
+    /// chat by accident.
+    ///
+    /// @param invocation the parsed invocation
+    /// @param out        the stream for normal output
+    /// @param err        the stream for error output
+    /// @return the process exit code
+    static int getKey(Invocation invocation, PrintStream out, PrintStream err) {
+        String id = invocation.subject();
+        if (id == null || id.isBlank()) {
+            err.println("error: --get-key needs an instance");
+            return 1;
+        }
+        DshInstance instance = InstanceStore.find(id);
+        if (instance == null) {
+            err.println("error: there is no instance called " + id);
+            return 1;
+        }
+        java.util.Optional<String> key = servedAddress(instance)
+                .flatMap(com.mcxcc303.hdsl.instance.DshPorts::launchToken);
+        if (key.isEmpty()) {
+            err.println("error: " + id
+                    + " is not running, or its harness printed no key");
+            return 1;
+        }
+        out.println(key.get());
+        return 0;
+    }
+
+    /// Returns the address the instance's harness printed, or empty when it has printed none.
+    ///
+    /// @param instance the instance
+    /// @return the address
+    private static java.util.Optional<java.net.URI> servedAddress(DshInstance instance) {
+        return DshProcessManager.find(instance.id()).flatMap(DshProcess::webUrl);
+    }
+
     static int createInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
         String id = invocation.subject();
         String version = invocation.option("dsh-version");
