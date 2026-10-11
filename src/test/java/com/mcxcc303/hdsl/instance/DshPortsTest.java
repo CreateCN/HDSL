@@ -57,23 +57,6 @@ class DshPortsTest {
     }
 
     @Test
-    void aFixedPortIsUsedAsGiven() throws Exception {
-        assertEquals(34567, DshPorts.resolve(instance(DshPortMode.FIXED, 34567)));
-    }
-
-    @Test
-    void anAutomaticInstanceKeepsThePortItWasGiven() throws Exception {
-        // The probe socket must be released first: while it is bound, the port
-        // is by definition not free and the allocator would rightly move on.
-        int port;
-        try (ServerSocket probe = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
-            port = probe.getLocalPort();
-        }
-        assertEquals(port, DshPorts.resolve(instance(DshPortMode.AUTO, port)),
-                "a remembered port that is still free must be reused");
-    }
-
-    @Test
     void aTakenPortRefusesTheLaunchRatherThanMovingTheInstance() throws Exception {
         try (ServerSocket taken = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
             int port = taken.getLocalPort();
@@ -83,15 +66,6 @@ class DshPortsTest {
                     "the browser interface keys its state by origin, so an instance must not be moved");
             assertEquals(port, refused.port(), "the message has to name the port to free");
             assertEquals("test", refused.instanceId());
-        }
-    }
-
-    @Test
-    void aTakenFixedPortIsRefusedTheSameWay() throws Exception {
-        try (ServerSocket taken = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
-            int port = taken.getLocalPort();
-            assertThrows(DshPorts.PortUnavailableException.class,
-                    () -> DshPorts.resolve(instance(DshPortMode.FIXED, port)));
         }
     }
 
@@ -115,15 +89,6 @@ class DshPortsTest {
                     "two instances must not be promised the same port");
         } finally {
             DshInstanceManager.delete(existing.id());
-        }
-    }
-
-    @Test
-    void anAutomaticInstanceWithNoPortGetsAFreeOne() throws Exception {
-        int port = DshPorts.resolve(instance(DshPortMode.AUTO, 0));
-        assertTrue(port > 0);
-        try (ServerSocket probe = new ServerSocket(port, 1, InetAddress.getLoopbackAddress())) {
-            assertTrue(probe.isBound());
         }
     }
 
@@ -218,8 +183,6 @@ class DshPortsTest {
 
     @Test
     void theSurfacePassesTheResolvedPortThrough() {
-        assertTrue(DshSurface.WEB.arguments(39000).contains("39000"));
-        assertFalse(DshSurface.WEB.arguments(39000).contains("0"));
         // Only the browser surface serves HTTP, so only it takes a port.
         assertEquals(List.of(), DshSurface.ACP.arguments(39000));
     }

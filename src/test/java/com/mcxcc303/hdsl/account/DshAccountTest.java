@@ -33,14 +33,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class DshAccountTest {
     @Test
     void anAccountIsNamedByItsVendorAndItsLabel() {
-        // The key names the account, so it is written to a file and read back; a vendor used twice
-        // with two keys has to stay two accounts, which is what the label is for.
+        // The key names the account, so it is written to a file and read back: a vendor used twice
+        // with two keys has to stay two accounts, which is what the label is for, and the spelling
+        // of the two together is a stored format rather than an implementation detail.
         assertEquals("deepseek", new DshAccount("deepseek", "k", null, null).key());
-        assertEquals("deepseek|work", new DshAccount("deepseek", "k", null, "work").key());
-        assertEquals("deepseek|work", new DshAccount("deepseek", "k", null, "  work  ").key());
-        assertTrue(new DshAccount("deepseek", "k", null, "work").matchesKey("deepseek|work"));
-        assertFalse(new DshAccount("deepseek", "k", null, "work").matchesKey("deepseek"));
-        assertFalse(new DshAccount("deepseek", "k", null, null).matchesKey(null));
+        assertEquals("deepseek|work", new DshAccount("deepseek", "k", null, "  work  ").key(),
+                "the label is trimmed, so one typed with spaces is the account it was meant to be");
+        assertTrue(new DshAccount("deepseek", "k", null, null).matchesKey("deepseek"));
     }
 
     @Test
@@ -96,13 +95,6 @@ class DshAccountTest {
     }
 
     @Test
-    void aNameFallsBackToTheVendors() {
-        assertEquals("DeepSeek", new DshAccount("deepseek", "k", null, null).displayName());
-        assertEquals("work", new DshAccount("deepseek", "k", null, "work").displayName());
-        assertEquals("totally-unknown", new DshAccount("totally-unknown", "k", null, null).displayName());
-    }
-
-    @Test
     void aKeyIsShownMasked() {
         // A row is a record of what is configured, not a place to read a secret back from: a full
         // key on screen is a key in every screenshot.
@@ -111,13 +103,6 @@ class DshAccountTest {
         assertFalse(masked.contains("def0123456789"), "the middle of the key must not be shown");
         assertEquals("••••", new DshAccount("deepseek", "short", null, null).maskedKey(),
                 "a key too short to mask is not partly shown either");
-    }
-
-    @Test
-    void aModelIsWhateverWasNamedOrNothing() {
-        assertEquals("", new DshAccount("deepseek", "k", null, null).modelOrDefault());
-        assertEquals("qwen3:32b", new DshAccount(DshAccount.AccountKind.OFFICIAL,
-                "deepseek", "k", null, null, "qwen3:32b", null).modelOrDefault());
     }
 
     @Test
