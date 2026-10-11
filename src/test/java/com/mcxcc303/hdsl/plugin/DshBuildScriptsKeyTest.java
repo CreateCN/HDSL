@@ -24,6 +24,7 @@ import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -49,6 +50,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// What [DshBuildScriptsTest] pins is what happens to a profile with entries in it; what is pinned
 /// here is the shape of the entries themselves, and — in the last test — the whole loop against the
 /// real package manager rather than against strings.
+
+/// Needs pnpm, npm or a Node runtime on the machine, which is why it carries the `external` tag:
+/// `gradlew test` leaves it out and `gradlew test -Pexternal` runs it.
+@Tag("external")
 class DshBuildScriptsKeyTest {
 
     /// The profile of the instance these tests work in.

@@ -20,6 +20,7 @@ package com.mcxcc303.hdsl.runtime;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -41,6 +42,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 ///
 /// Every "executable" below is a script — that is the only way to produce the three answers that
 /// matter (fails once and then answers, answers nothing, never succeeds) on every platform.
+
+/// Needs pnpm, npm or a Node runtime on the machine, which is why it carries the `external` tag:
+/// `gradlew test` leaves it out and `gradlew test -Pexternal` runs it.
+@Tag("external")
 class DshNodeRuntimeTest {
 
     @Test

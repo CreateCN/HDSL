@@ -168,7 +168,16 @@ dependencies {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        // The tests that reach outside the JVM — the ones that run pnpm, npm or a child of their
+        // own — are left out here. A machine without the tool skips them in silence, so a green
+        // suite says less than it looks like it says, and a machine with it pays about a third of
+        // the suite's time for them. They run where somebody asks for them: `./gradlew test -Pexternal`,
+        // which is what the release workflow does.
+        if (!project.hasProperty("external")) {
+            excludeTags("external")
+        }
+    }
     testLogging {
         events("passed", "failed", "skipped")
         showStandardStreams = true

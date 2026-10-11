@@ -30,6 +30,7 @@ import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -57,6 +58,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /// entry waiting, the three policies do their three things, and a run that simply succeeded is enough
 /// to make it happen. The entry is a package that nothing on this machine has to build, because the
 /// package manager is never reached: the instance's entry point is a stub that exits successfully.
+
+/// Needs pnpm, npm or a Node runtime on the machine, which is why it carries the `external` tag:
+/// `gradlew test` leaves it out and `gradlew test -Pexternal` runs it.
+@Tag("external")
 class DshPluginBuildApprovalTest {
     /// The name of the instance the tests work in.
     private static final String ID = "build-approval-test";
