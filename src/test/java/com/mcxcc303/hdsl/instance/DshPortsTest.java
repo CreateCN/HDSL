@@ -213,4 +213,27 @@ class DshPortsTest {
         assertEquals("http://127.0.0.1:3100/", DshPorts.openAddress(fixed, null).toString(),
                 "a stopped instance has no printed address and is opened at its own");
     }
+
+    @Test
+    void theLaunchKeyIsReadOutOfTheAddressTheHarnessPrinted() {
+        assertEquals(java.util.Optional.of("abc123"),
+                DshPorts.launchToken(java.net.URI.create("http://127.0.0.1:3200/?token=abc123")));
+        assertEquals(java.util.Optional.of("a-b_c"),
+                DshPorts.launchToken(java.net.URI.create("http://127.0.0.1:3200/?x=1&token=a-b_c&y=2")),
+                "the key is one parameter among others, and it is not the launcher's business what "
+                        + "the others are");
+
+        // Nothing to copy is one answer: an instance that is stopped has printed no address at all,
+        // a harness from before the key existed printed one without a query, and a key that is
+        // empty is not a key.
+        assertEquals(java.util.Optional.empty(),
+                DshPorts.launchToken(null), "a stopped instance has nothing to copy");
+        assertEquals(java.util.Optional.empty(),
+                DshPorts.launchToken(java.net.URI.create("http://127.0.0.1:3200/")),
+                "a harness from before the key existed printed no query");
+        assertEquals(java.util.Optional.empty(),
+                DshPorts.launchToken(java.net.URI.create("http://127.0.0.1:3200/?token=")));
+        assertEquals(java.util.Optional.empty(),
+                DshPorts.launchToken(java.net.URI.create("http://127.0.0.1:3200/?x=1")));
+    }
 }

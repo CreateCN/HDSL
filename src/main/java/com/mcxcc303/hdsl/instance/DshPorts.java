@@ -173,6 +173,32 @@ public final class DshPorts {
     /// @param reported the address the harness printed, or `null` when it printed none
     /// @param planned  the port the launcher asked for
     /// @return the port the instance is on
+    /// Returns the key the harness is asking for, out of the address it printed.
+    ///
+    /// The browser surface prints the address it serves with the key it will ask for, and that key
+    /// is the whole of what somebody needs to reach the address from another window, or from another
+    /// machine. A harness from before the key existed printed none, and an address with no key is
+    /// not the same as a key that is empty: there is nothing to copy either way, so both are empty
+    /// here.
+    ///
+    /// @param printed the address the harness printed, or `null` when it has printed none
+    /// @return the key, or empty when the address carries none
+    public static java.util.Optional<String> launchToken(@Nullable java.net.URI printed) {
+        String query = printed == null ? null : printed.getQuery();
+        if (query == null || query.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        for (String pair : query.split("&")) {
+            int equals = pair.indexOf('=');
+            if (!"token".equals(equals < 0 ? pair : pair.substring(0, equals))) {
+                continue;
+            }
+            String value = equals < 0 ? "" : pair.substring(equals + 1);
+            return value.isBlank() ? java.util.Optional.empty() : java.util.Optional.of(value);
+        }
+        return java.util.Optional.empty();
+    }
+
     public static int observedPort(@Nullable java.net.URI reported, int planned) {
         if (reported == null) {
             return planned;

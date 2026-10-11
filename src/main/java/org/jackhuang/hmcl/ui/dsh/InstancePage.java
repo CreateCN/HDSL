@@ -399,6 +399,16 @@ public final class InstancePage extends DecoratorAnimatedPage implements Decorat
         entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
                 SVG.PUBLIC, i18n("dsh.instance.open_browser"),
                 () -> InstanceBrowser.open(instance), popup));
+        // Right under the browser entry, because it is the other half of the same thing: the address
+        // the harness serves is behind a key, and reaching it from another window means carrying the
+        // key over. An instance that is not running has none, and a harness from before the key
+        // existed printed none either — the entry is disabled rather than gone, so that what is
+        // missing is visible instead of being a menu that changes shape.
+        org.jackhuang.hmcl.ui.construct.IconedMenuItem copyToken =
+                new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
+                        SVG.CONTENT_COPY, i18n("dsh.instance.copy_token"), this::copyLaunchToken, popup);
+        copyToken.setDisable(launchToken(instance).isEmpty());
+        entries.add(copyToken);
         entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
                 SVG.SCRIPT, i18n("dsh.instance.open_logs"), this::openLogs, popup));
         entries.add(new org.jackhuang.hmcl.ui.construct.IconedMenuItem(
@@ -522,6 +532,30 @@ public final class InstancePage extends DecoratorAnimatedPage implements Decorat
         // see what the program does, which is what the original's test game does
         // too. Stopping it is the same action everywhere and shows nothing.
         DshLaunchService.toggle(instance, this::refresh, true);
+    }
+
+    /// Returns the key the instance's harness is asking for, when it is up and printed one.
+    ///
+    /// @param instance the instance
+    /// @return the key, or empty when the instance is not running or its harness printed none
+    private static java.util.Optional<String> launchToken(DshInstance instance) {
+        return com.mcxcc303.hdsl.launch.DshProcessManager.find(instance.id())
+                .flatMap(com.mcxcc303.hdsl.launch.DshProcess::webUrl)
+                .flatMap(com.mcxcc303.hdsl.instance.DshPorts::launchToken);
+    }
+
+    /// Puts the key the running harness asks for on the clipboard.
+    ///
+    /// The entry that calls this is disabled unless there is one, so an empty key here means the
+    /// instance stopped between the menu being drawn and the entry being pressed. Said rather than
+    /// swallowed: a copy that copied nothing looks exactly like one that worked.
+    private void copyLaunchToken() {
+        java.util.Optional<String> token = launchToken(instance);
+        if (token.isEmpty()) {
+            Controllers.showToast(i18n("dsh.instance.token_missing"));
+            return;
+        }
+        org.jackhuang.hmcl.ui.FXUtils.copyText(token.get(), i18n("dsh.instance.token_copied"));
     }
 
     /// Deletes this instance after confirmation, leaving the page afterwards.
