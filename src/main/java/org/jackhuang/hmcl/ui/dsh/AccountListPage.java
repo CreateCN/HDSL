@@ -44,6 +44,7 @@ import org.jackhuang.hmcl.ui.Controllers;
 import org.jackhuang.hmcl.ui.FXUtils;
 import org.jackhuang.hmcl.ui.SVG;
 import org.jackhuang.hmcl.ui.construct.*;
+import org.jackhuang.hmcl.ui.construct.MessageDialogPane.MessageType;
 import org.jackhuang.hmcl.ui.decorator.DecoratorAnimatedPage;
 import org.jackhuang.hmcl.ui.decorator.DecoratorPage;
 import org.jackhuang.hmcl.ui.dsh.settings.AccountSettingsDialog;
@@ -56,8 +57,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
+import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /// The accounts this launcher holds.
 ///
@@ -425,7 +428,7 @@ public final class AccountListPage extends DecoratorAnimatedPage implements Deco
 	/// which here is choosing one — there is no account to upload to.
 	///
 	/// @param account the account
-	/// @param content the card's two lines, which the check writes its answer onto
+	/// @param content the card's two lines, which the check writes its verdict onto
 	/// @return the buttons
 	private List<Node> cardActions(DshAccount account, TwoLineListItem content) {
 		List<Node> buttons = new ArrayList<>();
@@ -474,19 +477,14 @@ public final class AccountListPage extends DecoratorAnimatedPage implements Deco
 		AccountAvatar.draw(avatar, DshSkin.headImage(account.key()));
 	}
 
-	/// Asks the vendor whether an account's key still works, and says the answer on the card.
+	/// Asks the vendor whether an account's key still works.
 	///
-	/// Off the interface thread, because it is a network call, and **on the row** rather than in a
-	/// dialog: the answer is about one account, and a modal box that has to be dismissed before the
-	/// next one can be looked at is a worse place for it than the line it belongs to. Two dialogs —
-	/// one saying "checking", one with the answer — also means two things to close, which is what the
-	/// original never asks of anybody.
-	///
-	/// Only a refusal means anything: a vendor that cannot be reached has not said the key is bad, and
-	/// a vendor that does not answer this question has said nothing at all.
+	/// The row carries the verdict in one line and a dialog carries what the vendor said about it: the
+	/// second is a paragraph with the response body in it, and a card one line high cannot show it. A key
+	/// that works only says so — a dialog for that is a dialog somebody dismisses to learn nothing.
 	///
 	/// @param account the account
-	/// @param content the card's own two lines, whose second one carries the answer
+	/// @param content the card's own two lines, whose second one carries the verdict
 	private void check(DshAccount account, TwoLineListItem content) {
 		content.setSubtitle(i18n("dsh.account.checking"));
 		CompletableFuture.supplyAsync(account::check, Schedulers.io())
@@ -496,8 +494,48 @@ public final class AccountListPage extends DecoratorAnimatedPage implements Deco
 			                 if (!SettingsManager.settings().getAccounts().contains(account)) {
 				                 return;
 			                 }
-			                 content.setSubtitle(failure != null ? failure.getMessage() : result.message());
+			                 if (failure != null) {
+				                 // A future that failed has no verdict of its own, and it is not a refusal
+				                 // either: the question was never answered, which is what the row must say.
+				                 Throwable cause = causeOf(failure);
+				                 LOG.warning("Could not check the account " + account.displayName(), cause);
+				                 content.setSubtitle(rowLine(DshAccount.Outcome.UNREACHABLE));
+				                 Controllers.dialog(describe(cause), i18n("message.error"), MessageType.ERROR);
+				                 return;
+			                 }
+			                 content.setSubtitle(rowLine(result.outcome()));
+			                 if (result.outcome() != DshAccount.Outcome.VALID) {
+				                 Controllers.dialog(result.message(), i18n("message.error"), MessageType.ERROR);
+			                 }
 		                 }));
+	}
+
+	/// The one line an account's row carries once the answer is in.
+	///
+	/// @param outcome what the check found
+	/// @return the line
+	private static String rowLine(DshAccount.Outcome outcome) {
+		return switch (outcome) {
+			case VALID -> i18n("dsh.account.row.valid");
+			case REJECTED -> i18n("dsh.account.check.rejected");
+			case UNREACHABLE -> i18n("dsh.account.row.unreachable");
+			case UNKNOWN -> i18n("dsh.account.row.unknown");
+		};
+	}
+
+	/// What a throwable says, for the dialog that shows it.
+	///
+	/// @param throwable what went wrong
+	/// @return the text, never empty
+	private static String describe(Throwable throwable) {
+		String said = throwable.getMessage();
+		return said == null || said.isBlank() ? throwable.toString() : said;
+	}
+
+	private static Throwable causeOf(Throwable throwable) {
+		return throwable instanceof CompletionException && throwable.getCause() != null
+		       ? throwable.getCause()
+		       : throwable;
 	}
 
 	@Override

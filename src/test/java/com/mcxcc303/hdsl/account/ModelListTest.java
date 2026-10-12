@@ -148,8 +148,8 @@ class ModelListTest {
 		assertEquals("invalid api key", DshAccount.saidIn("{\"error\":{\"message\":\"invalid api key\"}}"));
 		assertEquals("quota exceeded", DshAccount.saidIn("{\"error\":\"quota exceeded\"}"));
 
-		// A reason is one line under a row, so a long one is cut and a multi-line one flattened.
-		assertEquals("b".repeat(120) + "...", DshAccount.saidIn("{\"message\":\"" + "b".repeat(200) + "\"}"));
+		// A reason is shown whole in a dialog, and a multi-line one is flattened onto one line.
+		assertEquals("b".repeat(200), DshAccount.saidIn("{\"message\":\"" + "b".repeat(200) + "\"}"));
 		assertEquals("first second", DshAccount.saidIn("{\"message\":\"first\\n  second\"}"));
 
 		// Pages and errors with nothing to quote say nothing.
