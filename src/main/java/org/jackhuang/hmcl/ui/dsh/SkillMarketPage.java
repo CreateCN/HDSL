@@ -144,14 +144,6 @@ public final class SkillMarketPage extends StackPane implements Refreshable {
 
 	/// Builds the search form.
 	///
-	/// The layout is the plugin market's, minus the parts a skill has nothing to say
-	/// about: what everything below is for takes a line of its own across the card, then
-	/// a row of what to look for and how to order it, then the button on the right.
-	///
-	///   [ 实例                                                ▾ ]
-	///   [ 名称 ..................... ] [ 排序 ............... ▾ ]
-	///                                                    [搜索]
-	///
 	/// The button is the only thing that searches. Every search costs one of each
 	/// catalogue's daily requests, so nothing is asked for until it is asked for.
 	///
@@ -188,13 +180,19 @@ public final class SkillMarketPage extends StackPane implements Refreshable {
 		sortBox.setConverter(FXUtils.stringConverter(Sort::displayName));
 		sortBox.getItems().setAll(Sort.values());
 		sortBox.setValue(Sort.POPULARITY);
+		sortBox.setMinWidth(180);
 		sortBox.valueProperty().addListener((observable, was, value) -> sort());
 
 		// The instance the install goes into, across the top: it is what everything below
 		// is for, which is why the original leads with it and gives it the width.
 		pane.add(new Label(i18n("dsh.download.instance")), 0, 0);
 		pane.add(instanceBox, 1, 0, 3, 1);
-		pane.addRow(1, new Label(i18n("mods.name")), nameField, new Label(i18n("search.sort")), sortBox);
+		pane.add(new Label(i18n("mods.name")), 0, 1);
+
+		HBox query = new HBox(16, nameField, new Label(i18n("search.sort")), sortBox);
+		HBox.setHgrow(nameField, Priority.ALWAYS);
+		query.setAlignment(Pos.CENTER_LEFT);
+		pane.add(query, 1, 1, 3, 1);
 
 		JFXButton search = new JFXButton(i18n("search"));
 		search.getStyleClass().add("jfx-button-raised");
