@@ -297,6 +297,23 @@ tasks.named<JavaExec>("run") {
     systemProperty("hdsl.version.override", project.version.toString())
 }
 
+// The same thing as `run`, on a home of its own, for developing beside a launcher that is already
+// open. `run` writes into the real home: it takes the lock that keeps one launcher to one home, so
+// it cannot be started while the installed launcher is running, and debugging a settings page
+// rewrites the settings its user works with. This one gets a home inside the build tree, the way
+// the tests do — so the two are two launchers, each with its own settings, instances and lock —
+// and `-PdebugHome=<path>` points it at another home, the real one included.
+tasks.register<JavaExec>("debug-run") {
+    group = "application"
+    description = "Runs the launcher from the build tree, with a home of its own."
+    mainClass.set("org.jackhuang.hmcl.Main")
+    classpath = sourceSets["main"].runtimeClasspath
+    jvmArgs(addExports.map { "--add-exports=$it=ALL-UNNAMED" })
+    systemProperty("hdsl.version.override", project.version.toString())
+    systemProperty("hdsl.home", (findProperty("debugHome") as String?)
+            ?: layout.buildDirectory.dir("debug-home").get().asFile.absolutePath)
+}
+
 // The application plugin is used for its `run` task only. Its distribution
 // tasks would try to package the jar this build disables, and the launcher
 // ships a self-executing .sh, a .deb and a launch4j-wrapped .exe instead, so
