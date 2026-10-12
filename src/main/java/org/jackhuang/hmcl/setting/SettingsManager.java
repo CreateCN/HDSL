@@ -39,8 +39,10 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -260,17 +262,49 @@ public final class SettingsManager {
 
     /// Writes a snapshot to the settings file.
     ///
+    /// Through a file beside it and a move, rather than over it. Writing over it means truncating it
+    /// first, and a reader that arrives in between — another launcher reading the settings at
+    /// start-up, which is the usual case — opens a file that is empty or half written: for this file
+    /// that is no accounts, no API keys, nothing. Through a move, what a reader opens is either the
+    /// file as it was or the file as it is, whole either way.
+    ///
     /// @param snapshot the snapshot to write
     private static void writeSnapshot(Snapshot snapshot) {
         try {
-            Path parent = SETTINGS_PATH.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+            Path directory = SETTINGS_PATH.getParent();
+            if (directory == null) {
+                // A path with no parent is the root of a filesystem, which this file is never in.
+                throw new IOException("The settings file has no directory: " + SETTINGS_PATH);
             }
-            JsonUtils.writeToJsonFile(SETTINGS_PATH, snapshot);
-            restrictPermissions();
+            Files.createDirectories(directory);
+
+            Path written = Files.createTempFile(directory, "launcher-settings", ".json");
+            try {
+                JsonUtils.writeToJsonFile(written, snapshot);
+                restrictPermissions(written);
+                move(written, SETTINGS_PATH);
+            } finally {
+                Files.deleteIfExists(written);
+            }
         } catch (IOException e) {
             LOG.warning("Failed to save launcher settings to " + SETTINGS_PATH, e);
+        }
+    }
+
+    /// Puts a written file in place of the settings file.
+    ///
+    /// @param written the file to move
+    /// @param target  where it goes
+    /// @throws IOException when it cannot be moved
+    private static void move(Path written, Path target) throws IOException {
+        try {
+            Files.move(written, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            // A filesystem that cannot do it atomically — a network mount, some Windows
+            // configurations — still gets the replacement, and with it the part that matters most:
+            // the reader opens one file or the other, never a half-written one.
+            LOG.info("Moving " + written + " into place atomically is not supported here", e);
+            Files.move(written, target, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
@@ -284,17 +318,19 @@ public final class SettingsManager {
     /// A filesystem that cannot express the mode (Windows, some mounts) fails here and is ignored:
     /// the key still works, and refusing to save settings over an unavailable permission bit would
     /// be trading the whole file for a hardening step.
-    private static void restrictPermissions() {
+    ///
+    /// @param file the file to restrict
+    private static void restrictPermissions(Path file) {
         try {
             java.nio.file.attribute.PosixFileAttributeView view = Files.getFileAttributeView(
-                    SETTINGS_PATH, java.nio.file.attribute.PosixFileAttributeView.class);
+                    file, java.nio.file.attribute.PosixFileAttributeView.class);
             if (view != null) {
                 view.setPermissions(java.util.EnumSet.of(
                         java.nio.file.attribute.PosixFilePermission.OWNER_READ,
                         java.nio.file.attribute.PosixFilePermission.OWNER_WRITE));
             }
         } catch (IOException | UnsupportedOperationException e) {
-            LOG.info("Could not restrict the permissions of " + SETTINGS_PATH, e);
+            LOG.info("Could not restrict the permissions of " + file, e);
         }
     }
 
