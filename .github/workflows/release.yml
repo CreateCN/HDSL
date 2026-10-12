@@ -712,6 +712,11 @@ jobs:
           echo "| [${file}](https://github.com/${{ github.repository }}/releases/download/${TAG}/${file}) | \`$(cut -d' ' -f1 < "sums/${file}.sha256" 2>/dev/null || echo pending)\` |" >> "${note}"
         done
         cat "${note}"
+        # And in the run's own summary, which is where a dry run is read. The note is markdown and
+        # the summary renders it: what changed and what to download, one page rather than one job and
+        # one step to open. On a tag the note is the release's own as well, so the summary is the
+        # run's record of what it published.
+        cat "${note}" >> "${GITHUB_STEP_SUMMARY}"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
