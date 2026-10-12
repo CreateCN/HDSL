@@ -18,6 +18,7 @@
 package com.mcxcc303.hdsl.instance;
 
 import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.launch.DshProcessManager;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.junit.jupiter.api.AfterEach;
@@ -240,6 +241,31 @@ class DshInstanceFoldersTest {
 		           "the instance keeps its own directory, because the rename did not happen");
 		assertEquals(other.resolve("renaming-over"), InstanceStore.find("renaming-over").instanceDirectory());
 		DshInstanceManager.delete("renaming-over");
+	}
+
+	@Test
+	void renamingAStillRunningInstanceIsRefusedBeforeMovingFiles() throws Exception {
+		DshInstance instance = create("rename-live", other);
+		Path original = instance.instanceDirectory();
+		Path destination = other.resolve("rename-live-new");
+		ProcessHandle self = ProcessHandle.current();
+		long start = self.info().startInstant().orElseThrow().toEpochMilli();
+		Path record = Files.writeString(original.resolve("running.json"),
+		                                "{\"pid\":" + self.pid() + ",\"port\":0,\"surface\":\"web\",\"startedAt\":" + start + "}");
+
+		try {
+			assertEquals(DshProcessManager.LaunchState.RUNNING, DshProcessManager.stateOf(instance.id()));
+			DshException refused = assertThrows(DshException.class,
+			                                    () -> DshInstanceManager.rename(instance.id(), "rename-live-new"));
+			assertTrue(refused.getMessage().contains("running"), refused.getMessage());
+			assertTrue(Files.isRegularFile(original.resolve(InstanceStore.MANIFEST_NAME)));
+			assertFalse(Files.exists(destination), "runtime and state must remain under their running identity");
+			assertNotNull(InstanceStore.find(instance.id()));
+		} finally {
+			// This record describes the test JVM; never let cleanup try to stop that PID.
+			Files.deleteIfExists(record);
+			Files.deleteIfExists(destination.resolve("running.json"));
+		}
 	}
 
 	@Test
