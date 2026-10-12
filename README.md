@@ -28,7 +28,9 @@ DeepSeek Harness 通过 npm 发布、以 `dsh web` 启动。HDSL 把这些步骤
 
 ## 启动策略
 
-目前 HDSL 通过高度定制化启动策略，支持启动各种 DSH 版本，从最古老的 v0.0.1-rc1 到最新的 v0.1.7-rc.1。
+目前 HDSL 通过高度定制化启动策略，支持启动各种 DSH 版本，从最古老的 v0.0.1-rc.1 到最新的任何 DSH 版本。
+
+> 截至 2026 年 10 月 12 日，HDSL 对 DeepSeek Harness v0.2.1 的管理表现依然出色。
 
 HDSL 致力于提供与 HMCL 类似的高质量、高兼容性、用户友好的使用体验，无论是新手小白还是开发人员，HDSL 都能发挥出色的体验。
 
@@ -36,7 +38,7 @@ HDSL 致力于提供与 HMCL 类似的高质量、高兼容性、用户友好的
 
 ## 整合包
 
-HDSL v0.2.0 现已支持 [PackForge](https://github.com/DSH-PackForge/DSH-PackForge) 协议整合包导出，你可以通过 HDSL 在 [PackMarket](https://github.com/DSH-PackForge/dsh-pack-market) 中搜索、下载并安装公开发布在市场中的 DSH 整合包：
+HDSL 现已支持 [PackForge](https://github.com/DSH-PackForge/DSH-PackForge) 协议整合包导出，你可以通过 HDSL 在 [PackMarket](https://github.com/DSH-PackForge/dsh-pack-market) 中搜索、下载并安装公开发布在市场中的 DSH 整合包：
 
 <img height="400" alt="screenshot_20260924_193340" src="https://github.com/user-attachments/assets/98e676bc-69af-4952-a3d3-919c2c92dd41" />
 
@@ -46,15 +48,19 @@ HDSL v0.2.0 现已支持 [PackForge](https://github.com/DSH-PackForge/DSH-PackFo
 
 ## 插件
 
-HDSL v0.2.0 支持从 NPM 源安装指定插件，同样也支持从本地安装插件。
+HDSL 支持从 NPM 源安装指定插件，同样也支持从本地安装插件。目前 HDSL 支持从 [Awesome DSH Plugin](https://awesome-dsh-plugin.com/) 市场获取可用插件，未来可能添加更多来源。
 
 HDSL 的插件管理与 HMCL 操作逻辑高度一致，为玩家提供最原汁原味的体验。
 
 <img height="400" alt="screenshot_20260924_193527" src="https://github.com/user-attachments/assets/6e7b21d4-ff35-44df-9831-f05355313805" />
 
+## 技能包
+
+HDSL 支持从两个主流 Skill 市场搜索并下载 Skills。
+
 ## 账户
 
-HDSL v0.2.0 复刻了来自 HMCL 的皮肤与账户系统，并融入了独特的操作逻辑，让你的 DSH 更加多样！
+HDSL 复刻了来自 HMCL 的皮肤与账户系统，并融入了独特的操作逻辑，让你的 DSH 更加多样！
 
 ## 环境要求
 
