@@ -18,6 +18,7 @@
 package org.jackhuang.hmcl;
 
 import com.mcxcc303.hdsl.cli.Cli;
+import org.jackhuang.hmcl.setting.LauncherLock;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.util.Arrays;
@@ -58,6 +59,15 @@ public final class Main {
 
         if (arguments.contains("--version")) {
             System.out.println(Metadata.FULL_TITLE);
+            return;
+        }
+
+        // One launcher to a home: one settings file, one instance store, one set of running
+        // harnesses. A second window would write the settings out of its own copy of them — read
+        // when it started, stale within minutes — and would keep its own idea of what is running,
+        // so it does not open. It leaves quietly: to whoever started it, a window already being
+        // open is the whole of what they asked for.
+        if (!LauncherLock.shared().acquire()) {
             return;
         }
 
