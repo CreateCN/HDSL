@@ -134,17 +134,7 @@ public final class SettingsManager {
     /// @return the loaded settings
     private static LauncherSettings load() {
         LauncherSettings settings = new LauncherSettings();
-        if (!Files.isRegularFile(SETTINGS_PATH)) {
-            return settings;
-        }
-        try {
-            Snapshot snapshot = JsonUtils.fromJsonFile(SETTINGS_PATH, Snapshot.class);
-            if (snapshot != null) {
-                snapshot.applyTo(settings);
-            }
-        } catch (Exception e) {
-            LOG.warning("Failed to load launcher settings from " + SETTINGS_PATH, e);
-        }
+        readSnapshot().applyTo(settings);
         return settings;
     }
 
@@ -226,12 +216,58 @@ public final class SettingsManager {
     /// Failures are logged rather than propagated so that a read-only home
     /// directory cannot make the launcher unusable.
     public static void save() {
+        writeSnapshot(Snapshot.of(settings()));
+    }
+
+    /// Adds a folder to the settings file, and selects it, in one read-modify-write.
+    ///
+    /// This is how a folder is added from the command line. It is written into the file as that file
+    /// is on disk, rather than out of this process's copy of the settings: the copy was read when the
+    /// process started and holds every other setting as it was then, so publishing it would put back
+    /// whatever the window changed in between. The caller holds the launcher's lock, so nothing else
+    /// is writing while this runs.
+    ///
+    /// @param path the folder to add
+    /// @return the entry for it, the one already there or a new one
+    public static GameDirectory addGameDirectory(Path path) {
+        Snapshot snapshot = readSnapshot();
+        List<GameDirectory> directories = new ArrayList<>(
+                snapshot.gameDirectories == null ? List.of() : snapshot.gameDirectories);
+        GameDirectory added = GameDirectoryManager.entryFor(directories, path, null);
+
+        snapshot.gameDirectories = List.copyOf(directories);
+        snapshot.selectedGameDirectoryId = added.id();
+        writeSnapshot(snapshot);
+        return added;
+    }
+
+    /// Reads the settings file as it is on disk.
+    ///
+    /// @return the snapshot, empty when there is no readable file
+    private static Snapshot readSnapshot() {
+        if (Files.isRegularFile(SETTINGS_PATH)) {
+            try {
+                Snapshot snapshot = JsonUtils.fromJsonFile(SETTINGS_PATH, Snapshot.class);
+                if (snapshot != null) {
+                    return snapshot;
+                }
+            } catch (Exception e) {
+                LOG.warning("Failed to read launcher settings from " + SETTINGS_PATH, e);
+            }
+        }
+        return new Snapshot();
+    }
+
+    /// Writes a snapshot to the settings file.
+    ///
+    /// @param snapshot the snapshot to write
+    private static void writeSnapshot(Snapshot snapshot) {
         try {
             Path parent = SETTINGS_PATH.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            JsonUtils.writeToJsonFile(SETTINGS_PATH, Snapshot.of(settings()));
+            JsonUtils.writeToJsonFile(SETTINGS_PATH, snapshot);
             restrictPermissions();
         } catch (IOException e) {
             LOG.warning("Failed to save launcher settings to " + SETTINGS_PATH, e);

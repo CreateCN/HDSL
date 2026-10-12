@@ -333,16 +333,37 @@ public final class GameDirectoryManager {
         if (!Files.isDirectory(normalized)) {
             throw new IllegalArgumentException(normalized + " is not a directory");
         }
-        for (GameDirectory directory : directories()) {
+        List<GameDirectory> updated = new ArrayList<>(directories());
+        int known = updated.size();
+        GameDirectory added = entryFor(updated, path, customName);
+        // Only a folder that was not already there changes the list; one that was is in it already.
+        if (updated.size() > known) {
+            settings().gameDirectoriesProperty().set(List.copyOf(updated));
+        }
+        return added;
+    }
+
+    /// Returns the entry for one folder, adding it to the list when it is not there yet.
+    ///
+    /// The identity of a folder is its path, not its entry: the same folder added twice is one
+    /// folder, and what comes back is the entry the list already has for it. That matters beyond the
+    /// list itself, because the rest of the settings file names a folder by its entry's id — the
+    /// instance each folder has selected, for one — so a second entry for one folder would be a
+    /// second folder to everything that reads them.
+    ///
+    /// @param directories the entries, which a new one is added to
+    /// @param path        the folder
+    /// @param customName  the name to show, or `null` to derive one from the path
+    /// @return the entry for the folder
+    static GameDirectory entryFor(List<GameDirectory> directories, Path path, @Nullable String customName) {
+        Path normalized = path.toAbsolutePath().normalize();
+        for (GameDirectory directory : directories) {
             if (directory.directory().equals(normalized)) {
                 return directory;
             }
         }
-
         GameDirectory added = GameDirectory.of(path, customName);
-        List<GameDirectory> updated = new ArrayList<>(directories());
-        updated.add(added);
-        settings().gameDirectoriesProperty().set(List.copyOf(updated));
+        directories.add(added);
         return added;
     }
 

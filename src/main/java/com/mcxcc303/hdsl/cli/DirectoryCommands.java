@@ -18,10 +18,14 @@
 package com.mcxcc303.hdsl.cli;
 
 import com.mcxcc303.hdsl.cli.Cli.Invocation;
+import org.jackhuang.hmcl.setting.GameDirectory;
 import org.jackhuang.hmcl.setting.GameDirectoryManager;
+import org.jackhuang.hmcl.setting.LauncherLock;
+import org.jackhuang.hmcl.setting.SettingsManager;
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.io.PrintStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /// The commands that manage the folders instances live in: which ones the launcher looks in, and
@@ -50,26 +54,42 @@ public final class DirectoryCommands {
 
 	/// Runs the `directory add` command: adds a folder to the list and reports what it holds.
 	///
-	/// The folder is selected as well as added, which is what the page that adds
-	/// one does and what a person means by it: from here on the instances in
-	/// this folder are the ones being worked on, and — with no instance named on
-	/// the command line — this is where a new one is made.
+	/// The folder is selected as well as added, which is what the page that adds one does and what a
+	/// person means by it: from here on the instances in this folder are the ones being worked on,
+	/// and — with no instance named on the command line — this is where a new one is made.
+	///
+	/// The write goes through the launcher's lock, because the settings file is written whole out of
+	/// the copy of it a process read when it started. Writing that copy here would undo whatever the
+	/// window has changed since, and the window's next save would drop the folder in turn; so when
+	/// the window holds the lock this says so instead, and the file is read and written with nothing
+	/// else in between.
 	///
 	/// @param invocation the parsed invocation
 	/// @param out        the stream for normal output
 	/// @param err        the stream for error output
 	/// @return the process exit code
 	static int addDirectory(Invocation invocation, PrintStream out, PrintStream err) {
+		Path path = Path.of(invocation.option("path"));
+		if (!Files.isDirectory(path)) {
+			err.println("error: " + path + " is not a directory");
+			return 1;
+		}
+
+		LauncherLock lock = LauncherLock.shared();
+		if (!lock.acquire()) {
+			err.println("error: another launcher owns the settings" +
+			            lock.holder().map(holder -> " (pid " + holder.pid() + ")").orElse("") +
+			            "; add the folder in its window, or close it");
+			return 1;
+		}
 		try {
-			var added = GameDirectoryManager.add(Path.of(invocation.option("path")));
+			GameDirectory added = SettingsManager.addGameDirectory(path);
 			int count = GameDirectoryManager.countInstances(added);
-			GameDirectoryManager.select(added.id());
 			out.println("Added " + added.displayName() + " (" + added.path() + ")");
 			out.println("Found " + count + " instance(s); nothing was copied or moved");
 			return 0;
-		} catch (IllegalArgumentException e) {
-			err.println("error: " + e.getMessage());
-			return 1;
+		} finally {
+			lock.release();
 		}
 	}
 }
