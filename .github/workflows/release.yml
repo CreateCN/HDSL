@@ -189,17 +189,17 @@ jobs:
         ORG_GRADLE_PROJECT_releaseVersion: ${{ env.VERSION }}
       run: .\gradlew.bat clean build --no-daemon --parallel
       timeout-minutes: 30
-    # The plain jar travels beside the executable, the way HMCL publishes its
-    # own: both are built here, on a Windows runner, so both carry the Windows
-    # JavaFX. The jar is for the people who would rather run `java -jar` (or
-    # whose machine will not start a downloaded .exe) — it is not a
-    # cross-platform download; Linux and macOS have artifacts of their own.
-    - name: Sum the jar
+    # The executable is the whole of the Windows release. A plain jar used to travel beside it, and
+    # it was built here too — which is exactly why it should not have: it carried the Windows JavaFX,
+    # so what it was is a package that opens on one platform, published among packages that each open
+    # on their own. `java -jar` was never a second way to run this launcher either; it is the form the
+    # packages are made of. Whoever wants a jar can build one on the machine they are on.
+    - name: Collect the Windows packages
       shell: bash
       run: |
+        # The `.sha256` is written by the build, beside the executable it sums.
         mkdir -p dist
-        cp "build/libs/hdsl-${VERSION}.exe" "build/libs/hdsl-${VERSION}.exe.sha256" "build/libs/hdsl-${VERSION}.jar" dist/
-        ( cd dist && sha256sum "hdsl-${VERSION}.jar" > "hdsl-${VERSION}.jar.sha256" )
+        cp "build/libs/hdsl-${VERSION}.exe" "build/libs/hdsl-${VERSION}.exe.sha256" dist/
         ls -l dist
 
     - name: Verify the Windows packages (dry run)
@@ -209,11 +209,10 @@ jobs:
         # What the upload below would send, checked the way the release needs it: every file there,
         # and every sum beside it matching. On a tag a missing file fails `gh release upload`, after
         # the build has been paid for; here it fails a step that costs seconds.
-        for file in "dist/hdsl-${VERSION}.exe" "dist/hdsl-${VERSION}.exe.sha256" \
-                    "dist/hdsl-${VERSION}.jar" "dist/hdsl-${VERSION}.jar.sha256"; do
+        for file in "dist/hdsl-${VERSION}.exe" "dist/hdsl-${VERSION}.exe.sha256"; do
           [ -s "${file}" ] || { echo "error: ${file} was not built" >&2; exit 1; }
         done
-        ( cd dist && sha256sum -c --quiet "hdsl-${VERSION}.exe.sha256" "hdsl-${VERSION}.jar.sha256" )
+        ( cd dist && sha256sum -c --quiet "hdsl-${VERSION}.exe.sha256" )
 
     # A dry run keeps what it built, so it can be looked at — and tried — without a release to
     # download it from. These are workflow artifacts, not release assets: nothing is published.
@@ -245,8 +244,6 @@ jobs:
         gh release upload "${TAG}" \
           "dist/hdsl-${VERSION}.exe" \
           "dist/hdsl-${VERSION}.exe.sha256" \
-          "dist/hdsl-${VERSION}.jar" \
-          "dist/hdsl-${VERSION}.jar.sha256" \
           --clobber
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -692,7 +689,7 @@ jobs:
         fi
         echo "Requires a Java 21 or newer runtime (no JVM is bundled), the same as the \`.deb\` declares." >> "${note}"
         echo "macOS users take the .dmg or .zip; the standalone .sh below is the Linux build." >> "${note}"
-        echo "Windows users take the .exe, which needs Java 21 installed; the .jar runs under any." >> "${note}"
+        echo "Windows users take the .exe, which needs Java 21 installed." >> "${note}"
         echo "" >> "${note}"
         # The changelog goes above the table: what changed, then what to download. The commits are
         # read from the last tag to this release — for a dry run there is no tag yet, so the range is
@@ -710,7 +707,7 @@ jobs:
         # The Arch package is listed like the others. It is not the tar.zst under another name:
         # `pacman -U` reads `.PKGINFO` out of the archive, so only a real pacman package installs,
         # and the portable tar.zst is for unpacking anywhere.
-        for file in "hdsl-${VERSION}-linux-x64.tar.zst" "${arch_pkg}" "HDSL-${VERSION}-x86_64.AppImage" "hdsl-${VERSION}.deb" "hdsl-${VERSION}.sh" "hdsl-${VERSION}.exe" "hdsl-${VERSION}.jar" "HDSL-${VERSION}-aarch64.dmg" "HDSL-${VERSION}-aarch64.zip" "HDSL-${VERSION}-x64.dmg" "HDSL-${VERSION}-x64.zip"; do
+        for file in "hdsl-${VERSION}-linux-x64.tar.zst" "${arch_pkg}" "HDSL-${VERSION}-x86_64.AppImage" "hdsl-${VERSION}.deb" "hdsl-${VERSION}.sh" "hdsl-${VERSION}.exe" "HDSL-${VERSION}-aarch64.dmg" "HDSL-${VERSION}-aarch64.zip" "HDSL-${VERSION}-x64.dmg" "HDSL-${VERSION}-x64.zip"; do
           [ -n "${file}" ] || continue
           echo "| [${file}](https://github.com/${{ github.repository }}/releases/download/${TAG}/${file}) | \`$(cut -d' ' -f1 < "sums/${file}.sha256" 2>/dev/null || echo pending)\` |" >> "${note}"
         done

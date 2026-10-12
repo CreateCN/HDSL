@@ -324,9 +324,11 @@ tasks.named("startScripts") { enabled = false }
 tasks.named("installDist") { enabled = false }
 
 // ------------------------------------------------------------------ fat jar --
-// The launcher ships as a single self-contained jar, so the shell stub can be
-// prepended to it, the whole thing wrapped into a Windows executable, and any
-// copy run with `java -jar`.
+// This is what every package is made of: the self-executing `.sh` is the stub with this jar
+// appended, the `.deb` carries it, and launch4j wraps it into the Windows executable. It is an
+// ingredient rather than an artifact of its own, because OpenJFX ships a jar per platform and this
+// one carries the platform its build host resolved — publishing it would publish a launcher that
+// opens on one platform only, which is what a release asset must never be.
 tasks.named<Jar>("jar") {
     enabled = false
 }
