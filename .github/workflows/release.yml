@@ -91,7 +91,11 @@ jobs:
         # The draft is what the platforms upload into. The note it carries is the one a release goes
         # public with only if the note job never gets to write the real one, and a draft is readable
         # by nobody but the repository, so the placeholder costs nothing while it waits.
+        # `--repo` here and not only in the check above: this job has no checkout, so a `gh` that is
+        # left to work out which repository it is in looks for `.git`, finds none, and fails with
+        # "not a git repository" — which is what the first tag after this job was written did.
         gh release create "${TAG}" \
+          --repo "${{ github.repository }}" \
           --target "${{ github.sha }}" \
           ${PRERELEASE} \
           --draft \
@@ -242,6 +246,7 @@ jobs:
       shell: bash
       run: |
         gh release upload "${TAG}" \
+          --repo "${{ github.repository }}" \
           "dist/hdsl-${VERSION}.exe" \
           "dist/hdsl-${VERSION}.exe.sha256" \
           --clobber
@@ -422,6 +427,7 @@ jobs:
         # of them is named here. `--clobber` so that a re-run replaces what the previous attempt
         # uploaded, the way those jobs do.
         gh release upload "${TAG}" \
+          --repo "${{ github.repository }}" \
           dist/hdsl-${VERSION}-linux-x64.tar.zst \
           dist/hdsl-${VERSION}-linux-x64.tar.zst.sha256 \
           "dist/${ARCH_PKG}" \
@@ -560,6 +566,7 @@ jobs:
       if: github.event_name == 'push'
       run: |
         gh release upload "${TAG}" \
+          --repo "${{ github.repository }}" \
           dist/HDSL-${{ env.VERSION }}-*.dmg \
           dist/HDSL-${{ env.VERSION }}-*.dmg.sha256 \
           dist/HDSL-${{ env.VERSION }}-*.zip \
