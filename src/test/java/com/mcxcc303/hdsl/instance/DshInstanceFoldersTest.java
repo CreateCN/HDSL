@@ -243,6 +243,31 @@ class DshInstanceFoldersTest {
 	}
 
 	@Test
+	void aDuplicateBeginsBesideItsSourceEvenWhenAnotherFolderIsSelected() throws Exception {
+		DshInstance source = create("copy-source-in-other", other);
+		Path expected = source.instanceDirectory().resolveSibling("copy-beside-source");
+		Path[] seen = new Path[1];
+
+		// Stop at the export progress callback: no registry or package manager needed.
+		// The target has already been created, and the callback sees its actual folder.
+		RuntimeException cancelled = new RuntimeException("test stops before installation");
+		RuntimeException failed = assertThrows(RuntimeException.class,
+		                                    () -> DshInstanceManager.duplicate(source.id(), "copy-beside-source",
+		                                                                        message -> {
+				                                                                        if (message.startsWith("Recording ")) {
+					                                                                        DshInstance target = InstanceStore.find("copy-beside-source");
+					                                                                        assertNotNull(target);
+					                                                                        seen[0] = assertDoesNotThrow(target::instanceDirectory);
+					                                                                        throw cancelled;
+				                                                                        }
+			                                                                        }));
+		assertSame(cancelled, failed);
+		assertEquals(expected, seen[0], "a copy belongs beside its source, not in the selected folder");
+		assertFalse(Files.exists(shown.resolve("copy-beside-source")));
+		assertNull(InstanceStore.find("copy-beside-source"), "an interrupted copy is cleaned up");
+	}
+
+	@Test
 	void removingTakesTheInstanceFromItsOwnFolder() throws Exception {
 		create("removed-from-other", other);
 		create("kept-in-shown", shown);
