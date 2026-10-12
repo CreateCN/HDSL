@@ -433,6 +433,9 @@ public final class DshInstanceManager {
 		if (normalized.isEmpty()) {
 			throw new DshException("An instance needs a name");
 		}
+		if (normalized.equals(id)) {
+			throw new DshException("Cannot duplicate instance \"" + id + "\" onto itself");
+		}
 
 		DshInstance copy = InstanceStore.find(normalized);
 		if (copy == null) {
