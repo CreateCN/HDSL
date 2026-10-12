@@ -22,6 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -70,21 +71,32 @@ class LauncherLockTest {
 		LauncherLock lock = new LauncherLock(file);
 
 		assertTrue(lock.acquire());
-		assertEquals("held", tryInAnotherProcess(file), "the lock is not one process's private idea");
+		assertEquals("held:" + ProcessHandle.current().pid(), tryInAnotherProcess(file),
+		             "the lock is not one process's private idea, and the refusal can name its holder");
 		lock.release();
 		assertEquals("taken", tryInAnotherProcess(file), "and a lock nobody holds is nobody's");
 	}
 
+	/// Who holds the lock is written beside it, not in it.
+	///
+	/// The distinction is invisible here and fatal on Windows, where a lock on a file is mandatory:
+	/// any other handle that reads the locked range is refused, so a note inside the lock could be
+	/// written by its holder and read by nobody. This test is the one that fails there if the note
+	/// ever moves back in.
 	@Test
-	void theFileSaysWhoHoldsIt(@TempDir Path directory) {
-		LauncherLock lock = new LauncherLock(directory.resolve("launcher.lock"));
+	void whoHoldsTheLockIsWrittenBesideIt(@TempDir Path directory) throws IOException {
+		Path file = directory.resolve("launcher.lock");
+		LauncherLock lock = new LauncherLock(file);
 		assertTrue(lock.acquire());
 
 		Optional<LauncherLock.Holder> holder = lock.holder();
 		assertTrue(holder.isPresent(), "a refusal has to be able to name the process that owns it");
 		assertEquals(ProcessHandle.current().pid(), holder.get().pid());
+		assertEquals(0, Files.size(file),
+		             "the locked file itself says nothing: a reader of it is refused on Windows");
 
 		lock.release();
+		assertTrue(lock.holder().isEmpty(), "and a lock nobody holds names nobody");
 	}
 
 	/// Runs the lock in a process of its own and returns what it made of it.
@@ -127,7 +139,14 @@ class LauncherLockTest {
 		/// @param args the lock file to try
 		public static void main(String[] args) {
 			LauncherLock lock = new LauncherLock(Path.of(args[0]));
-			System.out.println(ANSWER + (lock.acquire() ? "taken" : "held"));
+			if (lock.acquire()) {
+				System.out.println(ANSWER + "taken");
+				return;
+			}
+			// Refused: what it can still do is say who refused it, which is what the note beside the
+			// lock is for.
+			String holder = lock.holder().map(who -> Long.toString(who.pid())).orElse("nobody");
+			System.out.println(ANSWER + "held:" + holder);
 		}
 	}
 }

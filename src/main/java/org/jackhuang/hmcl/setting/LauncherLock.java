@@ -23,11 +23,9 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -53,6 +51,11 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 ///
 /// The system releases the lock when the process ends, so a launcher that was killed leaves nothing
 /// behind, which a pid file would not.
+///
+/// Who holds it is written down **beside** the lock rather than in it, because on Windows a lock on
+/// a file is mandatory: any other handle that reads the locked range is refused. A note inside it
+/// could be written — the holder writes through the handle it locked — and could then be read by
+/// nobody, which is exactly what a refusal wants to read it for.
 @NotNullByDefault
 public final class LauncherLock {
 
@@ -103,7 +106,7 @@ public final class LauncherLock {
 				close();
 				return false;
 			}
-			writeHolder();
+			writeOwner();
 			return true;
 		} catch (OverlappingFileLockException e) {
 			// A lock this same process holds through another one of these — a second window's worth
@@ -129,29 +132,48 @@ public final class LauncherLock {
 		close();
 	}
 
-	/// Returns the process holding the lock, as the file describes it.
+	/// Returns the process holding the lock, as the note beside it describes it.
 	///
-	/// Read only to say who to somebody who was refused: an empty answer means the file does not say,
+	/// Read only to say who to somebody who was refused: an empty answer means the note does not say,
 	/// not that nobody holds the lock.
 	///
-	/// @return the holder, or empty when the file does not say
+	/// @return the holder, or empty when the note does not say
 	public Optional<Holder> holder() {
+		Path note = ownerFile();
+		if (!Files.isRegularFile(note)) {
+			return Optional.empty();
+		}
 		try {
-			Holder holder = JsonUtils.fromJsonFile(file, Holder.class);
+			Holder holder = JsonUtils.fromJsonFile(note, Holder.class);
 			return holder == null || holder.pid() <= 0 ? Optional.empty() : Optional.of(holder);
 		} catch (Exception e) {
+			// Named, and unreadable: whoever was refused gets no pid, and the reason is in the log
+			// rather than nowhere at all.
+			LOG.warning("Could not read who holds the launcher lock from " + note, e);
 			return Optional.empty();
 		}
 	}
 
+	/// Returns the file the note about the holder goes in.
+	///
+	/// Beside the lock and never locked itself: see the class comment for why it cannot be the lock.
+	///
+	/// @return the file
+	private Path ownerFile() {
+		return file.resolveSibling(file.getFileName() + ".owner");
+	}
+
 	/// Writes down who holds the lock, so that a refusal can name the process.
-	private void writeHolder() throws IOException {
+	///
+	/// A note that cannot be written costs a refusal its pid and nothing else, which is why this
+	/// reports nothing and never stands between a launcher and its lock.
+	private void writeOwner() {
 		Holder holder = new Holder(ProcessHandle.current().pid(), System.currentTimeMillis());
-		ByteBuffer bytes = StandardCharsets.UTF_8.encode(JsonUtils.GSON.toJson(holder));
-		channel.truncate(0);
-		channel.position(0);
-		channel.write(bytes);
-		channel.force(false);
+		try {
+			JsonUtils.writeToJsonFile(ownerFile(), holder);
+		} catch (IOException | RuntimeException e) {
+			LOG.warning("Could not write who holds the launcher lock to " + ownerFile(), e);
+		}
 	}
 
 	/// Lets go of the lock and of the file it went through.
@@ -163,6 +185,13 @@ public final class LauncherLock {
 				held.release();
 			} catch (IOException e) {
 				LOG.info("Could not release the launcher lock " + file, e);
+			}
+			// Only when this process was the holder: a failed attempt to take the lock must not take
+			// away the note of whoever does hold it.
+			try {
+				Files.deleteIfExists(ownerFile());
+			} catch (IOException e) {
+				LOG.info("Could not delete the note about the launcher lock " + ownerFile(), e);
 			}
 		}
 		FileChannel open = channel;
@@ -176,7 +205,7 @@ public final class LauncherLock {
 		}
 	}
 
-	/// The process holding the lock, as the lock file describes it.
+	/// The process holding the lock, as the note beside it describes it.
 	///
 	/// @param pid       the process
 	/// @param startedAt when it took the lock, in milliseconds since the epoch
