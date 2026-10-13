@@ -34,23 +34,19 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 
-/// The commands that work one instance: creating it, launching it, printing the command line a
-/// launch would use, and starting it once to see what it says.
 @NotNullByDefault
 public final class InstanceCommands {
 	private InstanceCommands() {
 	}
 
-	/// Prints the address a running instance serves, which is what `instance launch --url` asks for.
-	///
-	/// The address is the one the harness printed when it came up, and it carries the key in its
-	/// query: that is what makes it usable as it stands, by a person opening it and by a script
-	/// calling it.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * Prints a running instance's address
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int getUrl(Invocation invocation, PrintStream out, PrintStream err) {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -58,6 +54,7 @@ public final class InstanceCommands {
 			err.println("error: there is no instance called " + id);
 			return 1;
 		}
+
 		Optional<URI> address = servedAddress(instance);
 		if (address.isEmpty()) {
 			err.println("error: " + id + " is not running, or its harness has not said where it serves");
@@ -67,16 +64,16 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Prints the key a running instance asks for.
-	///
-	/// The key is the \`token\` of the address above, alone: it is what another client needs when the
-	/// address is already known, and it is the half of that address a person should not paste into a
-	/// chat by accident.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * Prints a running instance's key
+	 * <p>
+	 * The key is the address's `token`, alone
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int getKey(Invocation invocation, PrintStream out, PrintStream err) {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -84,6 +81,7 @@ public final class InstanceCommands {
 			err.println("error: there is no instance called " + id);
 			return 1;
 		}
+
 		Optional<String> key = servedAddress(instance).flatMap(DshPorts::launchToken);
 		if (key.isEmpty()) {
 			err.println("error: " + id + " is not running, or its harness printed no key");
@@ -93,27 +91,26 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Returns the address the instance's harness printed, or empty when it has printed none.
-	///
-	/// The address is read from wherever it is known: the handle this launcher holds, or — when the
-	/// instance was started by another launcher, which is the case a command line run from a
-	/// terminal is in — the record that launcher left.
-	///
-	/// @param instance the instance
-	/// @return the address
+	/**
+	 * Returns the address the harness printed, or empty when it has printed none
+	 *
+	 * @param instance the instance
+	 * @return the address
+	 */
 	private static Optional<URI> servedAddress(DshInstance instance) {
 		return DshProcessManager.findRunning(instance).flatMap(DshProcessManager.Running::webUrl);
 	}
 
-	/// Runs the `instance create` command.
-	///
-	/// The version is required and there is nothing to fall back on: a runtime belongs to the
-	/// instance that runs it, and it is fetched when that instance is made.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * Runs the `instance create` command
+	 * <p>
+	 * A DSH version is required
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int createInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String id = invocation.option("id");
 		String version = invocation.option("dsh-version");
@@ -151,20 +148,19 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Runs the `instance launch` command: starts an instance and blocks until it exits.
-	///
-	/// With `--url` or `--key` nothing is started: what the harness printed when it came up is
-	/// printed instead, which is the answer a script wants and the one a person copying an address
-	/// into a browser wants.
-	///
-	/// The launcher keeps child processes in its own process group: the JVM
-	/// shutdown hook stops them, so reattaching or interrupting this command
-	/// never leaves an orphaned `dsh` behind.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * Runs the `instance launch` command: starts an instance and blocks until it exits
+	 * <p>
+	 * Except: `--url` and `--key` print the address or the key the running harness reported
+	 * <p>
+	 * The launcher keeps child processes in its own process group, and the JVM shutdown hook stops them<br>
+	 * Reattaching or interrupting this command therefore never leaves an orphaned `dsh` behind
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int launchInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		if (invocation.flag("url") && invocation.flag("key")) {
 			err.println("error: instance launch prints the address or the key, and was asked for both");
@@ -186,10 +182,7 @@ public final class InstanceCommands {
 			return 1;
 		}
 
-		// What is about to run, before it runs: the argument list is assembled from the version's
-		// own help, the instance's settings and the launcher's defaults, and when a launch goes
-		// wrong the first question is which of those decided the flags. Reading it off the process
-		// table afterwards is not always possible.
+		// The plan cannot be read from the process table once the child exits
 		DshLauncher.LaunchPlan plan = DshLauncher.plan(instance);
 		out.println("command: " + plan.commandLine());
 
@@ -226,24 +219,14 @@ public final class InstanceCommands {
 		return process.exitCode().orElse(0);
 	}
 
-	/// Launches an instance and prints the output it produces.
-	///
-	/// This is the headless half of test launch: it runs the same path the
-	/// interface does and drains the same buffer the log window is given, so the
-	/// capture can be checked without a display.
-	///
-	/// Runs the `instance print-launch-args` command: what a typed argument line comes to, without
-	/// launching anything.
-	///
-	/// The split between the launcher's flags and the app's, the profile a line names, and the
-	/// arguments that are refused are all decided by reading the line, so they can be shown without
-	/// starting a process. That makes the rules checkable, which matters because a wrong split
-	/// produces a command that either fails to start or starts the wrong thing.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the exit code
+	/**
+	 * Runs the `instance print-launch-args` command: the pieces a typed argument string splits into
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the exit code
+	 */
 	static int printLaunchArguments(Invocation invocation, PrintStream out, PrintStream err) {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -267,10 +250,10 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Runs the `instance test-launch` command.
-	///
-	/// An instance that is up is not launched a second time: this would be that second harness on
-	/// the same home, which is what the launcher keeps one process per instance to avoid.
+	/**
+	 * Runs the `instance test-launch` command<br>
+	 * An instance already up will be refused
+	 */
 	static int testLaunch(Invocation invocation, PrintStream out, PrintStream err) {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -282,14 +265,7 @@ public final class InstanceCommands {
 			return 1;
 		}
 		try {
-			// What is about to run, before it runs: the argument list is assembled from the
-			// version's own help, the instance's settings and the launcher's defaults, and when a
-			// launch goes wrong the first question is which of those decided the flags. Reading it
-			// off the process table afterwards is not always possible — the child exits, or the
-			// tooling cannot see another process's arguments.
-			// Built once and handed on. Building it is what writes the account's overlay, so building
-			// a second one — which is what printing and then launching used to do — leaves the first
-			// one behind for good.
+			// Building the plan is what writes the account's overlay, so a second one leaves the first behind
 			DshLauncher.LaunchPlan plan = DshLauncher.plan(instance);
 			out.println("command: " + plan.commandLine());
 
@@ -316,8 +292,9 @@ public final class InstanceCommands {
 		}
 	}
 
-	/// Runs the `instance list` command, which lists the instances, or the instances that are
-	/// running when `--running` is given.
+	/**
+	 * Runs the `instance list` command: the instances, or the running ones under `--running`
+	 */
 	static int listInstances(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		if (invocation.flag("running")) {
 			return listRunning(out);
@@ -326,22 +303,23 @@ public final class InstanceCommands {
 		if (instances.isEmpty()) {
 			out.println("(no instances)");
 		}
+		DshTable table = new DshTable("INSTANCE", "DSH VERSION", "PROFILE", "NODE", "HOME MODE", "HOME", "WORKSPACE");
 		for (DshInstance instance : instances) {
-			// The resolved values are printed, not the stored ones:
-			// an instance that follows the launcher stores "global"
-			// or nothing, and the answer a reader wants is what it
-			// will actually run with.
-			out.println(instance.id() + "\tdsh " + instance.version() + "\tprofile " + instance.profile() + "\tnode " +
-			            instance.nodeRuntimeOrDefault() + "\t" + instance.homeMode() + "\thome " +
-			            instance.homeDirectory() + "\tworkspace " + instance.workspacePath());
+			// This prints resolved values instead of stored values
+			table.row(instance.id(), instance.version(), instance.profile(), instance.nodeRuntimeOrDefault(),
+			          instance.homeMode().name(), instance.homeDirectory().toString(),
+			          instance.workspacePath().toString());
 		}
+		table.print(out);
 		return 0;
 	}
 
-	/// Runs the `instance delete` command.
-	///
-	/// An instance that is up is not removed: the harness is still writing to the home that would be
-	/// deleted. Stopping it first is one command, and its name is part of the refusal.
+	/**
+	 * Runs the `instance delete` command
+	 * <p>
+	 * An instance that is up is not removed: the harness is still writing to the home that would be deleted<br>
+	 * Stopping it first is one command, whose name is part of the refusal
+	 */
 	static int deleteInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -357,10 +335,9 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Lists the instances that are up, which is what `instance list --running` asks for.
-	///
-	/// Whoever started them: an instance another launcher is running is up as surely as one of ours,
-	/// and the pid is printed with it because that is the thing a reader can act on from here.
+	/**
+	 * Runs the `instance list --running` command: the instances that are up, whichever launcher started them
+	 */
 	private static int listRunning(PrintStream out) {
 		List<DshProcessManager.Running> running = DshProcessManager.running();
 		if (running.isEmpty()) {
@@ -374,7 +351,7 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Runs the `instance upgrade` command.
+	// Runs the `instance upgrade` command
 	static int upgradeInstance(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String id = invocation.option("id");
 		DshInstance instance = InstanceStore.find(id);
@@ -387,8 +364,7 @@ public final class InstanceCommands {
 		}
 		String version = invocation.option("dsh-version");
 
-		// What the profile holds, read before the install rewrites the
-		// manifest it is read from.
+		// What the profile holds, read before the install rewrites the manifest it is read from
 		Map<String, String> dependencies = DshPluginInstaller.readDependencies(instance.homeDirectory(),
 		                                                                       instance.profile());
 		List<String> specs = new ArrayList<>();
@@ -400,10 +376,6 @@ public final class InstanceCommands {
 
 		out.println("Moving " + instance.id() + " from " + instance.version() + " to " + version);
 		HarnessInstaller.install(instance, version, out::println);
-		// Rebuilt from the instance rather than from the fields the
-		// command happens to care about: everything the upgrade does
-		// not change — the folder it lives in, its icon, its port —
-		// has to survive being recorded again.
 		DshInstanceManager.update(instance.withVersion(version));
 
 		if (!specs.isEmpty()) {
@@ -415,7 +387,7 @@ public final class InstanceCommands {
 		return 0;
 	}
 
-	/// Runs the `instance stop` command.
+	// Runs the `instance stop` command
 	static int stop(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String id = invocation.option("id");
 		out.println(DshProcessManager.stop(id) ? "Stopped " + id : "Instance " + id + " is not running");

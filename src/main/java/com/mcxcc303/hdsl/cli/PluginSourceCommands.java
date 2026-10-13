@@ -19,30 +19,38 @@ package com.mcxcc303.hdsl.cli;
 
 import com.mcxcc303.hdsl.plugin.CatalogSources;
 import com.mcxcc303.hdsl.plugin.MarketSource;
+import com.mcxcc303.hdsl.skill.DshSkillSource;
+import com.mcxcc303.hdsl.skill.DshSkillSources;
 
 import org.jetbrains.annotations.NotNullByDefault;
 
 import java.io.PrintStream;
 
-/// The command about where plugins are read from: which markets this launcher knows, and which of
-/// them it reads.
-///
-/// There is nothing to add or remove: a market is a place whose request shape this launcher knows,
-/// so markets arrive with the launcher rather than from a settings file. What a person can choose is
-/// which of them is read, and that is what this prints.
+/*
+ * The command to show where the launcher reads what it installs from (plugin, skill, npm, etc.)
+ */
 @NotNullByDefault
 public final class PluginSourceCommands {
-	private PluginSourceCommands() {
+	private PluginSourceCommands() {}
+
+	/**
+	 * @param out the stream for normal output
+	 * @return the process exit code
+	 */
+	static int listSources(PrintStream out) {
+		listPluginSources(out);
+		out.println();
+
+		listSkillSources(out);
+		return 0;
 	}
 
-	/// Prints the plugin markets, and marks the one in use.
-	///
-	/// The addresses under the market that is in use are printed too, in the order they are tried,
-	/// because that is what somebody diagnosing a catalogue that will not load needs to see.
-	///
-	/// @param out the stream for normal output
-	/// @return the process exit code
-	static int listPluginSources(PrintStream out) {
+	/**
+	 * Prints the plugin markets, and marks the one in use.
+	 *
+	 * @param out the stream for normal output
+	 */
+	static void listPluginSources(PrintStream out) {
 		MarketSource selected = CatalogSources.marketSource();
 		for (MarketSource source : MarketSource.values()) {
 			out.println((source == selected ? "* " : "  ") + source.id() + "  " + source.label() +
@@ -55,6 +63,19 @@ public final class PluginSourceCommands {
 		if (fallback != null) {
 			out.println("    " + fallback + "  [npm package, read only when the address above answers nothing]");
 		}
-		return 0;
+	}
+
+	/**
+	 * Prints the skill catalogues, and marks the one in use.
+	 *
+	 * @param out the stream for normal output
+	 */
+	static void listSkillSources(PrintStream out) {
+		DshSkillSources selected = DshSkillSource.selectedSource();
+		for (DshSkillSources source : DshSkillSources.values()) {
+			out.println((source == selected ? "* " : "  ") + source.id() + "  " + source.label() +
+			            (source == selected ? "  [in use]" : ""));
+		}
+		out.println("    the two index different repositories, and a pack is fetched from GitHub either way");
 	}
 }

@@ -29,48 +29,52 @@ import org.jetbrains.annotations.NotNullByDefault;
 import java.io.PrintStream;
 import java.util.List;
 
-/// The commands about the harness itself: the versions the instances run, and the versions there
-/// are to run.
 @NotNullByDefault
 public final class HarnessCommands {
 
-	private HarnessCommands() {
-	}
+	private HarnessCommands() {}
 
-	/// Runs the `harness list` command.
-	///
-	/// A runtime belongs to the instance that runs it, so what there is to list is the instances and
-	/// the harness each of them carries.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * The `harness list` command.
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int list(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		List<DshInstance> instances = InstanceListing.list();
-		if (instances.isEmpty()) {
-			out.println("(no instances)");
-		}
+		if (instances.isEmpty()) out.println("(no instances)");
+
+		DshTable table = new DshTable("INSTANCE", "DSH VERSION", "DSH DIRECTORY", "STATE");
 		for (DshInstance instance : instances) {
-			out.println(instance.id() + "\t" + instance.version() + "\t" + instance.dshDirectory() +
-			            (HarnessInstaller.isInstalled(instance) ? "" : "\t[INCOMPLETE]"));
+			table.row(instance.id(),
+			          instance.version(),
+			          instance.dshDirectory().toString(),
+			          HarnessInstaller.isInstalled(instance) ? "ok" : "INCOMPLETE");
 		}
+		table.print(out);
 		return 0;
 	}
 
-	/// Runs the `harness versions` command: the versions the registry publishes.
-	///
-	/// @param invocation the parsed invocation
-	/// @param out        the stream for normal output
-	/// @param err        the stream for error output
-	/// @return the process exit code
+	/**
+	 * The `harness versions` command
+	 *
+	 * @param invocation the parsed invocation
+	 * @param out        the stream for normal output
+	 * @param err        the stream for error output
+	 * @return the process exit code
+	 */
 	static int versions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
+		DshTable table = new DshTable("VERSION", "TYPE", "PUBLISHED", "TAG");
 		for (DshRelease release : ReleaseQueries.fetchReleases()) {
 			String tag = release.primaryTag();
-			out.println(release.version() + "\t" + release.type().id() + "\t" +
-			            (release.publishedAt() == null ? "-" : release.publishedAt()) +
-			            (tag == null ? "" : "\t" + tag));
+			table.row(release.version(),
+			          release.type().id(),
+			          release.publishedAt() == null ? "-" : release.publishedAt(),
+			          tag == null ? "-" : tag);
 		}
+		table.print(out);
 		return 0;
 	}
 }

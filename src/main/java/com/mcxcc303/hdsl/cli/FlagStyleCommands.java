@@ -21,49 +21,50 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-/// The commands as they were spelled with a flag, and the command line each one names now.
-///
-/// A flag-style command still runs, and runs the same thing: its arguments are read into the command
-/// they name, so every command has one implementation rather than one per spelling. What it also
-/// does is say what it is called — once, after the command has said what it had to say — because a
-/// spelling that works but is written down nowhere is a spelling nobody ever moves away from.
-///
-/// One entry is one command: the flag it used to be written as, the command it names, and the
-/// arguments that follow it. Renaming a command therefore renames it here too, which is what keeps
-/// the warning from pointing at a spelling that no longer exists.
-///
-/// The flag-style spelling is deprecated in v0.2.1-rc.3 and goes away in v0.2.2. What is left of it
-/// then is this file.
+/*
+ * The commands as they were spelled with a flag, and the command line each one names now.
+ *
+ * A flag-style command still runs, and runs the same thing: its arguments are read into the command
+ * they name, so every command has one implementation rather than one per spelling. What it also
+ * does is say what it is called — once, after the command has said what it had to say — because a
+ * spelling that works but is written down nowhere is a spelling nobody ever moves away from.
+ *
+ * One entry is one command: the flag it used to be written as, the command it names, and the
+ * arguments that follow it. Renaming a command therefore renames it here too, which is what keeps
+ * the warning from pointing at a spelling that no longer exists.
+ *
+ * The flag-style spelling is deprecated in v0.2.1-rc.3 and goes away in v0.2.2. What is left of it
+ * then is this file.
+ */
+@Deprecated
 @NotNullByDefault
 final class FlagStyleCommands {
 
-	/// The release that deprecated the flag-style spelling.
+	// The release that deprecated the flag-style spelling.
 	private static final String DEPRECATED_IN = "v0.2.1-rc.3";
 
-	/// The release that removes it.
+	// The release that removes it.
 	private static final String REMOVED_IN = "v0.2.2";
 
-	/// The flags that are flags under either spelling, and are carried over as they are.
+	// The flags that are flags under either spelling, and are carried over as they are.
 	private static final Set<String> FLAGS = Set.of("--with-sessions", "--allow", "--deny");
 
-	/// The flags that ask for help rather than name a value, and are never read as one.
+	// The flags that ask for help rather than name a value, and are never read as one.
 	private static final Set<String> HELP = Set.of("--help", "-h");
 
-	/// The options that are spelled differently now, and what they are spelled as.
+	// The options that are spelled differently now, and what they are spelled as.
 	private static final Map<String, String> RENAMED = Map.of("--node-source", "--source");
 
-	/// The flags that named a command which is gone, and what to write instead.
-	///
-	/// They are not translated, because there is nothing to translate them into: a harness version is
-	/// not installed or removed on its own, and has not been since an instance began to be the thing
-	/// that runs one. What a reader gets is the reason and the command, rather than a word this
-	/// launcher does not answer to — which, with the interface behind it, would open a window.
+	/**
+	 * The flags that named a command which is gone, and what to write instead.
+	 * <p>
+	 * They are not translated, because there is nothing to translate them into: a harness version is
+	 * not installed or removed on its own, and has not been since an instance began to be the thing
+	 * that runs one. What a reader gets is the reason and the command, rather than a word this
+	 * launcher does not answer to — which, with the interface behind it, would open a window.
+	 */
 	private static final Map<String, String> REMOVED = Map.of(
 			"--install", "DeepSeek Harness is installed into the instance that runs it: " +
 			             "`hdsl instance create --id <id> --dsh-version <version>`",
@@ -73,39 +74,43 @@ final class FlagStyleCommands {
 	private FlagStyleCommands() {
 	}
 
-	/// What follows the arguments a flag-style command names.
+	// What follows the arguments a flag-style command names.
 	private enum Trailing {
-		/// Nothing: the arguments in the entry are the command's arguments.
+		// Nothing: the arguments in the entry are the command's arguments.
 		NONE,
-		/// One specification after another, until the next option, as `--remove-plugin` reads them.
+		// One specification after another, until the next option, as `--remove-plugin` reads them.
 		SPECS,
-		/// Package names, here and there among the options, as `--build-scripts` reads them.
+		// Package names, here and there among the options, as `--build-scripts` reads them.
 		PACKAGES,
-		/// A pack, which an instance id may follow, as `--install-modpack` reads them.
+		// A pack, which an instance id may follow, as `--install-modpack` reads them.
 		OPTIONAL_ID
 	}
 
-	/// One flag-style command: the command it names, and the arguments that follow the flag.
-	///
-	/// @param group      the command's group, or the empty string for a command that stands alone
-	/// @param command    the command's name
-	/// @param parameters the options its own arguments are read into, in order
-	/// @param flags      the flags it carries, which are spelled the same under either spelling
-	/// @param trailing   what may follow those arguments
+	/**
+	 * One flag-style command: the command it names, and the arguments that follow the flag.
+	 *
+	 * @param group      the command's group, or the empty string for a command that stands alone
+	 * @param command    the command's name
+	 * @param parameters the options its own arguments are read into, in order
+	 * @param flags      the flags it carries, which are spelled the same under either spelling
+	 * @param trailing   what may follow those arguments
+	 */
 	private record Spelling(String group, String command, List<String> parameters, List<String> flags,
 	                        Trailing trailing) {
 	}
 
-	/// Every flag-style command there was.
+	// Every flag-style command there was.
 	private static final Map<String, Spelling> SPELLINGS = spellings();
 
-	/// Returns the command line these flag-style arguments name, or null when they name no command.
-	///
-	/// The line is what will be run, and it is what the warning prints: the two are the same string,
-	/// so what the warning tells a reader to write is what the launcher just did.
-	///
-	/// @param args the raw command-line arguments
-	/// @return the command line, or null when no flag-style command is among them
+	/**
+	 * Returns the command line these flag-style arguments name, or null when they name no command.
+	 * <p>
+	 * The line is what will be run, and it is what the warning prints: the two are the same string,
+	 * so what the warning tells a reader to write is what the launcher just did.
+	 *
+	 * @param args the raw command-line arguments
+	 * @return the command line, or null when no flag-style command is among them
+	 */
 	static @Nullable List<String> commandLine(List<String> args) {
 		List<String> command = null;
 		Spelling current = null;
@@ -167,10 +172,12 @@ final class FlagStyleCommands {
 		return List.copyOf(line);
 	}
 
-	/// Returns what to write instead, when the arguments name a flag whose command is gone.
-	///
-	/// @param args the raw command-line arguments
-	/// @return the flags and what to write instead, or `null` when none of them is there
+	/**
+	 * Returns what to write instead, when the arguments name a flag whose command is gone.
+	 *
+	 * @param args the raw command-line arguments
+	 * @return the flags and what to write instead, or `null` when none of them is there
+	 */
 	static @Nullable String removed(List<String> args) {
 		for (String flag : REMOVED.keySet()) {
 			if (args.contains(flag)) {
@@ -180,20 +187,24 @@ final class FlagStyleCommands {
 		return null;
 	}
 
-	/// Prints what the flag-style command is called now, after the command itself has spoken.
-	///
-	/// @param out   the stream for normal output
-	/// @param modern the command line the flag-style arguments named
+	/**
+	 * Prints what the flag-style command is called now, after the command itself has spoken.
+	 *
+	 * @param out    the stream for normal output
+	 * @param modern the command line the flag-style arguments named
+	 */
 	static void warn(PrintStream out, List<String> modern) {
 		out.println("Warning: Flag-style command is marked as deprecated in hdsl " + DEPRECATED_IN
 		            + " and removal in hdsl " + REMOVED_IN + ", try new command using:");
 		out.println("  hdsl " + quote(modern));
 	}
 
-	/// Returns a command line as something that can be pasted into a shell.
-	///
-	/// An argument with a space in it is one argument, and is written as one; the rest are left bare
-	/// so that the line reads the way it would be typed.
+	/**
+	 * Returns a command line as something that can be pasted into a shell.
+	 * <p>
+	 * An argument with a space in it is one argument, and is written as one; the rest are left bare
+	 * so that the line reads the way it would be typed.
+	 */
 	private static String quote(List<String> modern) {
 		StringBuilder line = new StringBuilder();
 		for (String word : modern) {
@@ -209,7 +220,7 @@ final class FlagStyleCommands {
 		return line.toString();
 	}
 
-	/// Builds the table, one command to a line.
+	// Builds the table, one command to a line.
 	private static Map<String, Spelling> spellings() {
 		Map<String, Spelling> spellings = new LinkedHashMap<>();
 
@@ -280,8 +291,10 @@ final class FlagStyleCommands {
 		spellings.put("--add-directory",
 		              new Spelling("directory", "add", List.of("--path"), List.of(), Trailing.NONE));
 
-		// The places the plugin catalogue is read from.
+		// The places the plugin catalogue and the skill catalogues are read from.
 		spellings.put("--list-plugin-sources",
+		              new Spelling("source", "list", List.of(), List.of(), Trailing.NONE));
+		spellings.put("--list-skill-sources",
 		              new Spelling("source", "list", List.of(), List.of(), Trailing.NONE));
 
 		// Node runtimes.
