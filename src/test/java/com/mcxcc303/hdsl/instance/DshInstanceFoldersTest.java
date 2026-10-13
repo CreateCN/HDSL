@@ -166,6 +166,20 @@ class DshInstanceFoldersTest {
 	}
 
 	@Test
+	void creatingAnInstanceNeverAdoptsAnUnrelatedExistingDirectory() throws Exception {
+		Path occupied = Files.createDirectories(shown.resolve("occupied-for-create"));
+		Path document = Files.writeString(occupied.resolve("notes.txt"), "my own document");
+
+		DshException refused = assertThrows(DshException.class,
+		                                    () -> create("occupied-for-create", shown));
+		assertTrue(refused.getMessage().contains(occupied.toString()), refused.getMessage());
+		assertEquals("my own document", Files.readString(document));
+		assertFalse(Files.exists(occupied.resolve(InstanceStore.MANIFEST_NAME)),
+		            "no instance manifest should be written into an unrelated folder");
+		assertNull(InstanceStore.find("occupied-for-create"));
+	}
+
+	@Test
 	void theSameNameInTwoFoldersIsRefused() throws Exception {
 		create("shared-name", shown);
 
