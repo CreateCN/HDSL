@@ -17,6 +17,8 @@
  */
 package com.mcxcc303.hdsl.cli;
 
+import com.mcxcc303.hdsl.plugin.MarketSource;
+import com.mcxcc303.hdsl.skill.DshSkillSources;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -27,20 +29,22 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/// What a command line turns into, and what it says when it cannot be read.
-///
-/// The parser is the one part of the launcher that runs before anything else exists — no settings,
-/// no toolkit, no instance — so it is worth pinning on its own. What is pinned here is what the
-/// table decides: which words name a command, what a command takes, what a line that leaves a
-/// parameter out is told, and that the flag-style spelling of a command is read as that command
-/// rather than as a second implementation of it.
-///
-/// Nothing here runs a command that touches an instance, with one exception that is deliberately
-/// read-only: a flag-style line has to be run to see the warning printed after it, and it names an
-/// instance that does not exist.
+/*
+ * What a command line turns into, and what it says when it cannot be read.
+ *
+ * The parser is the one part of the launcher that runs before anything else exists — no settings,
+ * no toolkit, no instance — so it is worth pinning on its own. What is pinned here is what the
+ * table decides: which words name a command, what a command takes, what a line that leaves a
+ * parameter out is told, and that the flag-style spelling of a command is read as that command
+ * rather than as a second implementation of it.
+ *
+ * Nothing here runs a command that touches an instance, with one exception that is deliberately
+ * read-only: a flag-style line has to be run to see the warning printed after it, and it names an
+ * instance that does not exist.
+ */
 class CliTest {
 
-	/// What a command line that cannot be read returns.
+	// What a command line that cannot be read returns.
 	private static final int USAGE_ERROR = 2;
 
 	@Test
@@ -174,7 +178,31 @@ class CliTest {
 		}
 	}
 
-	/// Runs an invocation and keeps what it printed.
+	@Test
+	void theSourcesInUseArePrintedForPluginsAndForSkills() {
+		Run run = run(Cli.parse(List.of("source", "list")));
+		assertEquals(0, run.code(), run.err());
+		assertTrue(run.out().contains(MarketSource.AWESOME_DSH_PLUGIN.id()),
+		           "the plugin market is not in the answer:\n" + run.out());
+		for (DshSkillSources source : DshSkillSources.values()) {
+			assertTrue(run.out().contains(source.id()), source.id() + " is not in the answer:\n" + run.out());
+		}
+		assertEquals(2, run.out().lines().filter(line -> line.startsWith("* ")).count(),
+		           "one source of each kind is in use, and the answer says which:\n" + run.out());
+	}
+
+	@Test
+	void theTwoListSourceFlagsAreOneCommand() {
+		Cli.Invocation plugins = Cli.parse(List.of("--list-plugin-sources"));
+		Cli.Invocation skills = Cli.parse(List.of("--list-skill-sources"));
+		assertNotNull(plugins);
+		assertNotNull(skills);
+		assertEquals(plugins.command(), skills.command());
+		assertEquals("source list", skills.command());
+		assertEquals(plugins.options(), skills.options());
+	}
+
+	// Runs an invocation and keeps what it printed.
 	private static Run run(Cli.Invocation invocation) {
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -184,13 +212,13 @@ class CliTest {
 		return new Run(code, out.toString(StandardCharsets.UTF_8), err.toString(StandardCharsets.UTF_8));
 	}
 
-	/// Returns the last line that is not blank.
+	// Returns the last line that is not blank.
 	private static String lastLine(String text) {
 		List<String> lines = text.lines().filter(line -> !line.isBlank()).toList();
 		return lines.isEmpty() ? "" : lines.get(lines.size() - 1);
 	}
 
-	/// What a command line printed, and what it returned.
+	// What a command line printed, and what it returned.
 	private record Run(int code, String out, String err) {
 	}
 }
