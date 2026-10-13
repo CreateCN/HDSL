@@ -17,6 +17,10 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.DoubleProperty;
+import javafx.beans.property.ObjectProperty;
+import javafx.beans.property.StringProperty;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import org.jackhuang.hmcl.theme.ThemeColor;
@@ -26,6 +30,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -34,13 +40,17 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /*
- * Every setting survives a write and a read
+ * Every setting survives a write to the settings file and a read back
  *
- * A setting may take effect at runtime but be lost after restart if it is omitted from the mirror or mapped to the wrong field
- * Seventeen were in that state when the general, download-source and global instance-settings tabs were reworked
- * The properties are found through their accessors, so a setting added tomorrow is covered without this file being edited
+ * A setting omitted from the snapshot, or mapped to the wrong field, takes effect at runtime
+ * and is lost at the next start.
+ * A setting added later is covered without editing this file: the properties are found through
+ * their accessors.
  */
 class SettingsPersistenceTest {
+	// The game folder the made-up list holds and the one it selects: the two are the same id
+	private static final String DIRECTORY_ID = "test-directory-persistence";
+
 	// The properties that are deliberately not stored, each with its reason
 	private static final List<String> NOT_STORED = List.of();
 
@@ -49,6 +59,8 @@ class SettingsPersistenceTest {
 
 	@Test
 	void everySettingAPropertyExposesIsCapturedAndRestored() throws Exception {
+		// Initializing subscribes the manager to these properties, so it has to happen before this test writes to them
+		GameDirectoryManager.init();
 		LauncherSettings settings = SettingsManager.settings();
 
 		List<String> unmade = new ArrayList<>();
@@ -60,7 +72,7 @@ class SettingsPersistenceTest {
 			Object property = accessor.invoke(settings);
 			was.put(name, get(property));
 
-			Object made = madeUp(kindOf(accessor));
+			Object made = madeUp(kindOf(accessor), name);
 			if (made == null) {
 				unmade.add(name);
 				continue;
@@ -116,34 +128,35 @@ class SettingsPersistenceTest {
 		return accessor.getName().substring(0, accessor.getName().length() - "Property".length());
 	}
 
-	// Read from the accessor rather than from the value: a setting that holds null has no value to read a kind from
-	// The property interfaces answer with themselves, so they are spelled out; a generic value answers with its raw type
 	private static Class<?> kindOf(Method accessor) {
 		Class<?> type = accessor.getReturnType();
-		if (javafx.beans.property.StringProperty.class.isAssignableFrom(type)) return String.class;
-		if (javafx.beans.property.BooleanProperty.class.isAssignableFrom(type)) return Boolean.class;
-		if (javafx.beans.property.DoubleProperty.class.isAssignableFrom(type)) return Double.class;
-		if (!javafx.beans.property.ObjectProperty.class.isAssignableFrom(type)) return type;
+		if (StringProperty.class.isAssignableFrom(type)) return String.class;
+		if (BooleanProperty.class.isAssignableFrom(type)) return Boolean.class;
+		if (DoubleProperty.class.isAssignableFrom(type)) return Double.class;
+		if (!ObjectProperty.class.isAssignableFrom(type)) return type;
 
-		java.lang.reflect.Type held = ((java.lang.reflect.ParameterizedType) accessor.getGenericReturnType())
-				.getActualTypeArguments()[0];
-		if (held instanceof Class<?> heldClass) return heldClass;
-		if (held instanceof java.lang.reflect.ParameterizedType parameterized) {
+		// ObjectProperty<T> exposes its value type through the generic argument
+		Type heldType = ((ParameterizedType) accessor.getGenericReturnType()).getActualTypeArguments()[0];
+		if (heldType instanceof Class<?> heldClass) return heldClass;
+		if (heldType instanceof ParameterizedType parameterized) {
+			// A parameterized value answers with its raw type
 			return (Class<?>) parameterized.getRawType();
 		}
 		return Object.class;
 	}
 
 	// All a made-up value has to be is different from the one already there
-	private static Object madeUp(Class<?> kind) {
+	private static Object madeUp(Class<?> kind, String name) {
+		// The value has to be the id the list holds, or the manager re-resolves the selection during the round trip
+		if ("selectedGameDirectoryId".equals(name)) return DIRECTORY_ID;
 		if (kind == String.class) return "persistence-test";
 		if (kind == Boolean.class) return true;
 		if (kind == Double.class || kind == double.class) return 42.5;
 		if (kind == Integer.class || kind == int.class) return 42;
-		if (kind == GameDirectory.class) return directory("test-directory-persistence");
+		if (kind == GameDirectory.class) return directory(DIRECTORY_ID);
 		if (kind == ThemeReference.class) return new ThemeReference("test-pack-persistence", null);
 		if (Map.class.isAssignableFrom(kind)) return new LinkedHashMap<>(Map.of("HDSL_PERSISTENCE_TEST", "1"));
-		if (List.class.isAssignableFrom(kind)) return List.of(directory("test-directory-persistence"));
+		if (List.class.isAssignableFrom(kind)) return List.of(directory(DIRECTORY_ID));
 		if (Paint.class.isAssignableFrom(kind)) return Color.RED;
 		if (ThemeColor.class == kind) return ThemeColor.of(Color.RED);
 		if (SupportedLocale.class == kind) {
@@ -162,24 +175,23 @@ class SettingsPersistenceTest {
 	}
 
 	private static Object get(Object property) {
-		if (property instanceof javafx.beans.property.StringProperty value) return value.get();
-		if (property instanceof javafx.beans.property.BooleanProperty value) return value.get();
-		if (property instanceof javafx.beans.property.DoubleProperty value) return value.get();
-		if (property instanceof javafx.beans.property.ObjectProperty<?> value) return value.get();
+		if (property instanceof StringProperty value) return value.get();
+		if (property instanceof BooleanProperty value) return value.get();
+		if (property instanceof DoubleProperty value) return value.get();
+		if (property instanceof ObjectProperty<?> value) return value.get();
 		throw new AssertionError(property + " holds nothing this test can read");
 	}
 
 	private static void set(Object property, Object value) {
-		if (property instanceof javafx.beans.property.StringProperty strings) {
+		if (property instanceof StringProperty strings) {
 			strings.set((String) value);
-		} else if (property instanceof javafx.beans.property.BooleanProperty booleans) {
+		} else if (property instanceof BooleanProperty booleans) {
 			booleans.set((Boolean) value);
-		} else if (property instanceof javafx.beans.property.DoubleProperty numbers) {
+		} else if (property instanceof DoubleProperty numbers) {
 			numbers.set((Double) value);
-		} else if (property instanceof javafx.beans.property.ObjectProperty<?> object) {
+		} else if (property instanceof ObjectProperty<?> object) {
 			@SuppressWarnings("unchecked")
-			javafx.beans.property.ObjectProperty<Object> mutable =
-					(javafx.beans.property.ObjectProperty<Object>) object;
+			ObjectProperty<Object> mutable = (ObjectProperty<Object>) object;
 			mutable.set(value);
 		} else {
 			throw new AssertionError(property + " takes nothing this test can write");
