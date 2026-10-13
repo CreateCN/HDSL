@@ -34,30 +34,22 @@ import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+/*
+ * The filesystem work the skill code does: reading a file as lines, replacing one without a reader seeing half of it, and the shapes a pack travels in -- a directory tree and a zip
+ */
 @NotNullByDefault
 final class DshSkillFiles {
-	// The suffix a rewrite is staged under before it replaces the file.
+	// The suffix a rewrite is staged under before it replaces the file
 	private static final String STAGING = ".hdsl-skills";
 
 	private DshSkillFiles() {}
 
-	/**
-	 * Reads a file as lines.
-	 *
-	 * @param file the file
-	 * @return its lines, without terminators
-	 * @throws IOException when it cannot be read
-	 */
 	static List<String> readLines(Path file) throws IOException {
 		return new ArrayList<>(Files.readAllLines(file, StandardCharsets.UTF_8));
 	}
 
 	/**
-	 * Replaces a file with the given lines.
-	 *
-	 * @param file  the file
-	 * @param lines what it should say
-	 * @throws IOException when it cannot be written
+	 * Replaces a file with the given lines, staged beside it and moved onto it
 	 */
 	static void writeLines(Path file, List<String> lines) throws IOException {
 		Path staging = file.resolveSibling(file.getFileName() + STAGING);
@@ -69,13 +61,6 @@ final class DshSkillFiles {
 		}
 	}
 
-	/**
-	 * Sums the bytes of every file under a directory.
-	 *
-	 * @param directory the directory
-	 * @return its size in bytes
-	 * @throws IOException when it cannot be walked
-	 */
 	static long sizeOf(Path directory) throws IOException {
 		long total = 0L;
 		try (Stream<Path> walk = Files.walk(directory)) {
@@ -86,13 +71,6 @@ final class DshSkillFiles {
 		return total;
 	}
 
-	/**
-	 * Copies a directory tree, keeping the times of what it copies.
-	 *
-	 * @param source the directory to copy
-	 * @param target where it should land
-	 * @throws IOException when it cannot be copied
-	 */
 	static void copyTree(Path source, Path target) throws IOException {
 		try (Stream<Path> walk = Files.walk(source)) {
 			for (Path path : walk.toList()) {
@@ -107,12 +85,6 @@ final class DshSkillFiles {
 		}
 	}
 
-	/**
-	 * Deletes a directory and everything under it.
-	 *
-	 * @param directory the directory
-	 * @throws IOException when something cannot be deleted
-	 */
 	static void deleteTree(Path directory) throws IOException {
 		try (Stream<Path> walk = Files.walk(directory)) {
 			for (Path path : walk.sorted(Comparator.reverseOrder()).toList()) {
@@ -121,13 +93,6 @@ final class DshSkillFiles {
 		}
 	}
 
-	/**
-	 * Unpacks a zip under a directory.
-	 *
-	 * @param archive the archive
-	 * @param target  the directory to unpack into
-	 * @throws IOException when it cannot be read or written
-	 */
 	static void unzip(Path archive, Path target) throws IOException {
 		try (ZipInputStream zip = new ZipInputStream(new BufferedInputStream(Files.newInputStream(archive)))) {
 			for (ZipEntry entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
@@ -144,7 +109,7 @@ final class DshSkillFiles {
 	}
 
 	/**
-	 * Returns the shallowest directory holding a file of this name.
+	 * Returns the shallowest directory holding a file of this name
 	 *
 	 * @param directory the unpacked tree
 	 * @param name      the file to look for

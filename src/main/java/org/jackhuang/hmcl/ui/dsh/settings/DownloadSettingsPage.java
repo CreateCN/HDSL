@@ -131,8 +131,6 @@ public final class DownloadSettingsPage extends ScrollPane {
 
 	/**
 	 * Returns the line each option carries in the list the row opens.
-	 *
-	 * @return the converter
 	 */
 	private static Function<NodeSource, String> sourceDescription() {
 		return source -> {

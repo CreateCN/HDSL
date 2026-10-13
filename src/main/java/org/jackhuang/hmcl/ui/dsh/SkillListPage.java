@@ -74,11 +74,7 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// description.
 @NotNullByDefault
 public final class SkillListPage extends ListPageBase<DshSkill> implements Refreshable {
-	/// What the page accepts when the user drops files on it.
-	///
-	/// The same two shapes the harness reads: a folder that is a bundle, and a Markdown
-	/// file. Both are checked again when the pack is read, so this is only what makes the
-	/// cursor say yes while the drag is over the list.
+	/// The two shapes the harness reads: a folder bundle and a Markdown file. Both are validated again when the pack is read, so this only drives the drop cursor.
 	private static final PathMatcher SKILL_PACKS = path ->
 			Files.isDirectory(path) || (path.getFileName() != null && (path.getFileName().toString().endsWith(".md") ||
 			                                                           path.getFileName().toString().endsWith(".zip")));

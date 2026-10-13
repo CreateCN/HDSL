@@ -93,20 +93,10 @@ public final class DshSkillSource {
 		return new Found(List.copyOf(ordered), List.of());
 	}
 
-	/**
-	 * Returns the catalogue skills are searched in.
-	 *
-	 * @return the catalogue
-	 */
 	public static DshSkillCatalog selected() {
 		return selectedSource().catalog();
 	}
 
-	/**
-	 * Returns the source skills are searched in.
-	 *
-	 * @return the source
-	 */
 	public static DshSkillSources selectedSource() {
 		try {
 			return DshSkillSources.of(SettingsManager.settings().skillSourceProperty().get());
@@ -116,11 +106,6 @@ public final class DshSkillSource {
 		}
 	}
 
-	/**
-	 * Chooses the source skills are searched in.
-	 *
-	 * @param source the source
-	 */
 	public static void setSelectedSource(DshSkillSources source) {
 		try {
 			SettingsManager.settings()
@@ -154,11 +139,7 @@ public final class DshSkillSource {
 	}
 
 	/**
-	 * Finds where in its repository an entry lives.
-	 *
-	 * @param offering the entry to locate
-	 * @return the pack
-	 * @throws DshException when the repository cannot be listed, or holds no such skill
+	 * Finds where in its repository an entry lives
 	 */
 	public static Bundle resolve(Offering offering) throws DshException {
 		// The default branch has to be the real name, not HEAD
@@ -168,7 +149,7 @@ public final class DshSkillSource {
 			throw new DshException("GitHub did not say which branch " + offering.source() + " uses", null);
 		}
 
-		// A catalogue that already said where the skill sits needs no looking up.
+		// Use the catalogue-provided ref and path when available.
 		if (offering.ref() != null && offering.path() != null) {
 			return new Bundle(new Repo(offering.source(), "", 0, offering.ref()), offering.path(), offering.name());
 		}
@@ -273,7 +254,7 @@ public final class DshSkillSource {
 	}
 
 	/**
-	 * Saves one pack as an archive instead of install into an instance
+	 * Saves one pack as an archive instead of installing it into an instance.
 	 *
 	 * @param target the file to write
 	 * @param bundle the pack to fetch
@@ -296,8 +277,8 @@ public final class DshSkillSource {
 	}
 
 	/**
-	 * Unpacks one pack out of its repository's archive.
-	 *
+	 * Unpacks one pack out of its repository's archive
+	 * <p>
 	 * @param bundle the pack
 	 * @param pack   where its files should land
 	 * @param report told the name of each file
@@ -420,7 +401,9 @@ public final class DshSkillSource {
 	}
 
 	/**
-	 * Fetches an address, as bytes: a pack is whatever it is made of.
+	 * Fetches an address and returns the response body as bytes.
+	 * A repository archive carries icons and fonts as well as Markdown.
+	 * Decoding it as text first would corrupt them.
 	 *
 	 * @param url the address
 	 * @return what it answered with

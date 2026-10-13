@@ -25,24 +25,19 @@ import java.util.List;
 import java.util.Map;
 
 /*
- * The frontmatter block of a SKILL.md, read and written as lines.
+ * The frontmatter block of a SKILL.md, read and written as lines
  *
- * Only the subset the harness itself reads is understood: scalar keys, and the folded and literal
- * block scalars a long description is written as.
+ * Only the subset the harness itself reads is understood: scalar keys, and the folded and literal block scalars a long description is written as
  */
 @NotNullByDefault
 final class DshSkillFrontmatter {
-	/// The line that opens and closes a block.
 	private static final String DELIMITER = "---";
 
 	private DshSkillFrontmatter() {
 	}
 
 	/**
-	 * Reads the keys and values of a block.
-	 *
-	 * @param lines the file's lines
-	 * @return the keys and their values, empty when the file has no block
+	 * Reads the keys and values of a block, empty when the file has none
 	 */
 	static Map<String, String> parse(List<String> lines) {
 		int[] block = rangeOf(lines);
@@ -76,10 +71,7 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Returns where the block is when there is one.
-	 *
-	 * @param lines the file's lines
-	 * @return the opening line's index and the closing line's, or `null`
+	 * Returns the opening and closing line of the block, or `null` when there is none
 	 */
 	static int @Nullable [] rangeOf(List<String> lines) {
 		int open = -1;
@@ -98,10 +90,7 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Returns the key a line declares, or an empty string.
-	 *
-	 * @param line one line of the block
-	 * @return the text before the colon
+	 * Returns the key a line declares, or an empty string
 	 */
 	static String keyOf(String line) {
 		int colon = line.indexOf(':');
@@ -109,12 +98,9 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Sets one key, adding it to the block when it is not there yet.
-	 *
-	 * @param lines the file's lines
-	 * @param key   the key to set
-	 * @param value the value to set it to
-	 * @return the lines to write, unchanged when there is no block to write into
+	 * Sets one key, adding it to the block when it is not there yet, and returns the lines to write
+	 * <p>
+	 * The lines come back unchanged when there is no block to write into
 	 */
 	static List<String> with(List<String> lines, String key, String value) {
 		int[] block = rangeOf(lines);
@@ -131,11 +117,9 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Removes one key, when it is there.
-	 *
-	 * @param lines the file's lines
-	 * @param key   the key to remove
-	 * @return the lines to write, unchanged when the key was not there
+	 * Removes one key, when it is there, and returns the lines to write
+	 * <p>
+	 * The lines come back unchanged when the key was not there
 	 */
 	static List<String> without(List<String> lines, String key) {
 		for (int i = 0; i < lines.size(); i++) {
@@ -148,10 +132,7 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Strips the quotes a YAML string may be wrapped in.
-	 *
-	 * @param value the raw scalar
-	 * @return the scalar without its wrapping quotes
+	 * Strips the quotes a YAML string may be wrapped in
 	 */
 	private static String unquote(String value) {
 		char quote = value.isEmpty() ? '\0' : value.charAt(0);
@@ -162,10 +143,7 @@ final class DshSkillFrontmatter {
 	}
 
 	/**
-	 * Collapses every run of whitespace into one space.
-	 *
-	 * @param text the raw text
-	 * @return the text on one line
+	 * Collapses every run of whitespace into one space
 	 */
 	static String collapse(String text) {
 		StringBuilder collapsed = new StringBuilder(text.length());

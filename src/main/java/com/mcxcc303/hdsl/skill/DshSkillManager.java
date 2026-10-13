@@ -67,8 +67,8 @@ public final class DshSkillManager {
 	/**
 	 * Returns the skill packs a pack should carry.
 	 *
-	 * @param home   the instance s DSH_HOME
-	 * @param wanted the names to carry, matched against both the pack s own name and the name it has on disk
+	 * @param home   the instance's DSH_HOME
+	 * @param wanted the names to carry, matched against the pack's own name and its on-disk name
 	 * @return the packs, in the order [#list] returns them
 	 * @throws DshException when the skills cannot be read
 	 */
@@ -86,7 +86,7 @@ public final class DshSkillManager {
 	/**
 	 * Returns the on-disk name of every skill a pack could carry.
 	 *
-	 * @param home the instance s DSH_HOME
+	 * @param home the instance's DSH_HOME
 	 * @return the names, ordered as [#list] orders them
 	 * @throws DshException when the skills cannot be read
 	 */
@@ -161,8 +161,7 @@ public final class DshSkillManager {
 				String relative = name.substring(PREFIX.length());
 				if (relative.isEmpty() || relative.equals(SYSTEM) || relative.startsWith(SYSTEM + "/")) continue;
 
-				// An archive is something somebody handed over: one that tries to write above where
-				// it was unpacked is not one to be clever about.
+				// Entries that would land outside the skills directory are skipped rather than sanitized.
 				if (relative.startsWith("/") || relative.contains("..")) continue;
 
 				Path target = directory.resolve(relative);
