@@ -449,7 +449,8 @@ public final class DshInstanceManager {
 			              DshHomeMode.ISOLATED,
 			              null,
 			              source.extraArguments(),
-			              source.environment()).withIcon(source.iconOrDefault());
+			              source.environment(),
+			              source.instanceDirectory().getParent()).withIcon(source.iconOrDefault());
 			update(copy);
 		} else if (HarnessInstaller.isInstalled(copy)) {
 			// An id taken by an instance that is already whole is somebody else's. One that is
