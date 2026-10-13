@@ -35,19 +35,19 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 /// The skill packs a DSH home holds, and the one frontmatter line that switches one off.
-class DshSkillsTest {
+class DshSkillManagerTest {
 	@TempDir
 	private Path home;
 
 	private Path bundle(String name, String frontmatter) throws IOException {
-		Path directory = DshSkills.directory(home).resolve(name);
+		Path directory = DshSkillManager.directory(home).resolve(name);
 		Files.createDirectories(directory);
 		Files.writeString(directory.resolve("SKILL.md"), frontmatter);
 		return directory;
 	}
 
 	private Path flat(String name, String frontmatter) throws IOException {
-		Path directory = DshSkills.directory(home);
+		Path directory = DshSkillManager.directory(home);
 		Files.createDirectories(directory);
 		Path file = directory.resolve(name + ".md");
 		Files.writeString(file, frontmatter);
@@ -56,8 +56,8 @@ class DshSkillsTest {
 
 	@Test
 	void aHomeWithNoSkillsDirectoryHasNoSkills() throws Exception {
-		assertEquals(List.of(), DshSkills.list(home));
-		assertEquals(home.resolve("skills"), DshSkills.directory(home));
+		assertEquals(List.of(), DshSkillManager.list(home));
+		assertEquals(home.resolve("skills"), DshSkillManager.directory(home));
 	}
 
 	@Test
@@ -66,13 +66,13 @@ class DshSkillsTest {
 		flat("beta", "---\nname: beta\ndescription: >\n  Second\n  one\n---\n");
 		// Neither of these is a skill: a bundle nested below the top level, a file that is
 		// not Markdown, and the hidden child the harness skips.
-		Path nested = DshSkills.directory(home).resolve("gamma").resolve("inner");
+		Path nested = DshSkillManager.directory(home).resolve("gamma").resolve("inner");
 		Files.createDirectories(nested);
 		Files.writeString(nested.resolve("SKILL.md"), "---\nname: inner\ndescription: x\n---\n");
-		Files.writeString(DshSkills.directory(home).resolve("notes.txt"), "x");
-		Files.createDirectories(DshSkills.directory(home).resolve(".system"));
+		Files.writeString(DshSkillManager.directory(home).resolve("notes.txt"), "x");
+		Files.createDirectories(DshSkillManager.directory(home).resolve(".system"));
 
-		List<DshSkill> skills = DshSkills.list(home);
+		List<DshSkill> skills = DshSkillManager.list(home);
 		assertEquals(List.of("alpha", "beta"), skills.stream().map(DshSkill::name).toList());
 		assertEquals("First", skills.get(0).description());
 		assertEquals("Second one", skills.get(1).description());
@@ -84,22 +84,22 @@ class DshSkillsTest {
 	@Test
 	void switchingOffWritesTheKeyAndSwitchingOnTakesItAway() throws Exception {
 		Path file = flat("alpha", "---\nname: alpha\ndescription: First\n---\n\nBody\n");
-		assertTrue(DshSkills.list(home).get(0).enabled());
+		assertTrue(DshSkillManager.list(home).get(0).enabled());
 
-		DshSkills.setEnabled(DshSkills.list(home).get(0), false);
+		DshSkillManager.setEnabled(DshSkillManager.list(home).get(0), false);
 		assertEquals("---\nname: alpha\ndescription: First\ndisable-model-invocation: true\n---\n\nBody\n",
 		             Files.readString(file));
-		assertFalse(DshSkills.list(home).get(0).enabled());
+		assertFalse(DshSkillManager.list(home).get(0).enabled());
 
-		DshSkills.setEnabled(DshSkills.list(home).get(0), true);
+		DshSkillManager.setEnabled(DshSkillManager.list(home).get(0), true);
 		assertEquals("---\nname: alpha\ndescription: First\n---\n\nBody\n", Files.readString(file));
-		assertTrue(DshSkills.list(home).get(0).enabled());
+		assertTrue(DshSkillManager.list(home).get(0).enabled());
 	}
 
 	@Test
 	void aPackWithNoFrontmatterCannotBeSwitched() throws Exception {
 		Path file = flat("bare", "# nothing here\n");
-		assertThrows(DshException.class, () -> DshSkills.setEnabled(DshSkills.list(home).get(0), false));
+		assertThrows(DshException.class, () -> DshSkillManager.setEnabled(DshSkillManager.list(home).get(0), false));
 		assertEquals("# nothing here\n", Files.readString(file));
 	}
 
@@ -107,29 +107,29 @@ class DshSkillsTest {
 	void installingCopiesAPackAndRefusesToOverwriteOne() throws Exception {
 		Path source = Files.createTempDirectory("gamma-pack");
 		Files.writeString(source.resolve("SKILL.md"), "---\nname: gamma\ndescription: Third\n---\n");
-		DshSkill installed = DshSkills.install(home, source);
+		DshSkill installed = DshSkillManager.install(home, source);
 		assertEquals("gamma", installed.name());
-		assertTrue(Files.isRegularFile(DshSkills.directory(home)
-		                                        .resolve(source.getFileName().toString())
-		                                        .resolve("SKILL.md")));
-		assertThrows(DshException.class, () -> DshSkills.install(home, source));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(home)
+		                                              .resolve(source.getFileName().toString())
+		                                              .resolve("SKILL.md")));
+		assertThrows(DshException.class, () -> DshSkillManager.install(home, source));
 	}
 
 	@Test
 	void aPackWithoutANameOrDescriptionIsRefused() throws Exception {
 		Path file = Files.createTempFile("unnamed", ".md");
 		Files.writeString(file, "# no frontmatter\n");
-		assertThrows(DshException.class, () -> DshSkills.install(home, file));
-		assertEquals(List.of(), DshSkills.list(home));
+		assertThrows(DshException.class, () -> DshSkillManager.install(home, file));
+		assertEquals(List.of(), DshSkillManager.list(home));
 	}
 
 	@Test
 	void removingTakesADirectoryBundleAndAFlatFileAway() throws Exception {
 		bundle("alpha", "---\nname: alpha\ndescription: First\n---\n");
 		flat("beta", "---\nname: beta\ndescription: Second\n---\n");
-		DshSkills.remove(DshSkills.list(home).get(0));
-		DshSkills.remove(DshSkills.list(home).get(0));
-		assertEquals(List.of(), DshSkills.list(home));
+		DshSkillManager.remove(DshSkillManager.list(home).get(0));
+		DshSkillManager.remove(DshSkillManager.list(home).get(0));
+		assertEquals(List.of(), DshSkillManager.list(home));
 	}
 
 	@Test
@@ -145,10 +145,10 @@ class DshSkillsTest {
 			out.closeEntry();
 		}
 
-		DshSkill installed = DshSkills.install(home, zip);
+		DshSkill installed = DshSkillManager.install(home, zip);
 		assertEquals("alpha", installed.name());
 		assertEquals("From an archive", installed.description());
-		assertTrue(Files.isRegularFile(DshSkills.directory(home).resolve("alpha").resolve("notes.txt")));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(home).resolve("alpha").resolve("notes.txt")));
 	}
 
 	@Test
@@ -159,8 +159,8 @@ class DshSkillsTest {
 			out.write("nothing".getBytes(StandardCharsets.UTF_8));
 			out.closeEntry();
 		}
-		assertThrows(DshException.class, () -> DshSkills.install(home, zip));
-		assertEquals(List.of(), DshSkills.list(home));
+		assertThrows(DshException.class, () -> DshSkillManager.install(home, zip));
+		assertEquals(List.of(), DshSkillManager.list(home));
 	}
 
 	@Test
@@ -170,13 +170,13 @@ class DshSkillsTest {
 		Files.createDirectories(alpha.resolve("assets"));
 		Files.writeString(alpha.resolve("assets").resolve("icon.png"), "png");
 		flat("beta", "---\nname: beta\ndescription: Second\n---\n");
-		Path shipped = DshSkills.directory(home).resolve(".system").resolve("shipped");
+		Path shipped = DshSkillManager.directory(home).resolve(".system").resolve("shipped");
 		Files.createDirectories(shipped);
 		Files.writeString(shipped.resolve("SKILL.md"), "---\nname: shipped\ndescription: x\n---\n");
 
 		Path pack = Files.createTempFile("skills", ".zip");
 		try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(pack))) {
-			DshSkills.writeInto(zip, DshSkills.packable(home, Set.of("alpha", "beta")), null);
+			DshSkillManager.writeInto(zip, DshSkillManager.packable(home, Set.of("alpha", "beta")), null);
 		}
 
 		Set<String> members = new TreeSet<>();
@@ -194,13 +194,13 @@ class DshSkillsTest {
 		             "a bundle travels as every file under it and a flat skill as its one .md");
 
 		Path restored = Files.createTempDirectory("skills-restored");
-		assertEquals(4, DshSkills.restoreInto(pack, restored, null));
-		assertTrue(Files.isRegularFile(DshSkills.directory(restored)
-		                                        .resolve("alpha")
-		                                        .resolve("assets")
-		                                        .resolve("icon.png")));
-		assertTrue(Files.isRegularFile(DshSkills.directory(restored).resolve("beta.md")));
-		assertFalse(Files.exists(DshSkills.directory(restored).resolve(".system")),
+		assertEquals(4, DshSkillManager.restoreInto(pack, restored, null));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(restored)
+		                                              .resolve("alpha")
+		                                              .resolve("assets")
+		                                              .resolve("icon.png")));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(restored).resolve("beta.md")));
+		assertFalse(Files.exists(DshSkillManager.directory(restored).resolve(".system")),
 		            "the skills the harness ships are not the ones a person installed, so they do not travel");
 		Files.deleteIfExists(pack);
 	}
@@ -217,12 +217,12 @@ class DshSkillsTest {
 		}
 
 		Path target = Files.createTempDirectory("skills-restored");
-		DshSkills.restoreInto(pack, target, null);
+		DshSkillManager.restoreInto(pack, target, null);
 
-		assertTrue(Files.isRegularFile(DshSkills.directory(target).resolve("good.md")));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(target).resolve("good.md")));
 		assertFalse(Files.exists(target.resolve("escaped.md")),
 		            "an entry that would land above the skills directory is dropped, not sanitised");
-		assertFalse(Files.exists(DshSkills.directory(target).resolve(".system")),
+		assertFalse(Files.exists(DshSkillManager.directory(target).resolve(".system")),
 		            "an archive cannot put anything into the directory the harness owns");
 		Files.deleteIfExists(pack);
 	}

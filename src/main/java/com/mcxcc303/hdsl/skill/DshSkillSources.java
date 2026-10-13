@@ -23,7 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 
 @NotNullByDefault
-public enum SkillSource {
+public enum DshSkillSources {
 	// The community's index
 	SKILLS_SH("skills-sh", "skills.sh", new DshSkillSource.SkillsSh()),
 
@@ -32,9 +32,9 @@ public enum SkillSource {
 
 	private final String id;
 	private final String label;
-	private final SkillCatalog catalog;
+	private final DshSkillCatalog catalog;
 
-	SkillSource(String id, String label, SkillCatalog catalog) {
+	DshSkillSources(String id, String label, DshSkillCatalog catalog) {
 		this.id = id;
 		this.label = label;
 		this.catalog = catalog;
@@ -46,11 +46,11 @@ public enum SkillSource {
 	 * @param id the stored id, possibly `null` or of the wrong case
 	 * @return the source
 	 */
-	public static SkillSource of(@Nullable String id) {
+	public static DshSkillSources of(@Nullable String id) {
 		if (id == null) return SKILLS_SH;
 
 		String wanted = id.trim().toLowerCase(Locale.ROOT);
-		for (SkillSource source : values()) {
+		for (DshSkillSources source : values()) {
 			if (source.id.equals(wanted)) return source;
 		}
 		return SKILLS_SH;
@@ -64,7 +64,7 @@ public enum SkillSource {
 		return label;
 	}
 
-	public SkillCatalog catalog() {
+	public DshSkillCatalog catalog() {
 		return catalog;
 	}
 }

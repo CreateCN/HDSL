@@ -24,7 +24,7 @@ import java.util.List;
 
 // A catalogue of published skills
 @NotNullByDefault
-public interface SkillCatalog {
+public interface DshSkillCatalog {
 	/**
 	 * Returns the name this catalogue is stored and reported by.
 	 *

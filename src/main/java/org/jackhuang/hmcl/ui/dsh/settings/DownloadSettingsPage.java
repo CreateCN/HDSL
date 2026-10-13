@@ -24,7 +24,7 @@ import com.mcxcc303.hdsl.plugin.CatalogSources;
 import com.mcxcc303.hdsl.plugin.MarketSource;
 import com.mcxcc303.hdsl.runtime.NodeSource;
 import com.mcxcc303.hdsl.skill.DshSkillSource;
-import com.mcxcc303.hdsl.skill.SkillSource;
+import com.mcxcc303.hdsl.skill.DshSkillSources;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -52,7 +52,7 @@ import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 // Where the launcher fetches what it downloads
 @NotNullByDefault
 public final class DownloadSettingsPage extends ScrollPane {
-	/// Creates the page.
+	// Creates the page.
 	public DownloadSettingsPage() {
 		setFitToWidth(true);
 		setFitToHeight(true);
@@ -129,9 +129,11 @@ public final class DownloadSettingsPage extends ScrollPane {
 		};
 	}
 
-	/// Returns the line each option carries in the list the row opens.
-	///
-	/// @return the converter
+	/**
+	 * Returns the line each option carries in the list the row opens.
+	 *
+	 * @return the converter
+	 */
 	private static Function<NodeSource, String> sourceDescription() {
 		return source -> {
 			String key = switch (source) {
@@ -142,8 +144,7 @@ public final class DownloadSettingsPage extends ScrollPane {
 		};
 	}
 
-	// Returns the line each skill source carries in the list the row opens.
-	private static Function<SkillSource, String> skillSourceDescription() {
+	private static Function<DshSkillSources, String> skillSourceDescription() {
 		return source -> {
 			String key = switch (source) {
 				case SKILLS_SH -> "dsh.skills.source.skills_sh.desc";
@@ -198,11 +199,11 @@ public final class DownloadSettingsPage extends ScrollPane {
 	}
 
 	private Node buildSkillRow() {
-		LineSelectButton<SkillSource> source = new LineSelectButton<>();
+		LineSelectButton<DshSkillSources> source = new LineSelectButton<>();
 		source.setTitle(i18n("dsh.settings.skill_source"));
-		source.setNullSafeConverter(SkillSource::label);
+		source.setNullSafeConverter(DshSkillSources::label);
 		source.setDescriptionConverter(skillSourceDescription());
-		source.setItems(List.of(SkillSource.values()));
+		source.setItems(List.of(DshSkillSources.values()));
 		source.setValue(DshSkillSource.selectedSource());
 		source.valueProperty().addListener((observable, was, value) -> {
 			if (value != was) {

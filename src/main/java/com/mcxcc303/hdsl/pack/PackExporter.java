@@ -28,7 +28,7 @@ import com.mcxcc303.hdsl.plugin.DshPluginBundle;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
 import com.mcxcc303.hdsl.skill.DshSkill;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -142,7 +142,7 @@ public final class PackExporter {
 		// The pack carries the skill packs the options asked for and the home actually has:
 		// a name for a skill that is no longer there is not something to fail over, because the
 		// alternative is a pack that cannot be written after a skill was deleted.
-		List<DshSkill> skills = DshSkills.packable(instance.homeDirectory(), options.skills());
+		List<DshSkill> skills = DshSkillManager.packable(instance.homeDirectory(), options.skills());
 		List<String> skillNames = skills.stream().map(DshSkill::fileName).toList();
 
 		PackManifest.Manifest manifest = new PackManifest.Manifest(PackManifest.FORMAT,
@@ -208,7 +208,7 @@ public final class PackExporter {
 				if (!skills.isEmpty()) {
 					// The layout under the home is the layout in the pack, which is what makes
 					// restoring one a copy rather than a translation.
-					DshSkills.writeInto(zip, skills, onStage);
+					DshSkillManager.writeInto(zip, skills, onStage);
 				}
 				zip.putNextEntry(new ZipEntry(PackManifest.MANIFEST));
 				zip.write(JsonUtils.GSON.toJson(manifest).getBytes(StandardCharsets.UTF_8));

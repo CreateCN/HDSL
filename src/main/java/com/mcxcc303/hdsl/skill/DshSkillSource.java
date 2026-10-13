@@ -43,6 +43,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -77,7 +78,7 @@ public final class DshSkillSource {
 			return new Found(List.of(), List.of());
 		}
 
-		SkillSource source = selectedSource();
+		DshSkillSources source = selectedSource();
 		List<Offering> found;
 		try {
 			found = source.catalog().search(query.trim(), limit);
@@ -97,7 +98,7 @@ public final class DshSkillSource {
 	 *
 	 * @return the catalogue
 	 */
-	public static SkillCatalog selected() {
+	public static DshSkillCatalog selected() {
 		return selectedSource().catalog();
 	}
 
@@ -106,12 +107,12 @@ public final class DshSkillSource {
 	 *
 	 * @return the source
 	 */
-	public static SkillSource selectedSource() {
+	public static DshSkillSources selectedSource() {
 		try {
-			return SkillSource.of(SettingsManager.settings().skillSourceProperty().get());
+			return DshSkillSources.of(SettingsManager.settings().skillSourceProperty().get());
 		} catch (RuntimeException e) {
 			LOG.warning("Could not read the skill source from the settings", e);
-			return SkillSource.SKILLS_SH;
+			return DshSkillSources.SKILLS_SH;
 		}
 	}
 
@@ -120,7 +121,7 @@ public final class DshSkillSource {
 	 *
 	 * @param source the source
 	 */
-	public static void setSelectedSource(SkillSource source) {
+	public static void setSelectedSource(DshSkillSources source) {
 		try {
 			SettingsManager.settings()
 			               .skillSourceProperty()
@@ -212,7 +213,7 @@ public final class DshSkillSource {
 			if (fullName == null || branch == null) continue;
 
 			repos.add(new Repo(fullName,
-			                   orEmpty(string(object, "description")),
+			                   string(object, "description"),
 			                   integer(object, "stargazers_count"),
 			                   branch));
 		}
@@ -263,7 +264,7 @@ public final class DshSkillSource {
 			Path pack = staging.resolve(bundle.name());
 			unpack(bundle, pack, report);
 
-			return DshSkills.install(home, pack);
+			return DshSkillManager.install(home, pack);
 		} catch (IOException e) {
 			throw new DshException("Failed to fetch " + bundle.name() + " from " + bundle.repo().fullName(), e);
 		} finally {
@@ -481,16 +482,6 @@ public final class DshSkillSource {
 	}
 
 	/**
-	 * Replaces null with an empty string.
-	 *
-	 * @param value the value, or null
-	 * @return the value, or an empty string
-	 */
-	private static String orEmpty(String value) {
-		return value == null ? "" : value;
-	}
-
-	/**
 	 * Deletes a directory and everything under it.
 	 *
 	 * @param directory the directory
@@ -550,7 +541,7 @@ public final class DshSkillSource {
 	public record Found(@Unmodifiable List<Offering> skills, @Unmodifiable List<String> failures) {}
 
 	// The community's own index which counts installs.
-	public static final class SkillsSh implements SkillCatalog {
+	public static final class SkillsSh implements DshSkillCatalog {
 		private static final String BASE = "https://skills.sh";
 
 		@Override
@@ -562,17 +553,15 @@ public final class DshSkillSource {
 		public List<Offering> search(String query, int limit) throws DshException {
 			JsonObject root = get(BASE + "/api/search?q=" + encode(query) + "&limit=" + limit);
 			JsonArray skills = root.getAsJsonArray("skills");
-			if (skills == null) {
-				throw new DshException(BASE + " answered with no list", null);
-			}
+			if (skills == null) throw new DshException(BASE + " answered with no list", null);
 
 			List<Offering> offerings = new ArrayList<>();
 			for (JsonElement element : skills) {
 				JsonObject object = element.getAsJsonObject();
 				String id = string(object, "id");
 				String source = string(object, "source");
-				String name = orEmpty(string(object, "skillId"));
-				if (id == null || source == null || name.isEmpty()) continue;
+				String name = string(object, "skillId");
+				if (id == null || source == null || Objects.requireNonNull(name).isEmpty()) continue;
 
 				offerings.add(new Offering(name(), id, source, name, "", null, null, integer(object, "installs")));
 			}
@@ -581,7 +570,7 @@ public final class DshSkillSource {
 	}
 
 	// repositories indexes market
-	public static final class SkillsMp implements SkillCatalog {
+	public static final class SkillsMp implements DshSkillCatalog {
 		private static final String BASE = "https://skillsmp.com";
 
 		@Override
@@ -603,14 +592,14 @@ public final class DshSkillSource {
 				JsonObject object = element.getAsJsonObject();
 				GithubAddress where = parseGithubUrl(string(object, "githubUrl"));
 				String id = string(object, "id");
-				String name = orEmpty(string(object, "name"));
+				String name = string(object, "name");
 				if (id == null || name.isEmpty() || where == null) continue;
 
 				offerings.add(new Offering(name(),
 				                           id,
 				                           where.source(),
 				                           name,
-				                           orEmpty(string(object, "description")),
+				                           string(object, "description"),
 				                           where.ref(),
 				                           where.path(),
 				                           integer(object, "stars")));
