@@ -156,6 +156,19 @@ public final class LauncherSettings {
         return marketSource;
     }
 
+    /// The catalogue skills are searched in, by [SkillSource#id].
+    ///
+    /// Empty for a launcher that has never been asked, which searches the community's own index.
+    private final javafx.beans.property.StringProperty skillSource =
+            new javafx.beans.property.SimpleStringProperty("");
+
+    /// Returns the skill catalogue, chosen by id.
+    ///
+    /// @return the property
+    public javafx.beans.property.StringProperty skillSourceProperty() {
+        return skillSource;
+    }
+
     /// Where the modpack market's index is read from, or empty for the one the ecosystem publishes.
     ///
     /// The same three-source arrangement the plugin catalogue has, and for the same reason: the market

@@ -551,6 +551,10 @@ public final class SettingsManager {
         @SerializedName("marketSource")
         private @Nullable String marketSource;
 
+        /// The catalogue skills are searched in, by [SkillSource#id], or absent for the community's own index.
+        @SerializedName("skillSource")
+        private @Nullable String skillSource;
+
         /// Where the modpack market's index is read from, or absent for the published one.
         @SerializedName("packMarketUrl")
         private @Nullable String packMarketUrl;
@@ -653,6 +657,7 @@ public final class SettingsManager {
             snapshot.postExitCommand = settings.postExitCommandProperty().get();
             snapshot.globalEnvironment = new java.util.LinkedHashMap<>(settings.globalEnvironment());
             snapshot.marketSource = settings.marketSourceProperty().get();
+            snapshot.skillSource = settings.skillSourceProperty().get();
             snapshot.packMarketUrl = settings.packMarketUrlProperty().get();
             snapshot.dependencyPolicy = settings.dependencyPolicy().name();
             snapshot.cacheDirectory = settings.cacheDirectoryProperty().get();
@@ -872,6 +877,9 @@ public final class SettingsManager {
             }
             if (marketSource != null) {
                 settings.marketSourceProperty().set(marketSource);
+            }
+            if (skillSource != null) {
+                settings.skillSourceProperty().set(skillSource);
             }
             if (cacheDirectory != null) {
                 settings.cacheDirectoryProperty().set(cacheDirectory);
