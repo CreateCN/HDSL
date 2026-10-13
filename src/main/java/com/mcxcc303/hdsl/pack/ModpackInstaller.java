@@ -27,7 +27,7 @@ import com.mcxcc303.hdsl.plugin.DshLocalPlugins;
 import com.mcxcc303.hdsl.plugin.DshPluginBundle;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -134,7 +134,7 @@ public final class ModpackInstaller {
 			// Content rather than configuration, so it is put back the way it came out: a copy
 			// under the home's own skills directory. The harness reads that directory when it
 			// starts, so nothing else has to be told.
-			DshSkills.restoreInto(pack, existing.homeDirectory(), onStage);
+			DshSkillManager.restoreInto(pack, existing.homeDirectory(), onStage);
 		}
 		return new InstallResult(existing, !installed, plugins, manifest.bundles().size());
 	}

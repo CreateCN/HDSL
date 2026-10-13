@@ -63,7 +63,7 @@ class DshAccountTest {
 		DshAccount.Check check = new DshAccount("totally-unknown", "k", null, null).check();
 
 		assertEquals(DshAccount.Outcome.UNREACHABLE, check.outcome());
-		assertEquals(I18n.i18n("dsh.account.check.no_endpoint"), check.message());
+		assertEquals(I18n.i18n("dsh.account.check.no_endpoint", "totally-unknown"), check.message());
 		assertNotEquals("dsh.account.check.no_endpoint",
 		                check.message(),
 		                "a key no bundle holds comes back as itself, which is not a sentence");

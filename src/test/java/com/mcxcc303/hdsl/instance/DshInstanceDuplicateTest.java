@@ -21,7 +21,7 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.launch.DshSessions;
 import com.mcxcc303.hdsl.pack.PackExporter;
 import com.mcxcc303.hdsl.pack.PackManifest;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -125,7 +125,7 @@ class DshInstanceDuplicateTest {
 				dshmarket:
 				  registry: https://example.invalid
 				""");
-		Path skills = DshSkills.directory(source.homeDirectory());
+		Path skills = DshSkillManager.directory(source.homeDirectory());
 		Files.createDirectories(skills.resolve("alpha"));
 		Files.writeString(skills.resolve("alpha").resolve("SKILL.md"), "---\nname: alpha\ndescription: First\n---\n");
 		writeSession(source.homeDirectory());

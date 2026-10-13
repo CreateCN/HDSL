@@ -24,7 +24,7 @@ import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceIcon;
 import com.mcxcc303.hdsl.skill.DshSkill;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -74,18 +74,10 @@ import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 /// description.
 @NotNullByDefault
 public final class SkillListPage extends ListPageBase<DshSkill> implements Refreshable {
-	/// What the page accepts when the user drops files on it.
-	///
-	/// The same two shapes the harness reads: a folder that is a bundle, and a Markdown
-	/// file. Both are checked again when the pack is read, so this is only what makes the
-	/// cursor say yes while the drag is over the list.
-	private static final PathMatcher SKILL_PACKS = path -> Files.isDirectory(path) || (path.getFileName() != null &&
-	                                                                                   (path.getFileName()
-	                                                                                        .toString()
-	                                                                                        .endsWith(".md") ||
-	                                                                                    path.getFileName()
-	                                                                                        .toString()
-	                                                                                        .endsWith(".zip")));
+	/// The two shapes the harness reads: a folder bundle and a Markdown file. Both are validated again when the pack is read, so this only drives the drop cursor.
+	private static final PathMatcher SKILL_PACKS = path ->
+			Files.isDirectory(path) || (path.getFileName() != null && (path.getFileName().toString().endsWith(".md") ||
+			                                                           path.getFileName().toString().endsWith(".zip")));
 	/// The instance whose skills are listed.
 	private final DshInstance instance;
 	/// The page's toolbar, which swaps itself for a search field.
@@ -131,7 +123,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
 
 		CompletableFuture.supplyAsync(() -> {
 			try {
-				return DshSkills.list(instance.homeDirectory());
+				return DshSkillManager.list(instance.homeDirectory());
 			} catch (DshException e) {
 				throw new CompletionException(e);
 			}
@@ -169,7 +161,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
 		CompletableFuture.runAsync(() -> {
 			try {
 				for (DshSkill skill : targets) {
-					DshSkills.setEnabled(skill, enabled);
+					DshSkillManager.setEnabled(skill, enabled);
 				}
 			} catch (DshException | RuntimeException e) {
 				throw new CompletionException(e);
@@ -199,7 +191,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
 		Controllers.confirm(message, i18n("button.remove"), () -> CompletableFuture.runAsync(() -> {
 			try {
 				for (DshSkill skill : targets) {
-					DshSkills.remove(skill);
+					DshSkillManager.remove(skill);
 				}
 			} catch (DshException | RuntimeException e) {
 				throw new CompletionException(e);
@@ -226,7 +218,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
 			List<String> failures = new ArrayList<>();
 			for (Path file : files) {
 				try {
-					DshSkills.install(instance.homeDirectory(), file);
+					DshSkillManager.install(instance.homeDirectory(), file);
 				} catch (DshException | RuntimeException e) {
 					failures.add(file.getFileName() + ": " + e.getMessage());
 				}
@@ -272,7 +264,7 @@ public final class SkillListPage extends ListPageBase<DshSkill> implements Refre
 	/// Opens the skills directory, making it first when the instance has none yet.
 	private void reveal() {
 		try {
-			Path directory = DshSkills.directory(instance.homeDirectory());
+			Path directory = DshSkillManager.directory(instance.homeDirectory());
 			Files.createDirectories(directory);
 			FXUtils.showFileInExplorer(directory);
 		} catch (Exception e) {

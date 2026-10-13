@@ -27,61 +27,60 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/// Every command the launcher answers to, in one table.
-///
-/// A command is a group, a name, the parameters it takes and what it does. The parser, the help and
-/// the dispatch all read this one list, so a command that is in the table is a command that can be
-/// typed, explained and run — which is the point of the table. Before it, a command lived in five
-/// places: a list of flags that decided whether the launcher was being spoken to at all, a parse
-/// switch, an enum, a dispatch switch and a page of help. They drifted, and the drift was silent: a
-/// command nobody could find in the help, a flag that had been dead for releases, an option no
-/// documentation mentioned.
 @NotNullByDefault
 final class Commands {
 
-	/// How many times a parameter may be given, and whether it has to be.
+	// How many times a parameter may be given, and whether it has to be.
 	enum Kind {
-		/// Given once, and the command does not run without it.
+		// Given once, and the command does not run without it.
 		REQUIRED,
-		/// Given at most once.
+		// Given at most once.
 		OPTIONAL,
-		/// Given without a value; what the command reads is whether it is there.
+		// Given without a value; what the command reads is whether it is there.
 		FLAG,
-		/// Given once or more.
+		// Given once or more.
 		REQUIRED_MANY,
-		/// Given any number of times, including none.
+		// Given any number of times, including none.
 		OPTIONAL_MANY
 	}
 
-	/// One parameter of one command.
-	///
-	/// @param name        the spelling, without the leading dashes
-	/// @param kind        how many times it may be given
-	/// @param placeholder what the value is, for the help; empty for a flag
-	/// @param description what the parameter is for, for the help
+	/**
+	 * One parameter of one command.
+	 *
+	 * @param name        the spelling, without the leading dashes
+	 * @param kind        how many times it may be given
+	 * @param placeholder what the value is, for the help; empty for a flag
+	 * @param description what the parameter is for, for the help
+	 */
 	record Parameter(String name, Kind kind, String placeholder, String description) {
 	}
 
-	/// One command.
-	///
-	/// @param group       the group it is typed under, or the empty string for a command that stands alone
-	/// @param name        the name it is typed as
-	/// @param description what it does, for the help
-	/// @param parameters  what it takes
-	/// @param action      what it does
+	/**
+	 * One command.
+	 *
+	 * @param group       the group it is typed under, or the empty string for a command that stands alone
+	 * @param name        the name it is typed as
+	 * @param description what it does, for the help
+	 * @param parameters  what it takes
+	 * @param action      what it does
+	 */
 	record Command(String group, String name, String description, List<Parameter> parameters, Action action) {
 
-		/// Returns the words this command is typed as.
-		///
-		/// @return the group and the name, or the name alone for a command that stands alone
+		/**
+		 * Returns the words this command is typed as.
+		 *
+		 * @return the group and the name, or the name alone for a command that stands alone
+		 */
 		String spelling() {
 			return group.isEmpty() ? name : group + " " + name;
 		}
 
-		/// Returns the parameter of this name.
-		///
-		/// @param name the spelling, without the leading dashes
-		/// @return the parameter, or `null` when this command takes none of that name
+		/**
+		 * Returns the parameter of this name.
+		 *
+		 * @param name the spelling, without the leading dashes
+		 * @return the parameter, or `null` when this command takes none of that name
+		 */
 		@Nullable Parameter parameter(String name) {
 			for (Parameter parameter : parameters) {
 				if (parameter.name().equals(name)) {
@@ -92,21 +91,23 @@ final class Commands {
 		}
 	}
 
-	/// What a command does when it runs.
+	// What a command does when it runs.
 	interface Action {
-		/// Runs one command.
-		///
-		/// @param invocation the parsed invocation
-		/// @param out        the stream for normal output
-		/// @param err        the stream for error output
-		/// @return the process exit code
+		/**
+		 * Runs one command.
+		 *
+		 * @param invocation the parsed invocation
+		 * @param out        the stream for normal output
+		 * @param err        the stream for error output
+		 * @return the process exit code
+		 */
 		int run(Cli.Invocation invocation, PrintStream out, PrintStream err) throws DshException;
 	}
 
 	private Commands() {
 	}
 
-	/// Every command, in the order the help lists them.
+	// Every command, in the order the help lists them.
 	private static final List<Command> ALL = List.of(
 			// The launcher itself.
 			new Command("", "doctor", "print a full diagnostics report",
@@ -219,9 +220,11 @@ final class Commands {
 			            List.of(required("path", "path", "the folder to add")),
 			            DirectoryCommands::addDirectory),
 
-			// The places the plugin catalogue is read from.
-			new Command("source", "list", "print the places the plugin catalogue is read from",
-			            List.of(), (invocation, out, err) -> PluginSourceCommands.listPluginSources(out)),
+			new Command("source",
+			            "list",
+			            "print the places the plugin catalogue and the skill catalogues are read from",
+			            List.of(),
+			            (invocation, out, err) -> PluginSourceCommands.listSources(out)),
 
 			// Node runtimes.
 			new Command("node", "list", "list the Node runtimes the launcher installed",
@@ -243,57 +246,69 @@ final class Commands {
 			new Command("harness", "versions", "list the harness versions the registry publishes",
 			            List.of(), HarnessCommands::versions));
 
-	/// The commands by the words they are typed as, one entry per spelling.
+	// The commands by the words they are typed as, one entry per spelling.
 	private static final Map<String, Command> BY_SPELLING = bySpelling();
 
-	/// The groups, in the order the help lists them.
+	// The groups, in the order the help lists them.
 	private static final List<String> GROUPS = ALL.stream()
-	                                               .map(Command::group)
-	                                               .filter(group -> !group.isEmpty())
-	                                               .distinct()
-	                                               .toList();
+	                                              .map(Command::group)
+	                                              .filter(group -> !group.isEmpty())
+	                                              .distinct()
+	                                              .toList();
 
-	/// Returns every command, in the order the help lists them.
-	///
-	/// @return the commands
+	/**
+	 * Returns every command, in the order the help lists them.
+	 *
+	 * @return the commands
+	 */
 	static List<Command> all() {
 		return ALL;
 	}
 
-	/// Returns the groups, in the order the help lists them.
-	///
-	/// @return the group names
+	/**
+	 * Returns the groups, in the order the help lists them.
+	 *
+	 * @return the group names
+	 */
 	static List<String> groups() {
 		return GROUPS;
 	}
 
-	/// Returns the commands of one group, in the order the help lists them.
-	///
-	/// @param group the group
-	/// @return its commands, empty when the group is not one of ours
+	/**
+	 * Returns the commands of one group, in the order the help lists them.
+	 *
+	 * @param group the group
+	 * @return its commands, empty when the group is not one of ours
+	 */
 	static List<Command> in(String group) {
 		return ALL.stream().filter(command -> command.group().equals(group)).toList();
 	}
 
-	/// Returns the commands that stand alone, in the order the help lists them.
-	///
-	/// @return the commands with no group
+	/**
+	 * Returns the commands that stand alone, in the order the help lists them.
+	 *
+	 * @return the commands with no group
+	 */
 	static List<Command> standalone() {
 		return ALL.stream().filter(command -> command.group().isEmpty()).toList();
 	}
 
-	/// Reports whether a word is one of the groups.
-	///
-	/// @param word the word
-	/// @return whether the word names a group
+	/**
+	 * Reports whether a word is one of the groups.
+	 *
+	 * @param word the word
+	 * @return whether the word names a group
+	 */
 	static boolean isGroup(String word) {
 		return GROUPS.contains(word);
 	}
 
-	/// Returns the command a spelling names.
-	///
-	/// @param spelling the words the command is typed as, such as `instance create`
-	/// @return the command, or `null` when no command is spelled that way
+	/**
+	 * Returns the command a spelling names.
+	 *
+	 * @param spelling the words the command is typed as, such as `instance create`
+	 * @return the command, or `null` when no command is spelled that way
+	 */
 	static @Nullable Command find(String spelling) {
 		return BY_SPELLING.get(spelling);
 	}

@@ -25,7 +25,7 @@ import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshInstanceManager;
 import com.mcxcc303.hdsl.instance.InstanceStore;
 import com.mcxcc303.hdsl.plugin.DshPluginBundle;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -346,7 +346,7 @@ class DshModpacksTest {
 	void theSkillPacksAnInstanceHasTravelInsideThePack() throws Exception {
 		DshInstance instance = makeInstance(SOURCE_ID);
 		writeProfile(instance, "{}");
-		Path skills = DshSkills.directory(instance.homeDirectory());
+		Path skills = DshSkillManager.directory(instance.homeDirectory());
 		Files.createDirectories(skills.resolve("alpha"));
 		Files.writeString(skills.resolve("alpha").resolve("SKILL.md"), "---\nname: alpha\ndescription: First\n---\n");
 		Files.writeString(skills.resolve("alpha").resolve("notes.txt"), "extra");
@@ -371,8 +371,8 @@ class DshModpacksTest {
 		}
 
 		Path restored = Files.createTempDirectory("modpack-target-home");
-		assertEquals(2, DshSkills.restoreInto(pack, restored, null));
-		assertTrue(Files.isRegularFile(DshSkills.directory(restored).resolve("alpha").resolve("SKILL.md")));
+		assertEquals(2, DshSkillManager.restoreInto(pack, restored, null));
+		assertTrue(Files.isRegularFile(DshSkillManager.directory(restored).resolve("alpha").resolve("SKILL.md")));
 		Files.deleteIfExists(pack);
 	}
 
@@ -380,7 +380,7 @@ class DshModpacksTest {
 	void aSkillThePersonLeftOutDoesNotTravel() throws Exception {
 		DshInstance instance = makeInstance(SOURCE_ID);
 		writeProfile(instance, "{}");
-		Path skills = DshSkills.directory(instance.homeDirectory());
+		Path skills = DshSkillManager.directory(instance.homeDirectory());
 		for (String name : List.of("kept", "dropped")) {
 			Files.createDirectories(skills.resolve(name));
 			Files.writeString(skills.resolve(name).resolve("SKILL.md"),

@@ -24,7 +24,7 @@ import com.google.gson.JsonPrimitive;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
@@ -433,7 +433,7 @@ public final class PackManifest {
 			}
 			Set<String> skills = Set.of();
 			try {
-				skills = new LinkedHashSet<>(DshSkills.packableNames(instance.homeDirectory()));
+				skills = new LinkedHashSet<>(DshSkillManager.packableNames(instance.homeDirectory()));
 			} catch (DshException e) {
 				LOG.warning("Failed to read the skills of " + instance.id(), e);
 			}

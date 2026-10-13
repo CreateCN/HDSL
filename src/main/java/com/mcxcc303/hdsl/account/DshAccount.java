@@ -94,8 +94,6 @@ public record DshAccount(
 	private static final String ANTHROPIC_API = "anthropic-messages";
 	/// The largest model-list page Anthropic's public endpoint accepts.
 	private static final int ANTHROPIC_MODEL_LIMIT = 1000;
-	/// The longest reason from a vendor that is repeated under an account's name.
-	private static final int SAID_LIMIT = 120;
 
 	/// Creates an official or third-party account with no model named.
 	///
@@ -247,8 +245,9 @@ public record DshAccount(
 	/// Reads what a vendor said about a request it refused.
 	///
 	/// The fields services put their reason in and no others: `message`, `error.message`, or a bare
-	/// `error` string. A body that is a page rather than an answer carries none of them, and a reason
-	/// longer than a sentence is cut short — this ends up on one line under a row.
+	/// `error` string. A body that is a page rather than an answer carries none of them. What it says
+	/// is passed on whole — it is shown in a dialog, where the length costs nothing — on one line,
+	/// because a reason broken across lines reads worse than one that is not.
 	///
 	/// @param body the answer
 	/// @return what it said, or `null` when it said nothing readable
@@ -273,10 +272,7 @@ public record DshAccount(
 				return null;
 			}
 			String oneLine = said.replaceAll("\\s+", " ").trim();
-			if (oneLine.isEmpty()) {
-				return null;
-			}
-			return oneLine.length() <= SAID_LIMIT ? oneLine : oneLine.substring(0, SAID_LIMIT) + "...";
+			return oneLine.isEmpty() ? null : oneLine;
 		} catch (RuntimeException e) {
 			return null;
 		}
@@ -526,7 +522,7 @@ public record DshAccount(
 	public Check check() {
 		String address = endpoint();
 		if (address == null || address.isBlank()) {
-			return new Check(Outcome.UNREACHABLE, i18n("dsh.account.check.no_endpoint"));
+			return new Check(Outcome.UNREACHABLE, i18n("dsh.account.check.no_endpoint", vendorId));
 		}
 		DshVendor vendor = vendor();
 		String api = vendor == null ? "openai-completions" : vendor.api();
@@ -559,7 +555,7 @@ public record DshAccount(
 					       ? new Check(Outcome.VALID,
 					                   i18n("dsh.account.check.valid"))
 					       : new Check(Outcome.UNKNOWN,
-					                   i18n("dsh.account.check.not_a_listing", String.valueOf(status), url));
+					                   i18n("dsh.account.check.no_listing", String.valueOf(status), url));
 				}
 				if (status == 401 || status == 403) {
 					// What this can and cannot say. An address that did not accept the key is not the
@@ -572,12 +568,13 @@ public record DshAccount(
 					return new Check(Outcome.REJECTED,
 					                 i18n("dsh.account.check.not_accepted",
 					                      String.valueOf(status),
-					                      said == null ? "" : i18n("dsh.account.check.vendor_said", said)));
+					                      said == null ? "" : said));
 				}
 				// 404 and 400 are the endpoint answering, which is not the same as the key being
 				// wrong: some gateways do not serve a model list at all.
 				if (status == 404 || status == 400 || status == 405) {
-					return new Check(Outcome.UNKNOWN, i18n("dsh.account.check.no_listing", String.valueOf(status)));
+					return new Check(Outcome.UNKNOWN,
+					                 i18n("dsh.account.check.no_listing", String.valueOf(status), url));
 				}
 				return new Check(Outcome.UNREACHABLE, i18n("dsh.account.check.http", String.valueOf(status)));
 			}

@@ -29,27 +29,23 @@ import org.jetbrains.annotations.NotNullByDefault;
 import java.io.PrintStream;
 import java.util.List;
 
-/// The commands about the Node toolchain: which runtimes the machine and the launcher have, which
-/// versions can be installed, and installing or removing one.
 @NotNullByDefault
 public final class NodeCommands {
 
-	private NodeCommands() {
-	}
+	private NodeCommands() {}
 
-	/// Runs the `node list` command.
 	static int listRuntimes(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		List<NodeRuntime> runtimes = NodeRuntimeManager.listInstalled();
-		if (runtimes.isEmpty()) {
-			out.println("(no managed Node runtimes)");
-		}
+		if (runtimes.isEmpty()) out.println("(no managed Node runtimes)");
+
+		DshTable table = new DshTable("VERSION", "DIRECTORY");
 		for (NodeRuntime runtime : runtimes) {
-			out.println(runtime.version() + "\t" + runtime.directory());
+			table.row(runtime.version(), runtime.directory().toString());
 		}
+		table.print(out);
 		return 0;
 	}
 
-	/// Runs the `node versions` command.
 	static int listNodeVersions(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		for (NodeRelease release : NodeRuntimeManager.fetchReleases(NodeSource.of(invocation.option("source")))) {
 			out.println(release.version() + (release.isLts() ? "\t" + release.label() : "") +
@@ -58,10 +54,10 @@ public final class NodeCommands {
 		return 0;
 	}
 
-	/// Runs the `node install` command.
 	static int installNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String version = invocation.option("version");
 		out.println("Installing Node.js " + version + " ...");
+
 		NodeRuntime runtime = NodeRuntimeManager.install(version,
 		                                                 NodeSource.of(invocation.option("source")),
 		                                                 out::println);
@@ -69,7 +65,6 @@ public final class NodeCommands {
 		return 0;
 	}
 
-	/// Runs the `node uninstall` command.
 	static int uninstallNode(Invocation invocation, PrintStream out, PrintStream err) throws DshException {
 		String version = invocation.option("version");
 		NodeRuntimeManager.uninstall(version);

@@ -29,7 +29,7 @@ import com.mcxcc303.hdsl.pack.PackExporter;
 import com.mcxcc303.hdsl.pack.PackManifest;
 import com.mcxcc303.hdsl.plugin.DshPluginInstaller;
 import com.mcxcc303.hdsl.plugin.DshPluginSettings;
-import com.mcxcc303.hdsl.skill.DshSkills;
+import com.mcxcc303.hdsl.skill.DshSkillManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -323,7 +323,7 @@ public final class ModpackFilesPage extends VBox implements WizardPage {
 		// instance it was made from.
 		List<String> skills = List.of();
 		try {
-			skills = DshSkills.packableNames(instance.homeDirectory());
+			skills = DshSkillManager.packableNames(instance.homeDirectory());
 		} catch (DshException e) {
 			// Without the list the pack still carries what the wizard settings say; this
 			// branch is how a person sees and changes it.

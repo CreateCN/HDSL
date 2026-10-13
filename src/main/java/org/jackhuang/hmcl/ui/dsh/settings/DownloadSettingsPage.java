@@ -23,6 +23,8 @@ import com.mcxcc303.hdsl.plugin.CatalogClient;
 import com.mcxcc303.hdsl.plugin.CatalogSources;
 import com.mcxcc303.hdsl.plugin.MarketSource;
 import com.mcxcc303.hdsl.runtime.NodeSource;
+import com.mcxcc303.hdsl.skill.DshSkillSource;
+import com.mcxcc303.hdsl.skill.DshSkillSources;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -47,25 +49,10 @@ import java.util.function.Function;
 import static org.jackhuang.hmcl.setting.SettingsManager.settings;
 import static org.jackhuang.hmcl.util.i18n.I18n.i18n;
 
-/// Where the launcher fetches what it downloads.
-///
-/// The original keeps its download sources on a page of their own under the
-/// launcher's settings, apart from the settings that describe the game or the
-/// runtimes: a source is neither, it is how the launcher reaches the network. The
-/// same split is kept here, and the rows inside the section are the original's own:
-/// every source the launcher can be pointed at, one row each, under the one heading.
-///
-/// Two sources exist because two downloads do not come from npm: Node's
-/// distribution comes from the Node.js project or a mirror of it, and the plugin
-/// catalogue is one document on one host. DeepSeek Harness and its plugins come
-/// from npm, which the user points at a registry of their choosing.
-///
-/// The row is the original's shape: the chosen option's name is what the row
-/// shows, and each option carries a line saying what it is, shown in the list the
-/// row opens rather than in the row itself.
+// Where the launcher fetches what it downloads
 @NotNullByDefault
 public final class DownloadSettingsPage extends ScrollPane {
-	/// Creates the page.
+	// Creates the page.
 	public DownloadSettingsPage() {
 		setFitToWidth(true);
 		setFitToHeight(true);
@@ -83,19 +70,21 @@ public final class DownloadSettingsPage extends ScrollPane {
 		FXUtils.smoothScrolling(this);
 	}
 
-	/// Returns the proxy mode in force.
-	///
-	/// @return the mode, never `null`
+	/**
+	 * Returns the proxy mode in force.
+	 *
+	 * @return proxy mode
+	 */
 	private static DshProxyMode currentProxyMode() {
 		return Objects.requireNonNullElse(settings().proxyModeProperty().get(), DshProxyMode.SYSTEM);
 	}
 
-	/// Returns the string key for one proxy mode.
-	///
-	/// The original's keys, because the four choices are its four choices.
-	///
-	/// @param mode the mode
-	/// @return the key
+	/**
+	 * Returns the string key for one proxy mode.
+	 *
+	 * @param mode the mode
+	 * @return the key
+	 */
 	private static String proxyModeKey(DshProxyMode mode) {
 		return switch (mode) {
 			case SYSTEM -> "settings.launcher.proxy.default";
@@ -105,17 +94,15 @@ public final class DownloadSettingsPage extends ScrollPane {
 		};
 	}
 
-	/// Builds a two-row form: a name and its field, twice.
-	///
-	/// The shape the original's proxy form has, down to the grid it uses: the names take their
-	/// own width, the fields take what is left, and the whole block is indented so that it reads
-	/// as belonging to the line of modes above it.
-	///
-	/// @param firstLabel  the first row's name
-	/// @param firstField  the first row's field
-	/// @param secondLabel the second row's name
-	/// @param secondField the second row's field
-	/// @return the grid
+	/**
+	 * Builds a two-row form
+	 *
+	 * @param firstLabel  the first row's name
+	 * @param firstField  the first row's field
+	 * @param secondLabel the second row's name
+	 * @param secondField the second row's field
+	 * @return the grid
+	 */
 	private static GridPane formGrid(Node firstLabel, Node firstField, Node secondLabel, Node secondField) {
 		ColumnConstraints grow = new ColumnConstraints();
 		grow.setHgrow(Priority.ALWAYS);
@@ -130,12 +117,11 @@ public final class DownloadSettingsPage extends ScrollPane {
 		return grid;
 	}
 
-	/// Returns the labels the source row shows for its options.
-	///
-	/// The original's own wording, because the choice is the same choice: a
-	/// mirror is the one to take where the publisher cannot be reached.
-	///
-	/// @return the converter
+	/**
+	 * Returns the labels the source row shows for its options.
+	 *
+	 * @return the converter
+	 */
 	private static Function<NodeSource, String> sourceName() {
 		return source -> switch (source) {
 			case OFFICIAL -> i18n("download.provider.official");
@@ -143,9 +129,9 @@ public final class DownloadSettingsPage extends ScrollPane {
 		};
 	}
 
-	/// Returns the line each option carries in the list the row opens.
-	///
-	/// @return the converter
+	/**
+	 * Returns the line each option carries in the list the row opens.
+	 */
 	private static Function<NodeSource, String> sourceDescription() {
 		return source -> {
 			String key = switch (source) {
@@ -156,45 +142,46 @@ public final class DownloadSettingsPage extends ScrollPane {
 		};
 	}
 
-	/// Builds the download source section.
-	///
-	/// One card holding every source the launcher reads, which is the original's
-	/// arrangement: its own download-source card holds the version-list source, the
-	/// file source and the default add-on source as three rows of one surface.
-	///
-	/// @return the assembled component list
+	private static Function<DshSkillSources, String> skillSourceDescription() {
+		return source -> {
+			String key = switch (source) {
+				case SKILLS_SH -> "dsh.skills.source.skills_sh.desc";
+				case SKILLS_MP -> "dsh.skills.source.skills_mp.desc";
+			};
+			return I18n.hasKey(key) ? i18n(key) : null;
+		};
+	}
+
+	/**
+	 * Download sources, including NPM/Skill/Plugin indexes
+	 *
+	 * @return the assembled component list
+	 */
 	private ComponentList buildSourceList() {
 		ComponentList list = new ComponentList();
 
 		LineSelectButton<NodeSource> source = new LineSelectButton<>();
-		// The tab this row lives on is called "下载源" and holds two different things: where npm
-		// packages come from, and where the plugin market is read from. The row says which of the
-		// two it is; the tab is the page they share.
 		source.setTitle(i18n("dsh.settings.npm_source"));
 		source.setNullSafeConverter(sourceName());
 		source.setDescriptionConverter(sourceDescription());
 		source.setItems(NodeSource.values());
 		source.setValue(settings().nodeSourceProperty().get());
 		source.valueProperty().addListener((observable, was, value) -> {
-			if (value != null && value != was) {
+			if (value != was) {
 				settings().nodeSourceProperty().set(value);
 				SettingsManager.save();
 			}
 		});
 		list.getContent().add(source);
 		list.getContent().add(buildMarketRow());
+		list.getContent().add(buildSkillRow());
 
 		return list;
 	}
 
-	/// Builds the row that chooses the plugin market.
-	///
-	/// A market rather than a list of addresses: what a market is asked for, and what it answers, is
-	/// that market's own business — one serves a document, the next may serve something else — so
-	/// choosing one is choosing a market rather than a place to look. The items are the markets this
-	/// launcher knows, and it knows one today.
-	///
-	/// @return the row
+	/**
+	 * @return the market choose row
+	 */
 	private Node buildMarketRow() {
 		LineSelectButton<MarketSource> source = new LineSelectButton<>();
 		source.setTitle(i18n("dsh.settings.market_source"));
@@ -202,19 +189,29 @@ public final class DownloadSettingsPage extends ScrollPane {
 		source.setItems(List.of(MarketSource.values()));
 		source.setValue(CatalogSources.marketSource());
 		source.valueProperty().addListener((observable, was, value) -> {
-			if (value != null && value != was) {
+			if (value != was) {
 				CatalogSources.setMarketSource(value);
 			}
 		});
 		return source;
 	}
 
+	private Node buildSkillRow() {
+		LineSelectButton<DshSkillSources> source = new LineSelectButton<>();
+		source.setTitle(i18n("dsh.settings.skill_source"));
+		source.setNullSafeConverter(DshSkillSources::label);
+		source.setDescriptionConverter(skillSourceDescription());
+		source.setItems(List.of(DshSkillSources.values()));
+		source.setValue(DshSkillSource.selectedSource());
+		source.valueProperty().addListener((observable, was, value) -> {
+			if (value != was) {
+				DshSkillSource.setSelectedSource(value);
+			}
+		});
+		return source;
+	}
+
 	private ComponentList buildDownloadList() {
-		// The original's rows for the same job: where the cache lives — shown, with a button that
-		// empties it and a way to choose another place — and how many downloads happen at once,
-		// which is a choice rather than a number to type.
-		// The original's cache row opens where it stands and offers the launcher's own folder or one
-		// of your own, with a picker for it, and keeps the button that empties it on the row itself.
 		ComponentSublist cache = new ComponentSublist(() -> {
 			MultiFileItem<Boolean> location = new MultiFileItem<>();
 			location.loadChildren(List.of(new MultiFileItem.Option<>(i18n("dsh.settings.download.cache.default"), true),
@@ -237,55 +234,52 @@ public final class DownloadSettingsPage extends ScrollPane {
 		clear.getStyleClass().add("jfx-button-border");
 		clear.setMinWidth(Region.USE_PREF_SIZE);
 		clear.setOnAction(event -> {
-			// Says what it did, because a button that quietly removes nothing looks broken.
 			int removed = CatalogClient.clearCache();
 			clear.setText(i18n("dsh.settings.download.cache.cleared", removed));
 		});
 		cache.setHeaderRight(clear);
 
-		// Automatic is the absence of a number, and the row says so rather than showing nothing.
-		// The original's row for this: a row that opens where it stands, offering the automatic
-		// count or one of your own, with a slider for it. A popup would be a different gesture for
-		// the same question, and this is the one the original uses.
 		ComponentSublist threads = new ComponentSublist(() -> {
 			RadioChoiceList<Boolean> choices = new RadioChoiceList<>();
-			choices.setChoices(new RadioChoiceList.Choice<>(i18n("dsh.settings.download.threads.auto"), true),
-			                   new RadioChoiceList.Choice<>(i18n("dsh.settings.download.threads.custom"), false) {
-				                   @Override
-				                   protected Node createRightNode() {
-					                   HBox box = new HBox(8);
-					                   box.setAlignment(Pos.CENTER);
-					                   box.disableProperty().bind(settings().autoDownloadThreadsProperty());
+			choices.setChoices(
+					new RadioChoiceList.Choice<>(i18n("dsh.settings.download.threads.auto"), true),
+					new RadioChoiceList.Choice<>(i18n("dsh.settings.download.threads.custom"), false) {
+						@Override
+						protected Node createRightNode() {
+							HBox box = new HBox(8);
+							box.setAlignment(Pos.CENTER);
+							box.disableProperty().bind(settings().autoDownloadThreadsProperty());
 
-					                   JFXSlider slider = new JFXSlider(1, 256, 64);
-					                   HBox.setHgrow(slider, Priority.ALWAYS);
-					                   JFXTextField field = new JFXTextField();
-					                   FXUtils.setLimitWidth(field, 60);
+							JFXSlider slider = new JFXSlider(1, 256, 64);
+							HBox.setHgrow(slider, Priority.ALWAYS);
+							JFXTextField field = new JFXTextField();
+							FXUtils.setLimitWidth(field, 60);
 
-					                   Integer current = settings().downloadConcurrencyProperty().get();
-					                   int value = current == null ? 64 : current;
-					                   slider.setValue(value);
-					                   field.setText(Integer.toString(value));
-					                   slider.valueProperty().addListener((observable, was, now) -> {
-						                   settings().downloadConcurrencyProperty().set(now.intValue());
-						                   field.setText(Integer.toString(now.intValue()));
-					                   });
-					                   field.textProperty().addListener((observable, was, text) -> {
-						                   try {
-							                   int typed = Integer.parseInt(text == null ? "" : text.trim());
-							                   if (typed > 0) {
-								                   settings().downloadConcurrencyProperty().set(typed);
-								                   slider.setValue(typed);
-							                   }
-						                   } catch (NumberFormatException e) {
-							                   // Half-typed numbers are not settings.
-						                   }
-					                   });
+							Integer current = settings().downloadConcurrencyProperty().get();
+							int value = current == null ? 64 : current;
+							slider.setValue(value);
+							field.setText(Integer.toString(value));
+							slider.valueProperty().addListener((observable, was, now) -> {
+								settings().downloadConcurrencyProperty().set(now.intValue());
+								field.setText(Integer.toString(now.intValue()));
+							});
 
-					                   box.getChildren().setAll(slider, field);
-					                   return box;
-				                   }
-			                   });
+							field.textProperty().addListener((observable, was, text) -> {
+								try {
+									int typed = Integer.parseInt(text == null ? "" : text.trim());
+									if (typed > 0) {
+										settings().downloadConcurrencyProperty().set(typed);
+										slider.setValue(typed);
+									}
+								} catch (NumberFormatException e) {
+									// Half-typed numbers are not settings.
+								}
+							});
+
+							box.getChildren().setAll(slider, field);
+							return box;
+						}
+					});
 			choices.selectedValueProperty().bindBidirectional(settings().autoDownloadThreadsProperty());
 			return List.of(choices);
 		});
@@ -305,24 +299,11 @@ public final class DownloadSettingsPage extends ScrollPane {
 		return list;
 	}
 
-	/// Builds the rows for the network the launcher downloads through.
-	///
-	/// A package manager is configured through the environment it inherits, so these travel with
-	/// every child the launcher starts: one proxy covers the version lists and the plugin
-	/// installs, and nothing has to be configured twice.
-	///
-	/// The original's own arrangement, which is not a list of rows: one card holding the four
-	/// modes on a line of their own and, under them, a small form. Which parts of the form mean
-	/// anything is decided by the mode — a proxy that is not used has no address — so the whole
-	/// form is switched off together rather than field by field, and the name and password are
-	/// switched off separately because they are asked for on top of an address rather than
-	/// instead of one.
-	///
-	/// The fields are laid out in a grid with the names in the first column, which is what the
-	/// original uses: a card of `LinePane` rows would draw a separator between the host and the
-	/// port, and the original's proxy form has none.
-	///
-	/// @return the section
+	/**
+	 * Builds the rows for the network the launcher downloads through, similar to HMCL pages
+	 *
+	 * @return the section
+	 */
 	private VBox buildProxyList() {
 		VBox proxyList = new VBox(10);
 		proxyList.getStyleClass().add("card-non-transparent");
@@ -334,7 +315,6 @@ public final class DownloadSettingsPage extends ScrollPane {
 		ToggleGroup group = new ToggleGroup();
 		Map<DshProxyMode, JFXRadioButton> buttons = new LinkedHashMap<>();
 		for (DshProxyMode mode : DshProxyMode.values()) {
-			// The original's own control and its own wording, so the line reads the same.
 			JFXRadioButton button = new JFXRadioButton(i18n(proxyModeKey(mode)));
 			button.setToggleGroup(group);
 			button.setUserData(mode);
@@ -342,14 +322,15 @@ public final class DownloadSettingsPage extends ScrollPane {
 			proxyTypePane.getChildren().add(button);
 		}
 		buttons.get(currentProxyMode()).setSelected(true);
-		group.selectedToggleProperty().addListener((observable, was, now) -> {
-			settings().proxyModeProperty()
-			          .set(now != null && now.getUserData() instanceof DshProxyMode mode ? mode : DshProxyMode.SYSTEM);
-		});
+		group.selectedToggleProperty().addListener(
+				(observable, was, now) ->
+						settings().proxyModeProperty()
+						          .set(now != null && now.getUserData() instanceof DshProxyMode mode
+						               ? mode
+						               : DshProxyMode.SYSTEM));
 		proxyList.getChildren().add(proxyTypePane);
 
 		VBox proxyPane = new VBox();
-		// Nothing in the form means anything while the mode says the proxy is not used.
 		proxyPane.disableProperty()
 		         .bind(Bindings.createBooleanBinding(() -> !currentProxyMode().usesAddress(),
 		                                             settings().proxyModeProperty()));
@@ -360,9 +341,6 @@ public final class DownloadSettingsPage extends ScrollPane {
 		JFXTextField port = new JFXTextField();
 		FXUtils.setLimitWidth(port, 200);
 		FXUtils.setValidateWhileTextChanged(port, true);
-		// The port is stored as text, so the converter is taken as far as the number and the
-		// conversion back to text is done here: binding it through the library's own helper
-		// would need the property to be an integer one, and the file has always held a string.
 		SafeStringConverter<Integer, Number> portConverter = SafeStringConverter.fromInteger()
 		                                                                        .restrict(it -> it >= 0 && it <= 0xFFFF)
 		                                                                        .fallbackTo(0);
@@ -370,9 +348,7 @@ public final class DownloadSettingsPage extends ScrollPane {
 		port.setText(portConverter.toString(portConverter.fromString(settings().proxyPortProperty().get())));
 		port.textProperty().addListener((observable, was, text) -> {
 			Integer port0 = portConverter.fromString(text == null ? "" : text);
-			if (port0 != null) {
-				settings().proxyPortProperty().set(Integer.toString(port0));
-			}
+			settings().proxyPortProperty().set(Integer.toString(port0));
 		});
 
 		proxyPane.getChildren()
@@ -403,22 +379,18 @@ public final class DownloadSettingsPage extends ScrollPane {
 		return proxyList;
 	}
 
-	/// Builds one row of a name, what it is for, and the field beside them.
-	///
-	/// The shape the reference shows for a row with something to type: the name on the left with a
-	/// line under it saying what it is for, and the box beside them. A name, a paragraph and a box
-	/// stacked underneath is three lines doing what one row does everywhere else.
-	///
-	/// @param title the row's name
-	/// @param hint  what it is for
-	/// @param field what is typed into it
-	/// @return the row
+	/**
+	 * @param title the row's name
+	 * @param hint  what it is for
+	 * @param field what is typed into it
+	 * @return the row
+	 */
+	@Deprecated
 	private Node proxyRowWithField(String title, String hint, Node field) {
 		LinePane pane = new LinePane();
 		pane.setTitle(title);
-		if (hint != null && !hint.isBlank()) {
-			pane.setSubtitle(hint);
-		}
+		if (!hint.isBlank()) pane.setSubtitle(hint);
+
 		pane.setRight(field);
 		return pane;
 	}
