@@ -204,7 +204,7 @@ public final class LauncherSettings {
 
     /// Whether a new instance keeps its own home.
     private final ObjectProperty<DshIsolationPolicy> isolationPolicy =
-            new SimpleObjectProperty<>(DshIsolationPolicy.WITH_PLUGINS);
+            new SimpleObjectProperty<>(DshIsolationPolicy.ALWAYS);
 
     /// Returns whether a new instance keeps its own home.
     ///
@@ -218,7 +218,7 @@ public final class LauncherSettings {
     /// @return the policy
     public DshIsolationPolicy isolationPolicy() {
         return isolationPolicy.get() == null
-                ? DshIsolationPolicy.WITH_PLUGINS : isolationPolicy.get();
+                ? DshIsolationPolicy.ALWAYS : isolationPolicy.get();
     }
 
     /// What the launcher does with itself once an instance is running.

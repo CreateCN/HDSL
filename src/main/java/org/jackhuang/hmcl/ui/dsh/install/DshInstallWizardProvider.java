@@ -177,7 +177,7 @@ public final class DshInstallWizardProvider implements WizardProvider {
 	/// A task of its own rather than a lambda, because the package managers'
 	/// output is read as it arrives and turned into the line and the bar the
 	/// dialog shows, and a task is what the dialog watches.
-	private final class InstallTask extends Task<Void> {
+	final class InstallTask extends Task<Void> {
 		/// The wizard's answers.
 		private final SettingsMap settings;
 
@@ -204,28 +204,17 @@ public final class DshInstallWizardProvider implements WizardProvider {
 
 		}
 
-		@Override
-		public void execute() throws Exception {
+		/// Creates and persists the instance before any runtime or plugin is installed.
+		DshInstance createInstance() throws DshException {
 			String version = settings.get(VERSION);
 			String name = settings.get(NAME);
-			List<String> specs = specsOf(settings.getOrDefault(PRESET_CHOICES, Map.of()));
 			if (version == null || name == null) {
 				throw new DshException("The install wizard finished without a complete configuration");
 			}
 
-			Consumer<String> report = line -> {
-				LOG.info("[install] " + line);
-				progress.accept(line);
-				double fraction = progress.fractionProperty().get();
-				if (fraction >= 0) {
-					updateProgress(fraction);
-				}
-			};
-
 			String nodeRuntime = SettingsManager.settings().defaultNodeRuntimeProperty().get();
-			// How a new instance keeps its state is a policy rather than a value, which is what
-			// the original asks at the same moment: a profile that brings its own plugins keeps
-			// them to itself, and a bare one usually shares.
+			// New instances default to a private home. The shared target is used only when
+			// the user explicitly selects a policy that permits sharing.
 			LauncherSettings launcherSettings = SettingsManager.settings();
 			DshHomeMode shared = launcherSettings.defaultHomeModeProperty().get() == DshHomeMode.ISOLATED
 			                     ? DshHomeMode.VERSION_SHARED
@@ -248,6 +237,22 @@ public final class DshInstallWizardProvider implements WizardProvider {
 			                                                 List.of(),
 			                                                 Map.of());
 			LOG.info("Wizard created instance " + instance.id() + " (dsh " + version + ")");
+			return instance;
+		}
+
+		@Override
+		public void execute() throws Exception {
+			List<String> specs = specsOf(settings.getOrDefault(PRESET_CHOICES, Map.of()));
+			Consumer<String> report = line -> {
+				LOG.info("[install] " + line);
+				progress.accept(line);
+				double fraction = progress.fractionProperty().get();
+				if (fraction >= 0) {
+					updateProgress(fraction);
+				}
+			};
+			DshInstance instance = createInstance();
+			String version = instance.version();
 
 			try {
 				report.accept(i18n("dsh.install.progress.fetching", version));

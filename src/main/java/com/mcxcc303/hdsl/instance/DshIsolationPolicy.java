@@ -22,11 +22,8 @@ import org.jetbrains.annotations.Nullable;
 
 /// Whether a new instance keeps its own home.
 ///
-/// The original asks the same question when it installs a version, and for the same reason: a
-/// profile that carries its own plugins and its own settings should keep them to itself, while a
-/// bare one is often meant to share. Its rule is a policy rather than a switch — always, never, or
-/// when the thing being installed brings something of its own — and the middle answer is the
-/// default, because that is the one that needs no thought.
+/// New instances keep their writable state to themselves by default. Sharing remains an explicit
+/// choice, either for every new instance or only for installations without their own plugins.
 @NotNullByDefault
 public enum DshIsolationPolicy {
 	/// Every new instance keeps its own home.
@@ -51,7 +48,7 @@ public enum DshIsolationPolicy {
 	/// Reads a stored value.
 	///
 	/// @param value the stored value, or `null`
-	/// @return the policy, or [DshIsolationPolicy#WITH_PLUGINS] when it is not one
+	/// @return the policy, or [DshIsolationPolicy#ALWAYS] when it is not one
 	public static DshIsolationPolicy of(@Nullable String value) {
 		if (value != null) {
 			for (DshIsolationPolicy policy : values()) {
@@ -60,7 +57,7 @@ public enum DshIsolationPolicy {
 				}
 			}
 		}
-		return WITH_PLUGINS;
+		return ALWAYS;
 	}
 
 	/// Returns the value the setting is stored as.

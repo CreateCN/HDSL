@@ -527,6 +527,11 @@ public final class SettingsManager {
         @SerializedName("isolationPolicy")
         private @Nullable String isolationPolicy;
 
+        // Old releases persisted "modded" even when no policy was explicitly chosen.
+        // A separate key lets new choices survive reloads without retaining that old default.
+        @SerializedName("newInstanceIsolationPolicy")
+        private @Nullable String newInstanceIsolationPolicy;
+
         @SerializedName("showLogs")
         private @Nullable Boolean showLogs;
 
@@ -647,6 +652,9 @@ public final class SettingsManager {
             snapshot.buildScriptPolicy = settings.buildScriptPolicy().id();
             snapshot.launcherVisibility = settings.launcherVisibility().id();
             snapshot.isolationPolicy = settings.isolationPolicy().id();
+            snapshot.newInstanceIsolationPolicy = settings.isolationPolicyProperty().get() == null
+                    ? DshIsolationPolicy.ALWAYS.id()
+                    : settings.isolationPolicyProperty().get().id();
             snapshot.showLogs = settings.showLogsProperty().get();
             snapshot.debugLog = settings.debugLogProperty().get();
             snapshot.preLaunchCommand = settings.preLaunchCommandProperty().get();
@@ -835,8 +843,14 @@ public final class SettingsManager {
             if (launcherVisibility != null) {
                 settings.launcherVisibilityProperty().set(DshLauncherVisibility.of(launcherVisibility));
             }
-            if (isolationPolicy != null) {
-                settings.isolationPolicyProperty().set(DshIsolationPolicy.of(isolationPolicy));
+            if (newInstanceIsolationPolicy != null) {
+                settings.isolationPolicyProperty().set(DshIsolationPolicy.of(newInstanceIsolationPolicy));
+            } else if (isolationPolicy != null) {
+                DshIsolationPolicy legacyPolicy = DshIsolationPolicy.of(isolationPolicy);
+                // Only the creation default changes. Existing instances still resolve their
+                // recorded homeMode, including GLOBAL's unchanged defaultHomeMode setting.
+                settings.isolationPolicyProperty().set(legacyPolicy == DshIsolationPolicy.WITH_PLUGINS
+                        ? DshIsolationPolicy.ALWAYS : legacyPolicy);
             }
             if (showLogs != null) {
                 settings.showLogsProperty().set(showLogs);
