@@ -162,15 +162,15 @@ class DshInstanceDuplicateTest {
 
 		// Even when the harness has not yet been installed, a copy cannot adopt its source.
 		// Interrupting the export exposes the old catch-and-cleanup path without using npm.
-		Exception refusal = assertThrows(Exception.class,
+		DshException refusal = assertThrows(DshException.class,
 		                                 () -> DshInstanceManager.duplicate(SOURCE_ID, SOURCE_ID,
 		                                                                     message -> {
 				                                                                     throw new IllegalStateException("test interruption");
 			                                                                     }));
+		assertTrue(refusal.getMessage().contains(SOURCE_ID), refusal.getMessage());
 		assertTrue(Files.isRegularFile(manifest), "a failed self-copy must preserve the source manifest");
 		assertEquals("do not delete", Files.readString(personalFile),
 		             "a failed self-copy must never delete the original instance's data");
-		assertInstanceOf(DshException.class, refusal, "the operation should be refused before export begins");
 	}
 
 	@Test
