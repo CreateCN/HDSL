@@ -105,7 +105,6 @@ class DshInstallWizardIsolationTest {
         assertEquals(DshHomeMode.ISOLATED, b.homeMode());
         assertEquals(folder.resolve("instance-a/home"), a.homeDirectory());
         assertEquals(folder.resolve("instance-b/home"), b.homeDirectory());
-        assertNotEquals(a.homeDirectory(), b.homeDirectory());
         assertTrue(Files.isDirectory(a.homeDirectory()));
         assertTrue(Files.isDirectory(b.homeDirectory()));
         assertEquals(DshHomeMode.ISOLATED, InstanceStore.find(a.id()).homeMode());
@@ -165,7 +164,6 @@ class DshInstallWizardIsolationTest {
         }
 
         // Only the creation policy changes; the default followed by GLOBAL instances stays put.
-        launcherSettings.isolationPolicyProperty().set(DshIsolationPolicy.WITH_PLUGINS);
         launcherSettings.isolationPolicyProperty().set(new LauncherSettings().isolationPolicy());
         quickInstall("new-instance", Map.of());
 

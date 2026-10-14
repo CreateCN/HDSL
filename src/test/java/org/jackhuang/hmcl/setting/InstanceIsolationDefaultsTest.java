@@ -17,6 +17,7 @@
  */
 package org.jackhuang.hmcl.setting;
 
+import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -79,7 +80,7 @@ class InstanceIsolationDefaultsTest {
             settings.defaultHomeModeProperty().set(DshHomeMode.VERSION_SHARED);
 
             String json = capture(settings);
-            assertEquals(policy.id(), JsonUtils.GSON.fromJson(json, com.google.gson.JsonObject.class)
+            assertEquals(policy.id(), JsonUtils.GSON.fromJson(json, JsonObject.class)
                     .get("newInstanceIsolationPolicy").getAsString());
             LauncherSettings restored = restore(json);
             assertEquals(policy, restored.isolationPolicy());
