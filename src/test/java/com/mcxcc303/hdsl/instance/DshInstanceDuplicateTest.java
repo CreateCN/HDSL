@@ -155,6 +155,25 @@ class DshInstanceDuplicateTest {
 	}
 
 	@Test
+	void copyingAnUninstalledInstanceOntoItselfNeverDeletesItsOriginal() throws Exception {
+		DshInstance source = makeInstance(SOURCE_ID);
+		Path manifest = source.instanceDirectory().resolve(InstanceStore.MANIFEST_NAME);
+		Path personalFile = Files.writeString(source.instanceDirectory().resolve("keep.txt"), "do not delete");
+
+		// Even when the harness has not yet been installed, a copy cannot adopt its source.
+		// Interrupting the export exposes the old catch-and-cleanup path without using npm.
+		DshException refusal = assertThrows(DshException.class,
+		                                 () -> DshInstanceManager.duplicate(SOURCE_ID, SOURCE_ID,
+		                                                                     message -> {
+				                                                                     throw new IllegalStateException("test interruption");
+			                                                                     }));
+		assertTrue(refusal.getMessage().contains(SOURCE_ID), refusal.getMessage());
+		assertTrue(Files.isRegularFile(manifest), "a failed self-copy must preserve the source manifest");
+		assertEquals("do not delete", Files.readString(personalFile),
+		             "a failed self-copy must never delete the original instance's data");
+	}
+
+	@Test
 	void anIdTakenByAnInstanceThatIsWholeIsRefused() throws Exception {
 		// What must not happen: a duplicate quietly adopting an instance that is already somebody's,
 		// and installing over it. Only a half-made copy — this call's own earlier attempt, kept
