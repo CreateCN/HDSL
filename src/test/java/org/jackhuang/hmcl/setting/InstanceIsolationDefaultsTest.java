@@ -20,94 +20,120 @@ package org.jackhuang.hmcl.setting;
 import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.instance.DshHomeMode;
 import com.mcxcc303.hdsl.instance.DshIsolationPolicy;
+import org.jackhuang.hmcl.Metadata;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InstanceIsolationDefaultsTest {
-    @Test
-    void newSettingsAndNullPolicyDefaultToIsolation() {
-        LauncherSettings settings = new LauncherSettings();
-        assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
-        settings.isolationPolicyProperty().set(null);
-        assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
-    }
+	private Path settingsFile;
+	private byte[] previousFile;
+	private LauncherSettings liveSettings;
+	private DshIsolationPolicy previousPolicy;
+	private DshHomeMode previousHomeMode;
 
-    @Test
-    void missingPolicyDefaultsToIsolation() throws Exception {
-        assertEquals(DshIsolationPolicy.ALWAYS, restore("{}").isolationPolicy());
-    }
+	@BeforeEach
+	void useTheBuildsTestHome() throws IOException {
+		// SettingsManager uses a fixed path. Never exercise save/load against a real user HOME.
+		String configured = System.getProperty("hdsl.home");
+		assertTrue(configured != null && !configured.isBlank(), "a dedicated test HOME is required");
+		Path testHome = Path.of(configured).toAbsolutePath().normalize();
+		assertTrue(testHome.endsWith(Path.of("build", "test-home")), "only the build's test HOME may be written");
+		assertEquals(testHome, Metadata.HMCL_USER_HOME.toAbsolutePath().normalize());
+		settingsFile = testHome.resolve("launcher-settings.json");
+		assertTrue(!Files.isSymbolicLink(testHome) && !Files.isSymbolicLink(settingsFile));
+		previousFile = Files.isRegularFile(settingsFile) ? Files.readAllBytes(settingsFile) : null;
 
-    @Test
-    void legacyAutomaticDefaultDoesNotKeepNewInstancesShared() throws Exception {
-        LauncherSettings settings = restore("""
-                {"isolationPolicy":"modded", "defaultHomeMode":"VERSION_SHARED"}
-                """);
-        assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
-        assertEquals(DshHomeMode.VERSION_SHARED, settings.defaultHomeModeProperty().get(),
-                "the runtime default used by existing GLOBAL instances must not change");
-    }
+		liveSettings = SettingsManager.settings();
+		previousPolicy = liveSettings.isolationPolicyProperty().get();
+		previousHomeMode = liveSettings.defaultHomeModeProperty().get();
+	}
 
-    @Test
-    void legacyExplicitSharingRemainsAvailable() throws Exception {
-        assertEquals(DshIsolationPolicy.NEVER,
-                restore("{\"isolationPolicy\":\"never\"}").isolationPolicy());
-    }
+	@AfterEach
+	void restoreTheTestHome() throws IOException {
+		if (liveSettings != null) {
+			liveSettings.isolationPolicyProperty().set(previousPolicy);
+			liveSettings.defaultHomeModeProperty().set(previousHomeMode);
+		}
+		if (settingsFile != null) {
+			if (previousFile == null) {
+				Files.deleteIfExists(settingsFile);
+			} else {
+				Files.write(settingsFile, previousFile);
+			}
+		}
+	}
 
-    @Test
-    void newExplicitPolicyTakesPrecedenceOverLegacyDefault() throws Exception {
-        assertEquals(DshIsolationPolicy.WITH_PLUGINS, restore("""
-                {"isolationPolicy":"always", "newInstanceIsolationPolicy":"modded"}
-                """).isolationPolicy());
-    }
+	@Test
+	void newSettingsAndNullPolicyDefaultToIsolation() {
+		LauncherSettings settings = new LauncherSettings();
+		assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
+		settings.isolationPolicyProperty().set(null);
+		assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
+	}
 
-    @Test
-    void invalidNewPolicyFallsBackToIsolation() throws Exception {
-        assertEquals(DshIsolationPolicy.ALWAYS, restore("""
-                {"isolationPolicy":"never", "newInstanceIsolationPolicy":"invalid"}
-                """).isolationPolicy());
-    }
+	@Test
+	void missingPolicyDefaultsToIsolation() throws IOException {
+		assertEquals(DshIsolationPolicy.ALWAYS, loadFixture("{}").isolationPolicy());
+	}
 
-    @Test
-    void explicitPoliciesSurviveSavingAndReloading() throws Exception {
-        for (DshIsolationPolicy policy : DshIsolationPolicy.values()) {
-            LauncherSettings settings = new LauncherSettings();
-            settings.isolationPolicyProperty().set(policy);
-            settings.defaultHomeModeProperty().set(DshHomeMode.VERSION_SHARED);
+	@Test
+	void legacyAutomaticDefaultDoesNotKeepNewInstancesShared() throws IOException {
+		LauncherSettings settings = loadFixture("""
+				{"isolationPolicy":"modded", "defaultHomeMode":"VERSION_SHARED"}
+				""");
+		assertEquals(DshIsolationPolicy.ALWAYS, settings.isolationPolicy());
+		assertEquals(DshHomeMode.VERSION_SHARED, settings.defaultHomeModeProperty().get(),
+		             "the runtime default used by existing GLOBAL instances must not change");
+	}
 
-            String json = capture(settings);
-            assertEquals(policy.id(), JsonUtils.GSON.fromJson(json, JsonObject.class)
-                    .get("newInstanceIsolationPolicy").getAsString());
-            LauncherSettings restored = restore(json);
-            assertEquals(policy, restored.isolationPolicy());
-            assertEquals(DshHomeMode.VERSION_SHARED, restored.defaultHomeModeProperty().get());
-        }
-    }
+	@Test
+	void legacyExplicitSharingRemainsAvailable() throws IOException {
+		assertEquals(DshIsolationPolicy.NEVER,
+		             loadFixture("{\"isolationPolicy\":\"never\"}").isolationPolicy());
+	}
 
-    // Exercise the actual persisted schema without loading or saving the user's settings file.
-    private static Class<?> snapshotType() {
-        return Arrays.stream(SettingsManager.class.getDeclaredClasses())
-                .filter(type -> type.getSimpleName().equals("Snapshot"))
-                .findFirst().orElseThrow();
-    }
+	@Test
+	void newExplicitPolicyTakesPrecedenceOverLegacyDefault() throws IOException {
+		assertEquals(DshIsolationPolicy.WITH_PLUGINS, loadFixture("""
+				{"isolationPolicy":"always", "newInstanceIsolationPolicy":"modded"}
+				""").isolationPolicy());
+	}
 
-    private static LauncherSettings restore(String json) throws Exception {
-        Class<?> type = snapshotType();
-        Object snapshot = JsonUtils.GSON.fromJson(json, type);
-        Method apply = type.getDeclaredMethod("applyTo", LauncherSettings.class);
-        apply.setAccessible(true);
-        LauncherSettings settings = new LauncherSettings();
-        apply.invoke(snapshot, settings);
-        return settings;
-    }
+	@Test
+	void invalidNewPolicyFallsBackToIsolation() throws IOException {
+		assertEquals(DshIsolationPolicy.ALWAYS, loadFixture("""
+				{"isolationPolicy":"never", "newInstanceIsolationPolicy":"invalid"}
+				""").isolationPolicy());
+	}
 
-    private static String capture(LauncherSettings settings) throws Exception {
-        Method capture = snapshotType().getDeclaredMethod("of", LauncherSettings.class);
-        capture.setAccessible(true);
-        return JsonUtils.GSON.toJson(capture.invoke(null, settings));
-    }
+	@Test
+	void explicitPoliciesSurviveSavingAndReloading() throws IOException {
+		for (DshIsolationPolicy policy : DshIsolationPolicy.values()) {
+			liveSettings.isolationPolicyProperty().set(policy);
+			liveSettings.defaultHomeModeProperty().set(DshHomeMode.VERSION_SHARED);
+			SettingsManager.save();
+
+			JsonObject disk = JsonUtils.fromJsonFile(settingsFile, JsonObject.class);
+			assertEquals(policy.id(), disk.get("newInstanceIsolationPolicy").getAsString());
+			LauncherSettings restored = SettingsManager.load();
+			assertEquals(policy, restored.isolationPolicy());
+			assertEquals(DshHomeMode.VERSION_SHARED, restored.defaultHomeModeProperty().get());
+		}
+	}
+
+	private LauncherSettings loadFixture(String json) throws IOException {
+		Files.createDirectories(settingsFile.getParent());
+		Files.writeString(settingsFile, json, StandardCharsets.UTF_8);
+		return SettingsManager.load();
+	}
 }

@@ -684,6 +684,7 @@ public final class SettingsManager {
 			                                                             vendor.api(),
 			                                                             vendor.baseUrl()))
 			                           .toList();
+			settings.languageProperty().get();
 			snapshot.language = settings.languageProperty().get().getName();
 			snapshot.animationDisabled = settings.animationDisabledProperty().get();
 			snapshot.nodeSource = settings.nodeSourceProperty().get().id();
@@ -708,6 +709,7 @@ public final class SettingsManager {
 			snapshot.cacheDirectoryCustom = settings.cacheDirectoryCustomProperty().get();
 			snapshot.autoDownloadThreads = settings.autoDownloadThreadsProperty().get();
 			snapshot.downloadConcurrency = settings.downloadConcurrencyProperty().get();
+			settings.proxyModeProperty().get();
 			snapshot.proxyMode = settings.proxyModeProperty().get().id();
 			snapshot.proxyHost = settings.proxyHostProperty().get();
 			snapshot.proxyPort = settings.proxyPortProperty().get();
