@@ -346,6 +346,9 @@ public final class DshInstanceManager {
 		if (exists(normalized)) {
 			throw new DshException("Instance " + normalized + " already exists");
 		}
+		if (DshProcessManager.stateOf(id) != DshProcessManager.LaunchState.STOPPED) {
+			throw new DshException("Cannot rename instance \"" + id + "\" while it is running or stopping");
+		}
 
 		DshInstance renamed = existing.withId(normalized);
 		// The instance's own directory, wherever it is: an instance in a folder
