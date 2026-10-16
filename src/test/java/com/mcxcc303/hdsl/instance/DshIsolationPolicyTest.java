@@ -28,11 +28,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /// quietly, because moving it afterwards means moving an installation.
 class DshIsolationPolicyTest {
 	@Test
-	void theMiddleAnswerIsTheOneThatNeedsNoThought() {
-		assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of(null));
-		assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of("nonsense"));
+	void missingOrInvalidPolicyDefaultsToIsolation() {
+		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of(null));
+		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of(""));
+		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of("  "));
+		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of("nonsense"));
 		assertEquals(DshIsolationPolicy.ALWAYS, DshIsolationPolicy.of("always"));
 		assertEquals(DshIsolationPolicy.NEVER, DshIsolationPolicy.of("NEVER"));
+		assertEquals(DshIsolationPolicy.WITH_PLUGINS, DshIsolationPolicy.of(" modded "));
 	}
 
 	@Test
