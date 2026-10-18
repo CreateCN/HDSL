@@ -20,6 +20,7 @@ package com.mcxcc303.hdsl.plugin;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.core.Semver;
 import com.mcxcc303.hdsl.harness.DshPackageRegistry;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import org.jackhuang.hmcl.util.gson.JsonUtils;
@@ -27,7 +28,6 @@ import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -325,9 +325,9 @@ public final class DshPluginRequirements {
 			return false;
 		}
 
-		Parsed held = parse(version);
+		Semver held = parse(version);
 		if (floors > 0) {
-			Parsed floor = parse(from);
+			Semver floor = parse(from);
 			if (floors < 3 || floor.prerelease() == null) {
 				int[] named = floor.numbers();
 				floor = release(named[0], named[1], named[2]);
@@ -340,7 +340,7 @@ public final class DshPluginRequirements {
 			return true;
 		}
 
-		Parsed ceiling = parse(to);
+		Semver ceiling = parse(to);
 		if (ceilings < 3) {
 			return compare(held, upperBound(false, ceilings, ceiling.numbers())) < 0;
 		}
@@ -390,7 +390,7 @@ public final class DshPluginRequirements {
 			int[] named = parse(base).numbers();
 			// A range that leaves a number out starts at a prerelease of the version it does
 			// name — npm's `-0`, as in `^1.2` holding `1.2.0-rc.1`, which `>=1.2.0` does not.
-			Parsed lower = count == 3 ? parse(base) : release(named[0], named[1], named[2]);
+			Semver lower = count == 3 ? parse(base) : release(named[0], named[1], named[2]);
 			return within(version, lower, upperBound(first == '^', count, named));
 		}
 
@@ -514,8 +514,8 @@ public final class DshPluginRequirements {
 	/// @param lower   the first version inside it
 	/// @param upper   the first version past it
 	/// @return whether it is inside
-	private static boolean within(String version, Parsed lower, Parsed upper) {
-		Parsed held = parse(version);
+	private static boolean within(String version, Semver lower, Semver upper) {
+		Semver held = parse(version);
 		return compare(held, lower) >= 0 && compare(held, upper) < 0;
 	}
 
@@ -529,7 +529,7 @@ public final class DshPluginRequirements {
 	/// @param count how many numbers the range named, one to three
 	/// @param named the numbers it named, the ones it left out read as zero
 	/// @return the version the range stops at
-	private static Parsed upperBound(boolean caret, int count, int[] named) {
+	private static Semver upperBound(boolean caret, int count, int[] named) {
 		if (!caret) {
 			return count >= 2 ? release(named[0], named[1] + 1, 0) : release(named[0] + 1, 0, 0);
 		}
@@ -552,8 +552,8 @@ public final class DshPluginRequirements {
 	/// @param minor the minor
 	/// @param patch the patch
 	/// @return the version
-	private static Parsed plain(int major, int minor, int patch) {
-		return new Parsed(new int[]{major, minor, patch}, null);
+	private static Semver plain(int major, int minor, int patch) {
+		return new Semver(major, minor, patch, null);
 	}
 
 	/// Returns a version with the prerelease npm puts at the foot of a bound it made up.
@@ -562,8 +562,8 @@ public final class DshPluginRequirements {
 	/// @param minor the minor
 	/// @param patch the patch
 	/// @return the version, as in `0.2.0-0`
-	private static Parsed release(int major, int minor, int patch) {
-		return new Parsed(new int[]{major, minor, patch}, List.of("0"));
+	private static Semver release(int major, int minor, int patch) {
+		return new Semver(major, minor, patch, List.of("0"));
 	}
 
 	/// Counts the numbers a version names, `1.x` naming one and `1.2` two.
@@ -582,24 +582,9 @@ public final class DshPluginRequirements {
 		return Math.min(count, 3);
 	}
 
-	/// Splits a version into the parts npm compares.
-	///
-	/// @param version the version
-	/// @return its three numbers and its pre-release identifiers, the identifiers being
-	///         `null` when the version carries none
-	private static Parsed parse(String version) {
-		String clean = compared(version);
-		String[] halves = clean.split("-", 2);
-		String[] written = halves[0].split("\\.", -1);
-		int[] numbers = new int[3];
-		for (int i = 0; i < 3; i++) {
-			// A number a range left out, or wrote as an `x` where one belongs, counts as a
-			// zero, which is how npm compares `1.x` with `1.0.0`.
-			numbers[i] = i < written.length ? numeric(written[i]) : 0;
-		}
-		List<String> prerelease =
-				halves.length > 1 && !halves[1].isEmpty() ? List.of(halves[1].split("\\.", -1)) : null;
-		return new Parsed(numbers, prerelease);
+	/** Reads a version the way npm reads a range's operand */
+	private static Semver parse(String version) {
+		return Semver.parsePartial(version);
 	}
 
 	/// Returns a version with the parts npm does not compare taken off it.
@@ -619,18 +604,6 @@ public final class DshPluginRequirements {
 		return build < 0 ? clean : clean.substring(0, build);
 	}
 
-	/// Reads a number out of one of a version's three leading parts.
-	///
-	/// @param text the part
-	/// @return its number, or zero when it is not one
-	private static int numeric(String text) {
-		try {
-			return Integer.parseInt(text.trim());
-		} catch (NumberFormatException e) {
-			return 0;
-		}
-	}
-
 	/// Reports whether a pre-release identifier is a number.
 	///
 	/// @param identifier the identifier
@@ -648,70 +621,7 @@ public final class DshPluginRequirements {
 		return true;
 	}
 
-	/// Compares two parsed versions.
-	///
-	/// The numbers first; then a version with no pre-release outranks the same version with
-	/// one, so `0.1.7` comes after `0.1.7-rc.2`; then the pre-release identifiers in turn, a
-	/// number before a name and the longer list after the shorter when everything before it
-	/// is equal, so `alpha` is under `beta` and `rc` under `rc.1`.
-	///
-	/// @param left  the left version
-	/// @param right the right version
-	/// @return negative, zero or positive
-	private static int compare(Parsed left, Parsed right) {
-		for (int i = 0; i < 3; i++) {
-			if (left.numbers()[i] != right.numbers()[i]) {
-				return Integer.compare(left.numbers()[i], right.numbers()[i]);
-			}
-		}
-
-		List<String> mine = left.prerelease();
-		List<String> theirs = right.prerelease();
-		if (mine == null || theirs == null) {
-			return mine == theirs ? 0 : mine == null ? 1 : -1;
-		}
-
-		int length = Math.max(mine.size(), theirs.size());
-		for (int i = 0; i < length; i++) {
-			if (i == mine.size()) {
-				return -1;
-			}
-			if (i == theirs.size()) {
-				return 1;
-			}
-			int order = compareIdentifiers(mine.get(i), theirs.get(i));
-			if (order != 0) {
-				return order;
-			}
-		}
-		return 0;
-	}
-
-	/// Compares two pre-release identifiers.
-	///
-	/// A number is under a name, two numbers are compared as numbers and two names as text,
-	/// which is npm's rule and the one that tells `0.1.7-rc.1` from `0.1.7-rc.2`.
-	///
-	/// @param left  the left identifier
-	/// @param right the right identifier
-	/// @return negative, zero or positive
-	private static int compareIdentifiers(String left, String right) {
-		boolean leftNumber = isNumber(left);
-		boolean rightNumber = isNumber(right);
-		if (leftNumber && rightNumber) {
-			return new BigInteger(left).compareTo(new BigInteger(right));
-		}
-		if (leftNumber != rightNumber) {
-			return leftNumber ? -1 : 1;
-		}
+	private static int compare(Semver left, Semver right) {
 		return left.compareTo(right);
-	}
-
-	/// A version read into the parts npm compares.
-	///
-	/// @param numbers    major, minor and patch
-	/// @param prerelease the pre-release identifiers in the order they were written, or
-	///                   `null` when the version carries none
-	private record Parsed(int[] numbers, @Nullable List<String> prerelease) {
 	}
 }
