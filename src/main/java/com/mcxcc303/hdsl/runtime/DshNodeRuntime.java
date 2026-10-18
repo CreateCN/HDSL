@@ -30,18 +30,19 @@ import java.util.*;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
-/// Describes the JavaScript toolchain the launcher found on this machine.
-///
-/// DeepSeek Harness needs Node `^22.19.0 || >=24.0.0`. `pnpm` is only needed
-/// for `dsh plugin`, so its absence degrades plugin management rather than
-/// preventing the launcher from working.
-///
-/// @param node        the resolved `node` executable
-/// @param nodeVersion the node version string, without a leading `v`
-/// @param npm         the resolved `npm` executable, or `null` when absent
-/// @param npmVersion  the npm version string, or `null` when absent
-/// @param pnpm        the resolved `pnpm` executable, or `null` when absent
-/// @param pnpmVersion the pnpm version string, or `null` when absent
+/**
+ * Describes the JavaScript toolchain the launcher found on this machine.
+ * <p>
+ * DeepSeek Harness needs Node {@code ^22.19.0 || >=24.0.0} and pnpm {@value #MINIMUM_PNPM} or newer
+ * to install it. pnpm is also needed for {@code dsh plugin}; without it, plugin management is unavailable.
+ *
+ * @param node        the resolved node executable
+ * @param nodeVersion the node version string, without a leading v
+ * @param npm         the resolved npm executable, or null when absent
+ * @param npmVersion  the npm version string, or null when absent
+ * @param pnpm        the resolved pnpm executable, or null when absent
+ * @param pnpmVersion the pnpm version string, or null when absent
+ */
 @NotNullByDefault
 public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, @Nullable String npmVersion,
                              @Nullable Path pnpm, @Nullable String pnpmVersion) {
@@ -50,6 +51,8 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	public static final String SYSTEM = "system";
 	/// The selection meaning "whatever the launcher is set to".
 	public static final String GLOBAL = "global";
+	/** The oldest pnpm that can install DeepSeek Harness */
+	public static final String MINIMUM_PNPM = "10.9";
 	/// The lowest supported Node 22 release.
 	private static final Version MINIMUM_NODE_22 = new Version(22, 19, 0);
 	/// The next major after Node 22; the `^22.19.0` range stops before it.
@@ -124,7 +127,8 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	///
 	/// @return a human-readable requirement string
 	public static String requirement() {
-		return "Node.js ^22.19.0 || >=24.0.0, plus pnpm for plugin management";
+		return "Node.js ^22.19.0 || >=24.0.0, plus pnpm " + MINIMUM_PNPM +
+		       " or newer for installing DeepSeek Harness; pnpm is also needed for plugin management";
 	}
 
 	/// Parses a leading `major.minor.patch` from a version string.

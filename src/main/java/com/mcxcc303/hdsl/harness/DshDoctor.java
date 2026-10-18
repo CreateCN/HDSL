@@ -94,13 +94,16 @@ public final class DshDoctor {
 			runtimeOk = false;
 		} else {
 			DshNodeRuntime runtime = detected.get();
+			boolean pnpmTooOld = HarnessInstaller.isPnpmTooOld(runtime.pnpmVersion());
 			out.println("  node:  " + runtime.nodeVersion() + "  (" + runtime.node() + ")" +
 			            (runtime.isNodeSupported() ? "  [supported]" : "  [UNSUPPORTED]"));
 			out.println("  npm:   " + describe(runtime.npm(), runtime.npmVersion()));
 			out.println("  pnpm:  " + describe(runtime.pnpm(), runtime.pnpmVersion()) +
-			            (runtime.canManagePlugins() ? "" : "  [plugin management unavailable]"));
+			            (runtime.canManagePlugins() ? "" : "  [plugin management unavailable]") +
+			            (pnpmTooOld ? "  [too old for installation]" : ""));
 			out.println("  required: " + DshNodeRuntime.requirement());
-			runtimeOk = runtime.isNodeSupported() && runtime.canInstall();
+			runtimeOk = runtime.isNodeSupported() && runtime.canInstall() &&
+			            runtime.canManagePlugins() && !pnpmTooOld;
 		}
 		out.println();
 
