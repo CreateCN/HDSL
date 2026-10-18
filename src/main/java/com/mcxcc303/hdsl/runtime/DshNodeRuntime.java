@@ -18,6 +18,7 @@
 package com.mcxcc303.hdsl.runtime;
 
 import com.mcxcc303.hdsl.core.DshCommand;
+import com.mcxcc303.hdsl.core.Semver;
 import org.jackhuang.hmcl.util.platform.OperatingSystem;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -53,10 +54,8 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	public static final String GLOBAL = "global";
 	/** The oldest pnpm that can install DeepSeek Harness */
 	public static final String MINIMUM_PNPM = "10.9";
-	/// The lowest supported Node 22 release.
-	private static final Version MINIMUM_NODE_22 = new Version(22, 19, 0);
-	/// The next major after Node 22; the `^22.19.0` range stops before it.
-	private static final int NODE_22_CEILING = 23;
+	private static final int NODE_22_MAJOR = 22;
+	private static final int MINIMUM_NODE_22_MINOR = 19;
 	/// The lowest supported Node 24-or-newer release.
 	private static final int MINIMUM_NODE_MODERN_MAJOR = 24;
 
@@ -112,15 +111,14 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	/// @param version the version string, optionally prefixed with `v`
 	/// @return whether the version is supported
 	public static boolean isSupportedNodeVersion(String version) {
-		Version parsed = parse(version);
+		Semver parsed = Semver.parse(version);
 		if (parsed == null) {
 			return false;
 		}
 		if (parsed.major() >= MINIMUM_NODE_MODERN_MAJOR) {
 			return true;
 		}
-		return parsed.major() == MINIMUM_NODE_22.major() && parsed.major() < NODE_22_CEILING &&
-		       parsed.compareTo(MINIMUM_NODE_22) >= 0;
+		return parsed.major() == NODE_22_MAJOR && parsed.minor() >= MINIMUM_NODE_22_MINOR;
 	}
 
 	/// Returns the toolchain requirement shown to the user.
@@ -129,29 +127,6 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	public static String requirement() {
 		return "Node.js ^22.19.0 || >=24.0.0, plus pnpm " + MINIMUM_PNPM +
 		       " or newer for installing DeepSeek Harness; pnpm is also needed for plugin management";
-	}
-
-	/// Parses a leading `major.minor.patch` from a version string.
-	///
-	/// @param version the raw version, optionally prefixed with `v`
-	/// @return the parsed version, or `null` when it cannot be parsed
-	private static @Nullable Version parse(String version) {
-		String cleaned = version.trim();
-		if (cleaned.startsWith("v") || cleaned.startsWith("V")) {
-			cleaned = cleaned.substring(1);
-		}
-		String[] parts = cleaned.split("[.\\-+]", 3);
-		if (parts.length == 0) {
-			return null;
-		}
-		try {
-			int major = Integer.parseInt(parts[0].trim());
-			int minor = parts.length > 1 ? Integer.parseInt(parts[1].trim()) : 0;
-			int patch = parts.length > 2 ? Integer.parseInt(parts[2].split("[.\\-+]", 2)[0].trim()) : 0;
-			return new Version(major, minor, patch);
-		} catch (NumberFormatException e) {
-			return null;
-		}
 	}
 
 	/// Asks an executable for its version.
@@ -309,22 +284,5 @@ public record DshNodeRuntime(Path node, String nodeVersion, @Nullable Path npm, 
 	public Path binDirectory() {
 		Path parent = node.getParent();
 		return parent == null ? node : parent;
-	}
-
-	/// A parsed `major.minor.patch` version.
-	///
-	/// @param major the major component
-	/// @param minor the minor component
-	/// @param patch the patch component
-	private record Version(int major, int minor, int patch) implements Comparable<Version> {
-		@Override
-		public int compareTo(Version other) {
-			int result = Integer.compare(major, other.major);
-			if (result != 0) {
-				return result;
-			}
-			result = Integer.compare(minor, other.minor);
-			return result != 0 ? result : Integer.compare(patch, other.patch);
-		}
 	}
 }

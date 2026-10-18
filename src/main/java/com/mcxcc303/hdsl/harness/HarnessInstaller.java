@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.core.DshCommand;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.DshFiles;
+import com.mcxcc303.hdsl.core.Semver;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.plugin.DshDependencyPolicy;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
@@ -36,6 +37,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -55,6 +57,9 @@ public final class HarnessInstaller {
 	/// A scalar beginning with one of these is an indicator to the reader rather than text, so
 	/// anything starting with one has to be quoted.
 	private static final String RESERVED_FIRST = "-?:,[]{}#&*!|>'\"%@`";
+
+	/** The oldest pnpm that can install DeepSeek Harness */
+	private static final Semver MINIMUM_PNPM_VERSION = Objects.requireNonNull(Semver.parse(DshNodeRuntime.MINIMUM_PNPM));
 
 	private HarnessInstaller() {
 	}
@@ -307,14 +312,8 @@ public final class HarnessInstaller {
 		if (version == null) {
 			return false;
 		}
-		String normalized = version.trim();
-		if (normalized.startsWith("v") || normalized.startsWith("V")) {
-			normalized = normalized.substring(1);
-		}
-		if (!normalized.matches("\\d+(\\.\\d+){0,2}([-+].*)?")) {
-			return false;
-		}
-		return VersionOrder.compareVersions(normalized, DshNodeRuntime.MINIMUM_PNPM) < 0;
+		Semver parsed = Semver.parse(version);
+		return parsed != null && parsed.compareTo(MINIMUM_PNPM_VERSION) < 0;
 	}
 
 	/**
