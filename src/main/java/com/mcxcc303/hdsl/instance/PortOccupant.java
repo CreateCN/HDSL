@@ -64,11 +64,15 @@ public final class PortOccupant {
 	 * The process holding a port.
 	 *
 	 * @param pid         the process id
+	 * @param name        the executable's name, or `null` when the platform would not say
 	 * @param commandLine the command line it was started with, or `null` when the platform
 	 *                    would not say
 	 * @param executable  the program alone, or `null` when the platform would not say
 	 */
-	public record Occupant(long pid, @Nullable String commandLine, @Nullable String executable) {
+	public record Occupant(long pid,
+	                       @Nullable String name,
+	                       @Nullable String commandLine,
+	                       @Nullable String executable) {
 	}
 
 	/**
@@ -117,14 +121,74 @@ public final class PortOccupant {
 			commandLine = handle.info().commandLine().orElse(null);
 			executable = handle.info().command().orElse(null);
 		}
+		// `ProcessHandle` reports nothing for a process of another user, and these do.
 		if (OperatingSystem.CURRENT_OS == OperatingSystem.LINUX) {
-			// `ProcessHandle` reports nothing for a process of another user, and `/proc` does.
 			String fromProc = linuxCommandLine(pid);
 			if (fromProc != null) {
 				commandLine = fromProc;
 			}
 		}
-		return new Occupant(pid, commandLine, executable);
+		String name = nameOf(commandLine);
+		if (name == null) {
+			name = nameOf(executable);
+		}
+		if (name == null && OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
+			name = imageNameFromTasklist(run(List.of("tasklist", "/FI", "PID eq " + pid, "/FO", "CSV", "/NH"), LOOKUP_TIMEOUT));
+		}
+		return new Occupant(pid, name, commandLine, executable);
+	}
+
+	/**
+	 * Returns the executable's name out of a command line or an executable path.
+	 *
+	 * The first token is taken quote-aware rather than by splitting on whitespace: a Windows
+	 * path with spaces arrives quoted, and splitting would turn
+	 * `"C:\\Program Files\\nodejs\\node.exe"` into `Program`.
+	 *
+	 * @param commandLine the command line, an executable path, or `null`
+	 * @return the executable's name, or `null` when none can be read
+	 */
+	static @Nullable String nameOf(@Nullable String commandLine) {
+		if (commandLine == null) {
+			return null;
+		}
+		String text = commandLine.trim();
+		if (text.isEmpty()) {
+			return null;
+		}
+		String first;
+		if (text.charAt(0) == '"') {
+			int end = text.indexOf('"', 1);
+			first = end > 0 ? text.substring(1, end) : text.substring(1);
+		} else {
+			first = text.split("\\s+", 2)[0];
+		}
+		int slash = Math.max(first.lastIndexOf('/'), first.lastIndexOf('\\'));
+		String name = (slash >= 0 ? first.substring(slash + 1) : first).trim();
+		return name.isEmpty() ? null : name;
+	}
+
+	/**
+	 * Returns the image name out of `tasklist` CSV output.
+	 *
+	 * The rows are read by shape: only a row that starts with a quoted field is a process, and
+	 * the notices `tasklist` prints instead are translated, so their wording says nothing.
+	 *
+	 * @param lines the output lines
+	 * @return the image name, or `null` when no row names one
+	 */
+	static @Nullable String imageNameFromTasklist(List<String> lines) {
+		for (String raw : lines) {
+			String line = raw.trim();
+			if (!line.startsWith("\"")) {
+				continue;
+			}
+			int end = line.indexOf('"', 1);
+			if (end > 1) {
+				return line.substring(1, end);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -389,17 +453,20 @@ public final class PortOccupant {
 	/**
 	 * A short form of the process, for a message that has a line to itself.
 	 *
-	 * The command line is preferred over the program alone, and anything past [#MAX_DESCRIBED]
-	 * is replaced by an ellipsis.
+	 * The command line is preferred over the name and the name over the program alone, and
+	 * anything past [#MAX_DESCRIBED] is replaced by an ellipsis.
 	 *
 	 * @param occupant the process
-	 * @return the text to show, or `null` when the platform named neither
+	 * @return the text to show, or `null` when the platform named nothing
 	 */
 	public static @Nullable String describe(@Nullable Occupant occupant) {
 		if (occupant == null) {
 			return null;
 		}
-		String text = occupant.commandLine() != null ? occupant.commandLine() : occupant.executable();
+		String text = occupant.commandLine() != null ? occupant.commandLine() : occupant.name();
+		if (text == null) {
+			text = occupant.executable();
+		}
 		if (text == null || text.isBlank()) {
 			return null;
 		}
