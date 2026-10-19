@@ -27,20 +27,15 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalLong;
-import java.util.Set;
+import java.util.*;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
 
 /**
  * Names the process holding a port.
- *
+ * <p>
  * The process is named as the platform found it; whether it may be stopped is not decided here.
- *
+ * <p>
  * Blocks: it reads the process table or runs a lookup command, so the caller must keep it off
  * the interface thread.
  */
@@ -69,15 +64,12 @@ public final class PortOccupant {
 	 *                    would not say
 	 * @param executable  the program alone, or `null` when the platform would not say
 	 */
-	public record Occupant(long pid,
-	                       @Nullable String name,
-	                       @Nullable String commandLine,
-	                       @Nullable String executable) {
-	}
+	public record Occupant(long pid, @Nullable String name, @Nullable String commandLine,
+	                       @Nullable String executable) {}
 
 	/**
 	 * Finds the process listening on a port.
-	 *
+	 * <p>
 	 * When more than one socket shares the port, only the first the platform lists is named.
 	 *
 	 * @param port the port
@@ -133,17 +125,14 @@ public final class PortOccupant {
 			name = nameOf(executable);
 		}
 		if (name == null && OperatingSystem.CURRENT_OS == OperatingSystem.WINDOWS) {
-			name = imageNameFromTasklist(run(List.of("tasklist", "/FI", "PID eq " + pid, "/FO", "CSV", "/NH"), LOOKUP_TIMEOUT));
+			name = imageNameFromTasklist(run(List.of("tasklist", "/FI", "PID eq " + pid, "/FO", "CSV", "/NH"),
+			                                 LOOKUP_TIMEOUT));
 		}
 		return new Occupant(pid, name, commandLine, executable);
 	}
 
 	/**
-	 * Returns the executable's name out of a command line or an executable path.
-	 *
-	 * The first token is taken quote-aware rather than by splitting on whitespace: a Windows
-	 * path with spaces arrives quoted, and splitting would turn
-	 * `"C:\\Program Files\\nodejs\\node.exe"` into `Program`.
+	 * Returns the name of the executable a command line or an executable path starts with.
 	 *
 	 * @param commandLine the command line, an executable path, or `null`
 	 * @return the executable's name, or `null` when none can be read
@@ -170,9 +159,6 @@ public final class PortOccupant {
 
 	/**
 	 * Returns the image name out of `tasklist` CSV output.
-	 *
-	 * The rows are read by shape: only a row that starts with a quoted field is a process, and
-	 * the notices `tasklist` prints instead are translated, so their wording says nothing.
 	 *
 	 * @param lines the output lines
 	 * @return the image name, or `null` when no row names one
@@ -221,9 +207,6 @@ public final class PortOccupant {
 	/**
 	 * Reads the listening pid out of `netstat -ano` output.
 	 *
-	 * The state column is not read: Windows translates it, so a German machine writes `ABHÖREN`
-	 * where an English one writes `LISTENING`.
-	 *
 	 * @param lines the output lines
 	 * @param port  the port to find
 	 * @return the pid, or empty when no row listens on it
@@ -236,6 +219,8 @@ public final class PortOccupant {
 				continue;
 			}
 			String[] fields = line.split("\\s+");
+			// The state column is translated by Windows, so it is not read.
+			// A listening row is the one whose protocol is `TCP` and whose foreign port is `0`.
 			if (fields.length < 5 || !"TCP".equalsIgnoreCase(fields[0])) {
 				continue;
 			}
@@ -267,7 +252,7 @@ public final class PortOccupant {
 
 	/**
 	 * Finds the listening pid on Linux out of `/proc`.
-	 *
+	 * <p>
 	 * `/proc/net/tcp` and its IPv6 sibling hold, per row, the local port and the socket's inode;
 	 * the pid is then the one whose descriptors include that inode.
 	 *
@@ -361,7 +346,7 @@ public final class PortOccupant {
 	 * Reports whether any descriptor in a process's `fd` directory is one of the sockets.
 	 *
 	 * @param descriptors the process's `fd` directory
-	 * @param inodes     the socket inodes to look for
+	 * @param inodes      the socket inodes to look for
 	 * @return whether the process holds one of them
 	 */
 	private static boolean holdsSocket(Path descriptors, Set<String> inodes) {
@@ -452,7 +437,7 @@ public final class PortOccupant {
 
 	/**
 	 * A short form of the process, for a message that has a line to itself.
-	 *
+	 * <p>
 	 * The command line is preferred over the name and the name over the program alone, and
 	 * anything past [#MAX_DESCRIBED] is replaced by an ellipsis.
 	 *
