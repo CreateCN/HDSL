@@ -85,8 +85,6 @@ public final class DshLaunchService {
 	/// failure: without this the task would still end unsuccessfully and the
 	/// user would be told the launch failed at the moment they cancelled it.
 	private static final Set<String> CANCELLED = ConcurrentHashMap.newKeySet();
-	/// How long a process that was asked to stop is given to let go of its port.
-	private static final Duration PORT_FREE_TIMEOUT = Duration.ofSeconds(5);
 	/// Instances whose port conflict is being asked about, so repeat activations do not stack dialogs.
 	private static final Set<String> PORT_PROMPTS = ConcurrentHashMap.newKeySet();
 
@@ -274,21 +272,20 @@ public final class DshLaunchService {
 			return;
 		}
 		// A launch that is already in flight owns its process and its port. Asking the port question
-		// about our own child would offer to stop the thing that is being started.
+		// about our own child would name the launch as the thing holding the port.
 		if (LAUNCHING.contains(instance.id())) {
 			return;
 		}
 
 		// The port is part of what the instance is, so a launch whose port is held is not moved
-		// elsewhere. It can still name the process holding it and, when that process is a DeepSeek
-		// Harness, offer to stop it; the launch begins once the port is free. Any other program is
-		// reported with the advice to give the instance another port.
+		// elsewhere. The dialog only names the process and its pid; the person frees the port or
+		// changes the instance's port and tries again.
 		int port = instance.portOrDefault();
 		if (port > 0 && !DshPorts.isFree(port)) {
 			if (!PORT_PROMPTS.add(instance.id())) {
 				return;
 			}
-			resolvePortConflict(instance, port, onDone, showOutput);
+			showPortHolder(instance, port, onDone, showOutput);
 			return;
 		}
 
@@ -381,173 +378,74 @@ public final class DshLaunchService {
 		executor.start();
 	}
 
-	/// Resolves a port that something else is holding, before a launch.
+	/// Shows which process holds the port an instance needs, and stops there.
 	///
-	/// The interface asks rather than decides: what is offered is the process that holds the port,
-	/// and stopping it is a button, not something that happens on its own. The inspection runs off
-	/// the interface thread because finding a process reads `/proc` or runs `netstat`/`lsof`.
+	/// The lookup runs off the interface thread because finding a process reads `/proc` or runs
+	/// `netstat`/`lsof`. Nothing is stopped and nothing is launched: the dialog only names the
+	/// process and its pid, and the person decides whether to close it or change the instance's
+	/// port.
 	///
 	/// @param instance   the instance that cannot start
 	/// @param port       the port it needs
-	/// @param onDone     run after the launch settles, or `null`
+	/// @param onDone     run after a launch settles, or `null`; used only when the port was freed
+	///                   while it was being looked up
 	/// @param showOutput whether to open the process's log window
-	private static void resolvePortConflict(DshInstance instance,
-	                                        int port,
-	                                        @Nullable Consumer<DshProcess> onDone,
-	                                        boolean showOutput) {
+	private static void showPortHolder(DshInstance instance,
+	                                   int port,
+	                                   @Nullable Consumer<DshProcess> onDone,
+	                                   boolean showOutput) {
 		CompletableFuture.supplyAsync(() -> inspectPort(instance, port), Schedulers.io())
-		                 .whenComplete((conflict, throwable) -> runInFX(() -> {
-			                 if (throwable != null || conflict == null) {
-				                 PORT_PROMPTS.remove(instance.id());
+		                 .whenComplete((lookup, throwable) -> runInFX(() -> {
+			                 if (throwable != null || lookup == null) {
 				                 LOG.warning("Could not inspect port " + port + " for " + instance.id(), throwable);
 				                 showPortTaken(instance, port);
 				                 return;
 			                 }
-			                 askAboutPortConflict(instance, port, conflict, onDone, showOutput);
+			                 if (lookup.free()) {
+				                 // The port was let go while the launch was being readied, so the launch
+				                 // the person asked for can start.
+				                 PORT_PROMPTS.remove(instance.id());
+				                 startLaunch(instance, onDone, showOutput);
+				                 return;
+			                 }
+			                 DshPortHolder.Holder holder = lookup.holder();
+			                 if (holder == null) {
+				                 showPortTaken(instance, port);
+				                 return;
+			                 }
+			                 showPortHolderDialog(instance, port, holder);
 		                 }));
 	}
 
-	/// Describes the process holding a port, as far as the platform will say.
+	/// Finds the process holding a port, without acting on it.
 	///
 	/// @param instance the instance that cannot start
 	/// @param port     the port it needs
-	/// @return what was found
-	private static PortConflict inspectPort(DshInstance instance, int port) {
+	/// @return whether the launch can start, and the process holding the port when it cannot
+	private static PortLookup inspectPort(DshInstance instance, int port) {
 		// Only the browser surface binds a port; an instance that boots anything else is not
 		// waiting on this one, however its record was written.
-		if (!DshSurface.of(instance).isWeb()) {
-			return new PortConflict(true, null, null, null);
+		if (!DshSurface.of(instance).isWeb() || DshPorts.isFree(port)) {
+			return new PortLookup(true, null);
 		}
-		// The port may have been let go while the launch was being readied.
-		if (DshPorts.isFree(port)) {
-			return new PortConflict(true, null, null, null);
-		}
-
-		DshPortHolder.Holder holder = DshPortHolder.find(port).orElse(null);
-		String managedInstance = null;
-		if (holder != null) {
-			for (DshProcessManager.Running running : DshProcessManager.running()) {
-				if (running.pid() == holder.pid()) {
-					managedInstance = running.instanceId();
-					break;
-				}
-			}
-		}
-		DshPortHolder.Identification identification =
-				DshPortHolder.identify(holder == null ? null : holder.commandLine(), instance);
-		return new PortConflict(false, holder, managedInstance, identification);
+		return new PortLookup(false, DshPortHolder.find(port).orElse(null));
 	}
 
-	/// Asks what to do about a port that something else is holding.
+	/// Names the process holding the port, and offers no action beyond dismissing the dialog.
 	///
-	/// @param instance   the instance that cannot start
-	/// @param port       the port it needs
-	/// @param conflict   what was found
-	/// @param onDone     run after the launch settles, or `null`
-	/// @param showOutput whether to open the process's log window
-	private static void askAboutPortConflict(DshInstance instance,
-	                                         int port,
-	                                         PortConflict conflict,
-	                                         @Nullable Consumer<DshProcess> onDone,
-	                                         boolean showOutput) {
-		String id = instance.id();
-		if (conflict.free()) {
-			PORT_PROMPTS.remove(id);
-			startLaunch(instance, onDone, showOutput);
-			return;
-		}
-		if (conflict.managedInstance() != null) {
-			// Another instance the launcher knows is running has its own stop, which also keeps the
-			// launcher's own records straight, so this prompt does not take that pid into its hands.
-			PORT_PROMPTS.remove(id);
-			Controllers.dialog(i18n("dsh.launch.port_managed", conflict.managedInstance(), port),
-			                   i18n("dsh.launch.port_prompt.title"), MessageType.WARNING);
-			return;
-		}
-
-		DshPortHolder.Holder holder = conflict.holder();
-		if (holder == null) {
-			PORT_PROMPTS.remove(id);
-			showPortTaken(instance, port);
-			return;
-		}
-		if (holder.pid() == ProcessHandle.current().pid()) {
-			PORT_PROMPTS.remove(id);
-			showPortTaken(instance, port);
-			return;
-		}
-
-		DshPortHolder.Identification identification = conflict.identification();
-		DshPortHolder.Origin origin = identification == null
-		                              ? DshPortHolder.Origin.UNKNOWN
-		                              : identification.origin();
-		LOG.info("Port " + port + " for instance " + id + " is held by pid " + holder.pid() +
-		         " (" + (holder.commandLine() == null ? "command line unavailable" : holder.commandLine()) +
-		         "), identified as " + origin +
-		         (identification == null || identification.instanceId() == null
-		          ? "" : " for instance " + identification.instanceId()));
-
-		// A program that is not a DeepSeek Harness, or one whose command line could not be read, is
-		// the person's to deal with. Stopping it is not offered: the launcher cannot prove what it
-		// would be stopping, and an instance port is changed in the instance's own settings.
-		if (origin == DshPortHolder.Origin.NOT_DSH || origin == DshPortHolder.Origin.UNKNOWN) {
-			PORT_PROMPTS.remove(id);
-			showPortTaken(instance, port);
-			return;
-		}
-
-		String body = switch (origin) {
-			case THIS_INSTANCE -> i18n("dsh.launch.port_this_instance", port, holder.pid());
-			case OTHER_INSTANCE -> i18n("dsh.launch.port_other_instance", port,
-			                            identification.instanceId(), holder.pid());
-			default -> i18n("dsh.launch.port_dsh_elsewhere", port, holder.pid());
-		};
+	/// @param instance the instance that cannot start
+	/// @param port     the port it needs
+	/// @param holder   the process holding it
+	private static void showPortHolderDialog(DshInstance instance, int port, DshPortHolder.Holder holder) {
+		String name = holder.name() == null ? i18n("dsh.launch.port_holder.unknown") : holder.name();
+		String body = i18n("dsh.launch.port_holder", port, name, holder.pid());
+		LOG.info("Port " + port + " for instance " + instance.id() + " is held by pid " + holder.pid() +
+		         " (" + name + "); waiting for the person to free it or change the port");
 		Controllers.dialog(new MessageDialogPane.Builder(body,
 		                                                  i18n("dsh.launch.port_prompt.title"),
-		                                                  MessageType.QUESTION)
-				                   .addAction(i18n("dsh.launch.port_stop_dsh"),
-				                              () -> killAndContinue(instance, port, holder, onDone, showOutput))
-				                   .addCancel(i18n("button.cancel"), () -> PORT_PROMPTS.remove(id))
+		                                                  MessageType.WARNING)
+				                   .ok(() -> PORT_PROMPTS.remove(instance.id()))
 				                   .build());
-	}
-
-	/// Stops the process holding a port, and continues the launch once the port is free.
-	///
-	/// @param instance   the instance that cannot start
-	/// @param port       the port it needs
-	/// @param holder     the process to stop
-	/// @param onDone     run after the launch settles, or `null`
-	/// @param showOutput whether to open the process's log window
-	private static void killAndContinue(DshInstance instance,
-	                                    int port,
-	                                    DshPortHolder.Holder holder,
-	                                    @Nullable Consumer<DshProcess> onDone,
-	                                    boolean showOutput) {
-		CompletableFuture.supplyAsync(() -> {
-			DshPortHolder.KillResult result = DshPortHolder.kill(holder);
-			boolean free = result == DshPortHolder.KillResult.KILLED ||
-			               result == DshPortHolder.KillResult.NOT_RUNNING;
-			if (free) {
-				free = DshPortHolder.awaitFree(port, PORT_FREE_TIMEOUT);
-			}
-			return new KillOutcome(result, free);
-		}, Schedulers.io()).whenComplete((outcome, throwable) -> runInFX(() -> {
-			PORT_PROMPTS.remove(instance.id());
-			if (throwable != null || outcome == null) {
-				LOG.warning("Could not stop the process holding port " + port, throwable);
-				Controllers.dialog(i18n("dsh.launch.port_stop_failed", port),
-				                   i18n("dsh.launch.port_prompt.title"), MessageType.WARNING);
-				return;
-			}
-			if (outcome.free()) {
-				startLaunch(instance, onDone, showOutput);
-				return;
-			}
-			boolean stopped = outcome.result() == DshPortHolder.KillResult.KILLED ||
-			                  outcome.result() == DshPortHolder.KillResult.NOT_RUNNING;
-			Controllers.dialog(i18n(stopped ? "dsh.launch.port_still_in_use" : "dsh.launch.port_stop_failed", port),
-			                   i18n("dsh.launch.port_prompt.title"), MessageType.WARNING);
-		}));
 	}
 
 	/// Says the port is taken without naming who took it.
@@ -555,27 +453,16 @@ public final class DshLaunchService {
 	/// @param instance the instance that cannot start
 	/// @param port     the port it needs
 	private static void showPortTaken(DshInstance instance, int port) {
+		PORT_PROMPTS.remove(instance.id());
 		Controllers.dialog(i18n("dsh.launch.port_taken", port, instance.id()),
 		                   i18n("dsh.launch.port_prompt.title"), MessageType.WARNING);
 	}
 
 	/// What was found on the port an instance needs.
 	///
-	/// @param free            whether the launch can start now
-	/// @param holder          the process holding it, or `null` when it could not be identified
-	/// @param managedInstance the running instance the process belongs to, or `null`
-	/// @param identification  what kind of program the process was found to be
-	private record PortConflict(boolean free,
-	                            @Nullable DshPortHolder.Holder holder,
-	                            @Nullable String managedInstance,
-	                            DshPortHolder.Identification identification) {
-	}
-
-	/// What became of an attempt to stop a process.
-	///
-	/// @param result what the attempt returned
-	/// @param free   whether the port was free again afterwards
-	private record KillOutcome(DshPortHolder.KillResult result, boolean free) {
+	/// @param free   whether the launch can start now
+	/// @param holder the process holding it, or `null` when it could not be identified
+	private record PortLookup(boolean free, @Nullable DshPortHolder.Holder holder) {
 	}
 
 	/// Reports how a launch ended and hands the process back.
