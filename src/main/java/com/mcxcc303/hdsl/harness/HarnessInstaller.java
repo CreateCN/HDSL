@@ -23,6 +23,7 @@ import com.google.gson.JsonObject;
 import com.mcxcc303.hdsl.core.DshCommand;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.core.DshFiles;
+import com.mcxcc303.hdsl.core.Semver;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.plugin.DshDependencyPolicy;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
@@ -36,6 +37,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static org.jackhuang.hmcl.util.logging.Logger.LOG;
@@ -55,6 +57,9 @@ public final class HarnessInstaller {
 	/// A scalar beginning with one of these is an indicator to the reader rather than text, so
 	/// anything starting with one has to be quoted.
 	private static final String RESERVED_FIRST = "-?:,[]{}#&*!|>'\"%@`";
+
+	/** The oldest pnpm that can install DeepSeek Harness */
+	private static final Semver MINIMUM_PNPM_VERSION = Objects.requireNonNull(Semver.parse(DshNodeRuntime.MINIMUM_PNPM));
 
 	private HarnessInstaller() {
 	}
@@ -295,6 +300,36 @@ public final class HarnessInstaller {
 		}
 	}
 
+	/**
+	 * Reports whether a pnpm version is known to be below {@link DshNodeRuntime#MINIMUM_PNPM}
+	 * <p>
+	 * A null or unreadable version is not old; only a version that can be read is refused.
+	 *
+	 * @param version the reported pnpm version, or null
+	 * @return whether the version is known to be too old
+	 */
+	static boolean isPnpmTooOld(@Nullable String version) {
+		if (version == null) {
+			return false;
+		}
+		Semver parsed = Semver.parse(version);
+		return parsed != null && parsed.compareTo(MINIMUM_PNPM_VERSION) < 0;
+	}
+
+	/**
+	 * Refuses a pnpm older than {@link DshNodeRuntime#MINIMUM_PNPM}
+	 *
+	 * @param runtime the runtime to install with
+	 * @throws DshException when its pnpm is too old
+	 */
+	static void requireSupportedPnpm(DshNodeRuntime runtime) throws DshException {
+		if (isPnpmTooOld(runtime.pnpmVersion())) {
+			throw new DshException("pnpm " + runtime.pnpmVersion() +
+			                       " is too old; installing DeepSeek Harness requires pnpm " +
+			                       DshNodeRuntime.MINIMUM_PNPM + " or newer");
+		}
+	}
+
 	/// Builds the command that installs a project's dependencies with pnpm.
 	///
 	/// Three decisions are in here.
@@ -357,6 +392,7 @@ public final class HarnessInstaller {
 		if (!runtime.canManagePlugins()) {
 			throw new DshException("pnpm was not found on PATH; installing DeepSeek Harness requires it");
 		}
+		requireSupportedPnpm(runtime);
 
 		try {
 			if (Files.exists(staging)) {

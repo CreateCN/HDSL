@@ -18,6 +18,7 @@
 package com.mcxcc303.hdsl.harness;
 
 import com.mcxcc303.hdsl.core.DshException;
+import com.mcxcc303.hdsl.core.Semver;
 import com.mcxcc303.hdsl.runtime.DshNodeRuntime;
 import org.jetbrains.annotations.NotNullByDefault;
 import org.jetbrains.annotations.Nullable;
@@ -98,48 +99,15 @@ public final class VersionOrder {
 		}
 	}
 
-	/// Compares two version strings that may carry pre-release suffixes.
-	///
-	/// This is deliberately a small numeric comparison rather than a full
-	/// implementation of semantic-version precedence: the launcher only needs a
-	/// stable, sensible ordering for its version list.
-	///
-	/// @param left  the first version
-	/// @param right the second version
-	/// @return a negative value, zero or a positive value as `left` sorts before, with or after `right`
+	/**
+	 * Compares two version strings with semantic-version precedence.
+	 *
+	 * @param left  the first version
+	 * @param right the second version
+	 * @return negative, zero or positive as {@code left} sorts before, equal to or after {@code right}
+	 */
 	public static int compareVersions(String left, String right) {
-		int[] a = numericPrefix(left);
-		int[] b = numericPrefix(right);
-		for (int i = 0; i < 3; i++) {
-			int result = Integer.compare(a[i], b[i]);
-			if (result != 0) {
-				return result;
-			}
-		}
-		boolean leftPre = left.contains("-");
-		boolean rightPre = right.contains("-");
-		if (leftPre != rightPre) {
-			// A release outranks any pre-release with the same numeric prefix.
-			return leftPre ? -1 : 1;
-		}
-		return left.compareTo(right);
-	}
-
-	/// Extracts up to three leading numeric components from a version string.
-	///
-	/// @param version the version string
-	/// @return a three-element array, zero-filled when components are missing
-	private static int[] numericPrefix(String version) {
-		int[] result = new int[3];
-		String[] parts = version.split("[.\\-+]");
-		for (int i = 0; i < Math.min(3, parts.length); i++) {
-			try {
-				result[i] = Integer.parseInt(parts[i]);
-			} catch (NumberFormatException e) {
-				result[i] = 0;
-			}
-		}
-		return result;
+		return Semver.compare(left, right);
 	}
 
 	/// The published versions of the lockstep package, and the oldest of them.

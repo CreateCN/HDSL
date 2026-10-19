@@ -22,12 +22,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/// The order two versions sort in.
-///
-/// The comparison is deliberately a small numeric one rather than semantic-version precedence, so
-/// what it *does* is worth pinning: the numbers first, then a release over its pre-releases, then
-/// the name itself.  The launcher sorts its version list with this, and marks the releases the
-/// lockstep package never had a twin for.
+/**
+ * The order two versions sort in.
+ * <p>
+ * The comparison is the shared semver rule: the numbers first, a release over its prereleases,
+ * and prerelease identifiers compared as numbers or names. The launcher sorts its version lists
+ * with this, and marks the releases the lockstep package never had a twin for.
+ */
 class VersionOrderTest {
 
 	@Test

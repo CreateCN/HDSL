@@ -95,6 +95,29 @@ public final class DshCommand {
 	                         @Nullable Path directory,
 	                         Map<String, String> environment,
 	                         @Nullable Consumer<String> onLine) throws IOException, InterruptedException {
+		return run(command, null, directory, environment, onLine);
+	}
+
+	/**
+	 * Runs a command that has to answer within a bound, waiting for it to finish.
+	 *
+	 * A command stopped for running out of time is killed rather than asked to stop, so its
+	 * [#exitCode()] is not a code the program reported.
+	 *
+	 * @param command     the program and its arguments
+	 * @param timeout     how long the command is given, or `null` to wait for it however long it takes
+	 * @param directory   the working directory, or `null` for the current one
+	 * @param environment extra environment variables
+	 * @param onLine      a consumer notified of every output line, or `null`
+	 * @return the command result
+	 * @throws IOException          when the process cannot be started
+	 * @throws InterruptedException when the calling thread is interrupted while waiting
+	 */
+	public static Result run(List<String> command,
+	                         @Nullable Duration timeout,
+	                         @Nullable Path directory,
+	                         Map<String, String> environment,
+	                         @Nullable Consumer<String> onLine) throws IOException, InterruptedException {
 		ProcessBuilder builder = new ProcessBuilder(command);
 		// What the launcher is configured to download through travels with every child, so a
 		// proxy covers the version lists and the plugin installs alike.
@@ -129,7 +152,16 @@ public final class DshCommand {
 		});
 
 		try {
-			int exitCode = running.waitFor();
+			int exitCode;
+			if (timeout == null) {
+				exitCode = running.waitFor();
+			} else if (running.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+				exitCode = running.exitValue();
+			} else {
+				killTree(running);
+				process.destroyRelatedThreads();
+				return new Result(0, List.of(), true);
+			}
 			// The process has ended, but its output has not necessarily been read: the line it
 			// wrote last is still in the pipe, and the thread reading it is a scheduling delay
 			// away from handing it over. Interrupting that thread instead of waiting for it
@@ -154,6 +186,21 @@ public final class DshCommand {
 			throw e;
 		} finally {
 			RUNNING.remove(running);
+		}
+	}
+
+	/**
+	 * Kills a program and everything it started, without asking it to stop.
+	 *
+	 * @param process the program to kill
+	 */
+	private static void killTree(Process process) {
+		process.descendants().forEach(ProcessHandle::destroyForcibly);
+		process.destroyForcibly();
+		try {
+			process.waitFor(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
 		}
 	}
 
@@ -190,16 +237,30 @@ public final class DshCommand {
 		RUNNING.clear();
 	}
 
-	/// The result of a finished command.
-	///
-	/// @param exitCode the process exit code
-	/// @param output   every stdout and stderr line, in arrival order
-	public record Result(int exitCode, @Unmodifiable List<String> output) {
+	/**
+	 * The result of a finished command.
+	 *
+	 * @param exitCode the process exit code
+	 * @param output   every stdout and stderr line, in arrival order
+	 * @param timedOut whether the command was stopped for running out of time, in which case
+	 *                  its exit code is not one the process ever reported
+	 */
+	public record Result(int exitCode, @Unmodifiable List<String> output, boolean timedOut) {
+		/**
+		 * Creates a result of a command that finished on its own.
+		 *
+		 * @param exitCode the process exit code
+		 * @param output   every stdout and stderr line, in arrival order
+		 */
+		public Result(int exitCode, @Unmodifiable List<String> output) {
+			this(exitCode, output, false);
+		}
+
 		/// Returns whether the command exited successfully.
 		///
 		/// @return whether the exit code is zero
 		public boolean isSuccess() {
-			return exitCode == 0;
+			return exitCode == 0 && !timedOut;
 		}
 
 		/// Returns the captured output joined by newlines.
