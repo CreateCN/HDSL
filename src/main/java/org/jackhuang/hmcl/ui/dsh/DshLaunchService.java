@@ -22,6 +22,7 @@ import com.mcxcc303.hdsl.account.DshAccountRoute;
 import com.mcxcc303.hdsl.core.DshException;
 import com.mcxcc303.hdsl.instance.DshInstance;
 import com.mcxcc303.hdsl.instance.DshPorts;
+import com.mcxcc303.hdsl.instance.PortOccupant;
 import com.mcxcc303.hdsl.launch.DshLauncher;
 import com.mcxcc303.hdsl.launch.DshLauncherVisibility;
 import com.mcxcc303.hdsl.launch.DshProcess;
@@ -372,14 +373,20 @@ public final class DshLaunchService {
 				LOG.info("Launch of " + instance.id() + " was stopped before it was ready");
 			} else {
 				LOG.warning("Failed to launch instance " + instance.id(), failure);
-				boolean portTaken = portOf(failure) > 0;
-				if (portTaken) {
-					// A port that is already taken is not a crash: it is a setting to change, and
-					// the message already says which. The crash dialog would add a log tail about
-					// nothing.
-					Controllers.dialog(failureMessage(instance, failure),
-					                   i18n("dsh.launch.failed"),
-					                   MessageType.WARNING);
+				int taken = portOf(failure);
+				if (taken > 0) {
+					// A taken port is a setting to change, so it gets the warning dialog rather than
+					// the crash one. The holder is looked up off the interface thread, and left
+					// unnamed when that lookup fails.
+					CompletableFuture.supplyAsync(() -> PortOccupant.find(taken), Schedulers.io())
+					                 .whenComplete((occupant, throwable) -> runInFX(() -> {
+						                 if (throwable != null) {
+							                 LOG.info("Could not name the process holding port " + taken, throwable);
+						                 }
+						                 Controllers.dialog(failureMessage(instance, failure, occupant == null ? null : occupant.orElse(null)),
+							                 i18n("dsh.launch.failed"),
+							                 MessageType.WARNING);
+					                 }));
 				} else {
 					// It never got as far as a process, so there is no output to show — but the
 					// reason is the launcher's own and the dialog is still the place a person looks
@@ -490,11 +497,30 @@ public final class DshLaunchService {
 	/// @param failure  the failure the launch ended with, or `null`
 	/// @return the message to show
 	private static String failureMessage(DshInstance instance, @Nullable Exception failure) {
+		return failureMessage(instance, failure, null);
+	}
+
+	/**
+	 * Describes a port failure, naming what holds the port when that is known. The occupant is
+	 * shown as it was found; whether it may be stopped is not decided here.
+	 *
+	 * @param instance the instance that could not start
+	 * @param failure  the failure the launch ended with, or `null`
+	 * @param occupant the process holding the port, or `null` when it could not be named
+	 * @return the message to show
+	 */
+	private static String failureMessage(DshInstance instance,
+	                                     @Nullable Exception failure,
+	                                     @Nullable PortOccupant.Occupant occupant) {
 		int port = portOf(failure);
-		if (port > 0) {
+		if (port <= 0) {
+			return failure == null ? i18n("dsh.launch.failed") : failure.getMessage();
+		}
+		String description = PortOccupant.describe(occupant);
+		if (description == null) {
 			return i18n("dsh.launch.port_taken", port, instance.id());
 		}
-		return failure == null ? i18n("dsh.launch.failed") : failure.getMessage();
+		return i18n("dsh.launch.port_taken_by", port, description, occupant.pid(), instance.id());
 	}
 
 	/// Finds the port a failure is about, if it is about one.
